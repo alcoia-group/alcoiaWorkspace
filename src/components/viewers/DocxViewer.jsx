@@ -1,3 +1,4 @@
+import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
 import { useEffect, useRef, useState } from 'react';
 
 // Word-style viewer for the server's structured DOCX model. It renders real
@@ -71,6 +72,8 @@ export default function DocxViewer({ content, title, asset, onDownload }) {
   const [zoomIndex, setZoomIndex] = useState(2);
   const [current, setCurrent] = useState(1);
   const pageRefs = useRef([]);
+  const fs = useFullscreen();
+  const controlsVisible = useIdleControls(fs.active);
 
   useEffect(() => {
     // Track which page is most visible for "Page n of N".
@@ -92,7 +95,7 @@ export default function DocxViewer({ content, title, asset, onDownload }) {
   }, [pages.length, zoomIndex]);
 
   return (
-    <div className="viewer" style={{ '--z': ZOOM_STEPS[zoomIndex] }}>
+    <div className="viewer" style={{ '--z': ZOOM_STEPS[zoomIndex] }} data-idle={fs.active && !controlsVisible ? 'true' : undefined}>
       <div className="viewer-toolbar" role="toolbar" aria-label="Document controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Page {current} of {pages.length}</span>
@@ -100,6 +103,7 @@ export default function DocxViewer({ content, title, asset, onDownload }) {
           <button type="button" className="secondary" onClick={() => setZoomIndex((z) => Math.max(0, z - 1))} disabled={zoomIndex === 0} aria-label="Zoom out">−</button>
           <span className="viewer-zoom">{Math.round(ZOOM_STEPS[zoomIndex] * 100)}%</span>
           <button type="button" className="secondary" onClick={() => setZoomIndex((z) => Math.min(ZOOM_STEPS.length - 1, z + 1))} disabled={zoomIndex === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
+          <button type="button" className="secondary" onClick={fs.toggle}>{fs.active ? 'Exit full screen' : 'Full screen'}</button>
           {onDownload && <button type="button" className="secondary" onClick={onDownload}>Download</button>}
         </span>
       </div>

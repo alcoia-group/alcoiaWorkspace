@@ -200,10 +200,14 @@ button.secondary, .button.secondary { background: transparent; color: var(--text
 /* ── Slide viewer ─────────────────────────────────────────────────────── */
 .slides-body { display: flex; background: var(--paper-sunk); min-height: calc(100svh - 110px); }
 .slides-rail { width: 220px; flex: none; overflow-y: auto; max-height: calc(100svh - 110px); padding: 12px 8px; border-right: 1px solid var(--card-border); background: var(--paper); }
-.rail-item { display: flex; gap: 8px; width: 100%; text-align: left; background: transparent; color: var(--ink); border: 1px solid transparent; border-radius: 8px; padding: 8px; font-weight: 500; font-size: 13px; }
+.rail-item { display: flex; align-items: flex-start; gap: 8px; width: 100%; text-align: left; background: transparent; color: var(--ink); border: 1px solid transparent; border-radius: 8px; padding: 6px 6px 6px 4px; font-weight: 500; font-size: 12px; }
 .rail-item.current { background: var(--lilac-wash); border-color: var(--lilac); }
-.rail-no { color: var(--ink-faint); min-width: 1.5em; }
-.rail-title { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.rail-no { color: var(--ink-faint); min-width: 1.6em; text-align: right; padding-top: 2px; }
+.rail-thumb { position: relative; flex: 1; min-width: 0; display: block; overflow: hidden; border: 1px solid var(--field-border); container-type: inline-size; pointer-events: none; }
+.rail-thumb .slide { position: absolute; inset: 0; }
+/* a thumbnail is a picture: its text is painted from a data attribute, not present as DOM text */
+.slide-thumb span[data-t]::before { content: attr(data-t); }
+.slide-thumb { user-select: none; }
 .slides-stage-wrap { flex: 1; min-width: 0; padding: 24px 16px 48px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .slides-stage { position: relative; width: min(100%, 1100px); background: #fff; border: 1px solid var(--field-border); overflow: hidden; }
 .slide-layer { position: absolute; inset: 0; }
@@ -225,3 +229,33 @@ button.secondary, .button.secondary { background: transparent; color: var(--text
   .slides-rail { width: auto; max-height: 120px; display: flex; overflow-x: auto; overflow-y: hidden; border-right: 0; border-bottom: 1px solid var(--card-border); }
   .rail-item { width: 160px; flex: none; }
 }
+
+/* ── Full screen (any viewer). <html> carries .is-fullscreen ─────────── */
+html.is-fullscreen body { overflow: hidden; }
+html.is-fullscreen .viewer { position: fixed; inset: 0; z-index: 40; background: var(--paper-sunk); overflow: auto; }
+html.is-fullscreen .viewer-toolbar { transition: opacity 0.25s; }
+html.is-fullscreen .viewer[data-idle='true'] .viewer-toolbar { opacity: 0; pointer-events: none; }
+html.is-fullscreen .viewer[data-idle='true'] { cursor: none; }
+html.is-fullscreen .viewer-stage { min-height: 100svh; }
+/* slideshow: the slide alone, as large as fits, on black */
+html.is-fullscreen .slides-viewer { background: #000; overflow: hidden; }
+html.is-fullscreen .slides-viewer .viewer-toolbar { position: fixed; left: 0; right: 0; top: 0; z-index: 5; background: rgba(0, 0, 0, 0.72); border-bottom: 0; color: #fff; }
+html.is-fullscreen .slides-viewer .viewer-title,
+html.is-fullscreen .slides-viewer .viewer-pageno { color: #fff; }
+html.is-fullscreen .slides-viewer .viewer-toolbar button.secondary { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+html.is-fullscreen .slides-viewer .slides-body { display: block; background: #000; min-height: 100svh; }
+html.is-fullscreen .slides-viewer .slides-rail { display: none; }
+html.is-fullscreen .slides-stage-wrap { position: fixed; inset: 0; padding: 0; display: flex; align-items: center; justify-content: center; }
+html.is-fullscreen .slides-stage { width: min(100vw, calc(100svh * var(--slide-ratio, 1.7778))); max-width: none; border: 0; cursor: pointer; }
+
+/* ── PDF viewer ──────────────────────────────────────────────────────── */
+.slides-rail { position: sticky; top: 52px; align-self: flex-start; }
+.pdf-body { align-items: flex-start; }
+.pdf-stage { flex: 1; min-width: 0; min-height: calc(100svh - 110px); }
+.pdf-page { position: relative; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.18); flex: none; max-width: none; }
+.pdf-canvas { display: block; position: absolute; top: 0; left: 0; }
+.pdf-page .textLayer { position: absolute; inset: 0; }
+.pdf-thumb canvas { display: block; width: 100%; height: auto; }
+.pdf-thumb { background: #fff; }
+html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: 100svh; }
+@media (max-width: 800px) { .slides-rail { position: static; } .pdf-body { flex-direction: column; } }

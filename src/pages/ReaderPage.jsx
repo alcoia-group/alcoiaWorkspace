@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { fetchDocument, fetchDownloadUrl, fetchMyAssignments } from '../lib/assignments.js';
 import DocxViewer from '../components/viewers/DocxViewer.jsx';
 import SlideViewer from '../components/viewers/SlideViewer.jsx';
+// pdf.js is large; only load it for a PDF.
+const PdfViewer = lazy(() => import('../components/viewers/PdfViewer.jsx'));
 
-// The reader. Word documents (DocxViewer) and PowerPoint decks (SlideViewer)
-// render in the page; a format the server cannot render yet (PDF for now) or a document that
-// failed to convert falls back to the original download, said plainly.
+// The reader. Word documents (DocxViewer), PowerPoint decks (SlideViewer) and
+// PDFs (PdfViewer) render in the page; a document the server cannot read (a
+// scanned PDF, a failed conversion) falls back to the original download, said plainly.
 // A 401 means the session ended (reader sessions are time-limited): the
 // student is sent to sign in and brought straight back here.
 export default function ReaderPage() {
@@ -62,15 +64,17 @@ export default function ReaderPage() {
   }
   if (state.status === 'ready' && state.doc?.content) {
     const { assignment, doc } = state;
-    const Viewer = doc.content.format === 'pptx' ? SlideViewer : DocxViewer;
+    const Viewer = { pptx: SlideViewer, pdf: PdfViewer }[doc.content.format] ?? DocxViewer;
     return (
       <section className="app-main wide">
-        <Viewer
-          content={doc.content}
-          title={assignment.className}
-          asset={{ assignmentId, sessionToken: session.sessionToken }}
-          onDownload={() => handleDownload(doc.documentId)}
-        />
+        <Suspense fallback={<p style={{ padding: '24px' }}>Loading…</p>}>
+          <Viewer
+            content={doc.content}
+            title={assignment.className}
+            asset={{ assignmentId, sessionToken: session.sessionToken }}
+            onDownload={() => handleDownload(doc.documentId)}
+          />
+        </Suspense>
         {downloadError && <p className="status-line status-error" style={{ padding: '0 24px' }}>Could not get the download link.</p>}
       </section>
     );

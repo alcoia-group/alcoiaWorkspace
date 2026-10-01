@@ -28,14 +28,29 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
 - `/a/:assignmentId`: **Word documents render in the page** (`DocxViewer`): page frames on a neutral
   ground, headings, bold/italic/underline, links (http/https/mailto only), bullet and numbered lists,
   tables, a toolbar with "Page n of N", zoom and download. Real `<h*>/<p>/<ul>/<table>` DOM, so the extension
-  can read it. Anything the server cannot render yet (PDF, PowerPoint, a failed conversion, or a pending
+  can read it. Anything the server cannot render yet (a scanned PDF with no text, a failed conversion, or a pending
   server deploy) shows the assignment with a plain "can't be shown in the page yet" and a download button.
   Pictures show a labelled placeholder (bytes not served yet).
 - **PowerPoint decks render as a slide deck** (`SlideViewer`): the file's own aspect ratio, positioned text boxes
   with the file's text sizes (scaled with the slide), colours, fonts and bullets, tables, pictures, a slide list,
-  Previous/Next, arrow/PageUp/PageDown/Space/Home/End keys, full screen, and the file's own **slide
-  transitions** (fade, push, wipe, split, cover, uncover, zoom, cut; anything else plays as a fade and says so).
-  A transition belongs to the slide being entered; going back plays a short fade; reduced-motion skips them.
+  Previous/Next, arrow/PageUp/PageDown/Space/Enter/Home/End/F keys, swipe, and the file's own **slide
+  transitions**. Nothing about transitions is hard coded: the server reports the file's transition name and
+  options (and the file's own fallback); `src/lib/transitions.js` draws the names it knows (fade incl. through
+  black, push, wipe, split, cover, pull, zoom, circle, diamond, cut). A name it does not know uses the file's
+  fallback if that is known, else the slide changes instantly and a note says so; never a look-alike. A
+  transition belongs to the slide being entered; going back plays the leaving slide's transition in reverse;
+  reduced-motion skips them. The slide list shows **real miniature previews** (text painted by CSS from a data
+  attribute, so it is not duplicated DOM text for the extension).
+- **Full screen** (`lib/fullscreen.js`) works in every viewer. It fullscreens the whole page (`<html>`), not one
+  element, so the extension's own UI stays visible; where the Fullscreen API is missing (iPhone Safari) the same
+  layout fills the window. PowerPoint becomes a slideshow on black (largest slide that fits, click / right third
+  advances, left third goes back, controls fade when the pointer is still); Word and PDF fill the screen with
+  the same fading toolbar.
+- **PDFs display as PDFs** (`PdfViewer`): the original file is fetched with the session header
+  (`GET .../document/file`) and drawn by pdf.js (the **legacy** build, on purpose: the standard one needs very
+  recent browser features) as a canvas with pdf.js's transparent `.textLayer` on top, so the words are real DOM
+  text for the extension. Pages draw only near the screen; page thumbnails, zoom, "Page n of N", download,
+  full screen. pdf.js loads only for a PDF (code-split).
   Slides that advance by timer do so. Text is real `<p>`, bullet glyphs come from CSS (not part of the text).
   Not shown: entrance/emphasis animations, charts, SmartArt, video (labelled placeholders).
 - Pictures inside Word and PowerPoint files load through an authenticated fetch (`lib/assets.js`), because an
@@ -52,10 +67,11 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
 
 ## Known gaps (all need `alcoiaServer` work; none are fixable here without inventing a contract)
 
-1. **DOCX and PPTX render in the page; PDF does not yet.** `GET /api/assignments/:id/document` and
-   `.../document/asset` (server branches `claude/document-content-docx` and `claude/document-content-pptx`,
-   unmerged, stacked on `claude/reader-handoff-session`) return structured models, not HTML. **PDF** (pdf.js,
-   `pdfjs-dist` approved) is next; until then it falls back to download. Entrance animations are not built.
+1. **DOCX, PPTX and PDF render in the page, but need the server branches deployed.** `GET
+   /api/assignments/:id/document`, `.../document/asset` and `.../document/file` (server branches
+   `claude/document-content-docx`, `...-pptx`, `claude/pdf-and-status-fixes`, stacked on
+   `claude/reader-handoff-session`, unmerged). Old uploads keep a stale `unsupported` status until the server
+   corrects it on first read or `npm run documents:reconvert` is run there. Entrance animations are not built.
 2. **Invite disclosure can't be shown before joining.** `POST /api/invites/accept` returns only
    `{ classId, seatId, role }`; the class and roster reads are staff-only. A student must be told the
    reporting mode before joining. Needs an invite-preview read (token in, class name + reportingMode out).
