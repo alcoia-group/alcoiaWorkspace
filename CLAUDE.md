@@ -76,6 +76,12 @@ chrome; Word pages keep a serif because that is how a Word page looks. Plain wor
 could not be loaded"), no em dashes. Dates are written the way a course page does ("Dec 4, 2026 at 11:59 PM"),
 helpers in `src/lib/format.js`.
 
+**Logo:** `src/components/Logo.jsx` uses the cream-tile wordmark (`src/assets/img/alcoia-logo.png`, copied from
+alcoiaConsole's `alcoia-wordmark-cream.png`) in the top bar and above the sign-in box. It is the variant on purpose:
+the tile carries its own cream ground, so it stays visible on the dark bar, the grey page and white boxes. The
+plain wordmark has black letters on a transparent ground and disappears on the dark bar; the white-letters one
+disappears on light grounds. Other repos hold several variants, so do not swap this one without checking both.
+
 ## Known gaps (all need `alcoiaServer` work; none are fixable here without inventing a contract)
 
 1. **DOCX, PPTX and PDF render in the page, but need the server branches deployed.** `GET
