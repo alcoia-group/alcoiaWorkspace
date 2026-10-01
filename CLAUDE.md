@@ -25,8 +25,13 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
 
 - `/sign-in` magic link (`kind: 'console'`), `/auth-verify` confirm-then-verify (token path only).
 - `/assignments` from `GET /api/assignments/mine`.
-- `/a/:assignmentId` shows the assignment and a **download** button (`GET /api/documents/:id/download-url`).
-  In-page reading is NOT built.
+- `/a/:assignmentId`: **Word documents render in the page** (`DocxViewer`): page frames on a neutral
+  ground, headings, bold/italic/underline, links (http/https/mailto only), bullet and numbered lists,
+  tables, a toolbar with "Page n of N", zoom and download. Real `<h*>/<p>/<ul>/<table>` DOM, so the extension
+  can read it. Anything the server cannot render yet (PDF, PowerPoint, a failed conversion, or a pending
+  server deploy) shows the assignment with a plain "can't be shown in the page yet" and a download button.
+  Pictures show a labelled placeholder (bytes not served yet).
+- An ended session (401) clears itself and sends the student to sign in, then back to the same assignment.
 - `/invite/accept` is a deliberate stub, does not call accept.
 - **Extension handoff:** `/a/:assignmentId#c=<code>` exchanges the code once (`POST /api/reader/exchange`),
   signs the student in with a `reader` session and strips the fragment, no sign-in screen. A bad, used or
@@ -38,10 +43,11 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
 
 ## Known gaps (all need `alcoiaServer` work; none are fixable here without inventing a contract)
 
-1. **No HTML rendering of documents.** The only document read is a signed download URL served as an
-   attachment. No PDF/PPTX conversion exists; DOCX extraction only sets `documents.status` and discards
-   the text. The reader needs a server endpoint returning sanitised, paragraph-structured HTML, gated by
-   session + seat (same check as `download-url`).
+1. **Only DOCX renders in the page.** `GET /api/assignments/:id/document` (server branch
+   `claude/document-content-docx`, unmerged, stacked on `claude/reader-handoff-session`) returns a structured
+   model, not HTML, and renders for DOCX only. **PPTX** (slide stage with transitions) and **PDF** (pdf.js,
+   `pdfjs-dist` approved) are the next items; until then they fall back to download. Pictures inside
+   Word files are not served yet.
 2. **Invite disclosure can't be shown before joining.** `POST /api/invites/accept` returns only
    `{ classId, seatId, role }`; the class and roster reads are staff-only. A student must be told the
    reporting mode before joining. Needs an invite-preview read (token in, class name + reportingMode out).
@@ -52,6 +58,15 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
    not live until merged, deployed and `READER_ORIGIN` is set in production.
 5. **Magic link host.** Built in the same server branch (`app: 'assignments'`); same merge/deploy caveat.
 6. LTI-joined seats have `seatId: null` in the extension (ack response omits it); not this repo.
+
+## Deploying (Cloudflare)
+
+Build variable `VITE_API_BASE_URL=https://server.alcoia.app` (baked in at build time, like the console's).
+`public/_redirects` (`/* /index.html 200`) makes deep links such as `/a/<id>` and `/auth-verify` load the app;
+without it a direct visit or reload 404s. The server needs `READER_ORIGIN=https://assignments.alcoia.app`.
+Reader sessions expire after a fixed time (placeholder 8 h from creation, not extended by use). A page that
+is already loaded keeps working, because the extension reports outcomes with its own longer session, but a
+reload after expiry goes through sign-in.
 
 ## Branches
 
