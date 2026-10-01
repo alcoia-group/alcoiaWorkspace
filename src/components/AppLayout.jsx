@@ -8,7 +8,7 @@ export default function AppLayout() {
   return (
     <>
       <header className="global-bar">
-        <Link to={session ? '/assignments' : '/sign-in'} className="global-brand" aria-label="alcoia home"><Logo /></Link>
+        <Link to={session ? '/assignments' : '/sign-in'} className="global-brand" aria-label="alcoia home"><Logo onDark /></Link>
         {session && (
           <>
             <nav className="global-nav" aria-label="Main">

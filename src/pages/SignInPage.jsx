@@ -37,7 +37,7 @@ export default function SignInPage() {
   return (
     <section className="signin">
       <div className="signin-box">
-        <Logo className="logo-auth" />
+        <Logo adaptive className="logo-auth" />
         {state === 'sent' ? (
           <>
             <h2>Check your email</h2>

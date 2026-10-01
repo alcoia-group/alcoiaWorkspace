@@ -49,7 +49,7 @@ export default function VerifyPage() {
     return (
       <section className="signin">
         <div className="signin-box">
-          <Logo className="logo-auth" />
+          <Logo adaptive className="logo-auth" />
           <h2>Sign in</h2>
           <p>Select the button to finish signing in.</p>
           <button type="button" className="block" onClick={handleConfirm} disabled={state === 'verifying'}>
@@ -62,7 +62,7 @@ export default function VerifyPage() {
   return (
     <section className="signin">
       <div className="signin-box">
-        <Logo className="logo-auth" />
+        <Logo adaptive className="logo-auth" />
         <h2>Sign-in failed</h2>
         <p className="alert alert-error">{error}</p>
         <p><Link to="/sign-in">Back to sign in</Link></p>
