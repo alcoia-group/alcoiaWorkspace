@@ -153,7 +153,10 @@ button.link-button:hover:not(:disabled) { background: none; }
   background: #2d3b45; color: #fff; font-size: 14px;
 }
 .global-bar a { color: #fff; text-decoration: none; }
-.global-brand { font-size: 20px; font-weight: 700; letter-spacing: 0.01em; }
+.global-brand { display: inline-flex; align-items: center; }
+.logo { display: block; height: 30px; width: auto; }
+.logo-dark-only { display: none; }
+.logo-auth { height: 52px; margin: 0 auto 18px; }
 .global-nav a { padding: 14px 0; border-bottom: 3px solid transparent; }
 .global-nav a:hover { border-bottom-color: #fff; }
 .global-user { margin-left: auto; display: flex; align-items: center; gap: 10px; }
@@ -289,3 +292,15 @@ html.is-fullscreen .slides-stage { width: min(100vw, calc(100svh * var(--slide-r
 .pdf-thumb { background: #fff; }
 html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: 100svh; }
 @media (max-width: 800px) { .slides-rail { position: static; } .pdf-body { flex-direction: column; } }
+
+/* sign-in screens follow the system colour scheme; the logo switches with it */
+@media (prefers-color-scheme: dark) {
+  body:has(.signin) { background: #1c2026; }
+  .signin-box { background: #262b33; border-color: #3b424c; color: #e6e9ec; }
+  .signin-box h2, .signin-box label { color: #f1f3f5; }
+  .signin-box input[type='email'] { background: #1c2026; border-color: #4a525d; color: #f1f3f5; }
+  .signin-box a { color: #c3b3e0; }
+  .signin-box .alert { background: #1c2026; border-color: #4a525d; color: #e6e9ec; }
+  .logo-light-only { display: none; }
+  .logo-dark-only { display: block; }
+}

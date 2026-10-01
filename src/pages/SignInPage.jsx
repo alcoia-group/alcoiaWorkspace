@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import Logo from '../components/Logo.jsx';
 import { apiPost, ApiError } from '../lib/api.js';
 import { setPendingEmail } from '../lib/session.js';
 import { useSession } from '../context/SessionContext.jsx';
@@ -36,6 +37,7 @@ export default function SignInPage() {
   return (
     <section className="signin">
       <div className="signin-box">
+        <Logo adaptive className="logo-auth" />
         {state === 'sent' ? (
           <>
             <h2>Check your email</h2>

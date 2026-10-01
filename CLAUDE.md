@@ -61,9 +61,14 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
   signs the student in with a `reader` session and strips the fragment, no sign-in screen. A bad, used or
   expired code, or no code at all, falls back to the sign-in page. `ReaderGate`, `src/lib/handoff.js`.
 - Sign-in requests the link with `app: 'assignments'` so the emailed link opens this site.
-- Verified with the API mocked in a real browser, not against `alcoiaServer` (branch
-  `claude/reader-handoff-session` there, unmerged) and not against the extension (the popup does not
-  request a handoff yet).
+- **Reader pages are full page loads.** Assignment links use `reloadDocument`: the alcoia content script decides
+  the assignment (for outcome reporting) once, from the URL `/a/<id>`, when the page loads, so an in-app route
+  change would leave it with the wrong or no assignment.
+- The extension popup (branch `claude/web-reader-handoff` in alcoia-group/alcoia) now requests the handoff and
+  opens this site for PDF, PowerPoint and Word documents; its content script reports outcomes from `/a/<id>`
+  pages and feeds PDF text layers to the paragraph tracker.
+- Verified with the API mocked in a real browser, not against `alcoiaServer` (branches there unmerged) and not
+  in a real browser with the built extension loaded.
 
 ## Look and feel
 
@@ -75,6 +80,20 @@ lilac, deepened) for primary buttons and links. No serif headings, tinted cards 
 chrome; Word pages keep a serif because that is how a Word page looks. Plain wording ("Sign in", "Assignments
 could not be loaded"), no em dashes. Dates are written the way a course page does ("Dec 4, 2026 at 11:59 PM"),
 helpers in `src/lib/format.js`.
+
+**Logo:** `src/components/Logo.jsx`. Two transparent-ground files copied from alcoiaConsole
+(`alcoia-wordmark.png` as `alcoia-logo-dark-letters.png`, `alcoia-wordmark-white-letters.png` as
+`alcoia-logo-white-letters.png`). The top bar is always dark, so it uses the white-letters one (`onDark`). The
+sign-in screens use `adaptive`: black letters in the light scheme, white letters in the dark one, switched by
+`prefers-color-scheme`; those screens also get dark colours in the dark scheme so the logo is never on a
+clashing ground. The rest of the app is light only. Other repos hold more variants (a cream tile, a lilac mark);
+do not swap one in without checking it on both grounds.
+
+## Plans
+
+Pilot (free) has no LMS integration and no teaching recommendations; Teams and Institution have both. The server
+enforces it (LTI registration refused for Pilot; the aggregate view returns no recommendation text for Pilot and
+says so in `teachingRecommendations`). This app never decides entitlement. Full detail in `README.md`.
 
 ## Known gaps (all need `alcoiaServer` work; none are fixable here without inventing a contract)
 
@@ -99,9 +118,10 @@ helpers in `src/lib/format.js`.
 Build variable `VITE_API_BASE_URL=https://server.alcoia.app` (baked in at build time, like the console's).
 `public/_redirects` (`/* /index.html 200`) makes deep links such as `/a/<id>` and `/auth-verify` load the app;
 without it a direct visit or reload 404s. The server needs `READER_ORIGIN=https://assignments.alcoia.app`.
-Reader sessions expire after a fixed time (placeholder 8 h from creation, not extended by use). A page that
-is already loaded keeps working, because the extension reports outcomes with its own longer session, but a
-reload after expiry goes through sign-in.
+Reader sessions slide while the student is active: the server extends one on use (8 h idle window, 7 day cap,
+placeholders), and `src/lib/keepalive.js` pings `POST /api/reader/keepalive` every 5 minutes while the tab is
+visible and something was touched in the last 10 minutes. An idle tab still ends after the idle window; a reload
+after that goes through sign-in. (Sessions from an emailed link are `console` kind and do not slide.)
 
 ## Branches
 
