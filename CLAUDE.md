@@ -107,9 +107,10 @@ do not swap one in without checking it on both grounds.
 Build variable `VITE_API_BASE_URL=https://server.alcoia.app` (baked in at build time, like the console's).
 `public/_redirects` (`/* /index.html 200`) makes deep links such as `/a/<id>` and `/auth-verify` load the app;
 without it a direct visit or reload 404s. The server needs `READER_ORIGIN=https://assignments.alcoia.app`.
-Reader sessions expire after a fixed time (placeholder 8 h from creation, not extended by use). A page that
-is already loaded keeps working, because the extension reports outcomes with its own longer session, but a
-reload after expiry goes through sign-in.
+Reader sessions slide while the student is active: the server extends one on use (8 h idle window, 7 day cap,
+placeholders), and `src/lib/keepalive.js` pings `POST /api/reader/keepalive` every 5 minutes while the tab is
+visible and something was touched in the last 10 minutes. An idle tab still ends after the idle window; a reload
+after that goes through sign-in. (Sessions from an emailed link are `console` kind and do not slide.)
 
 ## Branches
 

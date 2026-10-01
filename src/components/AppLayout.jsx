@@ -1,10 +1,12 @@
 import { Link, Outlet } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import Logo from './Logo.jsx';
+import { useSessionKeepAlive } from '../lib/keepalive.js';
 import { initials } from '../lib/format.js';
 
 export default function AppLayout() {
   const { session, signOut } = useSession();
+  useSessionKeepAlive(session);
   return (
     <>
       <header className="global-bar">
