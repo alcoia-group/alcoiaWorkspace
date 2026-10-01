@@ -46,7 +46,8 @@ wrong for this product regardless of how well it would perform.
 | Admin console | ❌ | ❌ | ✅ | ✅ | ✅ |
 | SSO | ❌ | ❌ | ✅ | ❌ | ✅ |
 | DPA | ❌ | ❌ | ✅ | ❌ | ✅ |
-| LTI / LMS integration | ❌ | ❌ | ❌ | ❌ | ✅ |
+| LTI / LMS integration (Pilot excluded) | ❌ | ❌ | ✅ | ❌ | ✅ |
+| Teaching recommendations (written suggestions on top of the heatmap and confidence view, which every class view keeps) | ❌ | ❌ | ✅ | ❌ | ✅ |
 | Self-hosted backend, procurement, onboarding | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 **Reader and Student are one entitlement.** Student is a price verified at checkout, not a
@@ -326,7 +327,7 @@ motor impairment, assistive technology, a trackpad, a phone.
 
 ---
 
-## 10. LMS integration — Institution tier
+## 10. LMS integration — Teams and Institution tiers (never Pilot)
 
 **LTI 1.3, Canvas first** (roughly a third of the North American higher-education market). alcoia is
 the *tool*; the LMS is the *platform*.
