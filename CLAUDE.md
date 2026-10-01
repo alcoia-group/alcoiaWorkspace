@@ -89,6 +89,12 @@ sign-in screens use `adaptive`: black letters in the light scheme, white letters
 clashing ground. The rest of the app is light only. Other repos hold more variants (a cream tile, a lilac mark);
 do not swap one in without checking it on both grounds.
 
+## Plans
+
+Pilot (free) has no LMS integration and no teaching recommendations; Teams and Institution have both. The server
+enforces it (LTI registration refused for Pilot; the aggregate view returns no recommendation text for Pilot and
+says so in `teachingRecommendations`). This app never decides entitlement. Full detail in `README.md`.
+
 ## Known gaps (all need `alcoiaServer` work; none are fixable here without inventing a contract)
 
 1. **DOCX, PPTX and PDF render in the page, but need the server branches deployed.** `GET
