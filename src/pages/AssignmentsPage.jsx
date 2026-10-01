@@ -41,7 +41,7 @@ export default function AssignmentsPage() {
             {items.map((a) => (
               <tr key={a.assignmentId}>
                 <td>
-                  <Link className="row-link" to={`/a/${a.assignmentId}`}>{a.className}</Link>
+                  <Link className="row-link" to={`/a/${a.assignmentId}`} reloadDocument>{a.className}</Link>
                 </td>
                 <td>{a.documents[0] ? formatLabel(a.documents[0].format) : 'No file yet'}</td>
                 <td>

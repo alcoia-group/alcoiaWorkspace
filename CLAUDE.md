@@ -61,9 +61,14 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
   signs the student in with a `reader` session and strips the fragment, no sign-in screen. A bad, used or
   expired code, or no code at all, falls back to the sign-in page. `ReaderGate`, `src/lib/handoff.js`.
 - Sign-in requests the link with `app: 'assignments'` so the emailed link opens this site.
-- Verified with the API mocked in a real browser, not against `alcoiaServer` (branch
-  `claude/reader-handoff-session` there, unmerged) and not against the extension (the popup does not
-  request a handoff yet).
+- **Reader pages are full page loads.** Assignment links use `reloadDocument`: the alcoia content script decides
+  the assignment (for outcome reporting) once, from the URL `/a/<id>`, when the page loads, so an in-app route
+  change would leave it with the wrong or no assignment.
+- The extension popup (branch `claude/web-reader-handoff` in alcoia-group/alcoia) now requests the handoff and
+  opens this site for PDF, PowerPoint and Word documents; its content script reports outcomes from `/a/<id>`
+  pages and feeds PDF text layers to the paragraph tracker.
+- Verified with the API mocked in a real browser, not against `alcoiaServer` (branches there unmerged) and not
+  in a real browser with the built extension loaded.
 
 ## Look and feel
 
