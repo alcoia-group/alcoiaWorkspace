@@ -18,7 +18,7 @@ rules as the console: no leaderboards, no accuracy claims, receipts say "unalter
 ## Stack
 
 React + Vite, plain JS, `react-router-dom`, no UI kit. Tokens/fonts copied from alcoiaConsole (light
-theme only for now). Dev port 8081 (8080 is the console's). Session: `localStorage` Bearer token,
+theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Session: `localStorage` Bearer token,
 `console` kind only (`src/lib/session.js`).
 
 ## What exists
@@ -28,6 +28,13 @@ theme only for now). Dev port 8081 (8080 is the console's). Session: `localStora
 - `/a/:assignmentId` shows the assignment and a **download** button (`GET /api/documents/:id/download-url`).
   In-page reading is NOT built.
 - `/invite/accept` is a deliberate stub, does not call accept.
+- **Extension handoff:** `/a/:assignmentId#c=<code>` exchanges the code once (`POST /api/reader/exchange`),
+  signs the student in with a `reader` session and strips the fragment, no sign-in screen. A bad, used or
+  expired code, or no code at all, falls back to the sign-in page. `ReaderGate`, `src/lib/handoff.js`.
+- Sign-in requests the link with `app: 'assignments'` so the emailed link opens this site.
+- Verified with the API mocked in a real browser, not against `alcoiaServer` (branch
+  `claude/reader-handoff-session` there, unmerged) and not against the extension (the popup does not
+  request a handoff yet).
 
 ## Known gaps (all need `alcoiaServer` work; none are fixable here without inventing a contract)
 
@@ -38,13 +45,12 @@ theme only for now). Dev port 8081 (8080 is the console's). Session: `localStora
 2. **Invite disclosure can't be shown before joining.** `POST /api/invites/accept` returns only
    `{ classId, seatId, role }`; the class and roster reads are staff-only. A student must be told the
    reporting mode before joining. Needs an invite-preview read (token in, class name + reportingMode out).
-3. **LTI redirect carries no session.** `buildRedirectUrl` in `lti.js` sets only `classId`/`assignmentId`;
+3. **LTI redirect carries no session** (the extension handoff above is separate and built; this is LTI only). `buildRedirectUrl` in `lti.js` sets only `classId`/`assignmentId`;
    `ltiReaderBaseUrl` defaults to a console `.invalid` URL. Landing here from the ack/launch leaves the
    student signed out. Needs a handoff like `/launch/exchange`, and `LTI_READER_BASE_URL` pointed here.
-4. **CORS.** `CONSOLE_ORIGIN`/`WEB_APP_ORIGIN` don't include this origin; every call from a browser is
-   blocked until the auth routes, `assignments/mine`, `download-url`, `invites/accept` allow it.
-5. **Magic link host.** `kind=console` links point at `CONSOLE_ORIGIN/auth-verify`, so a student's emailed
-   link opens the console. Needs a per-origin verify base (or a new kind).
+4. **CORS.** Built in `alcoiaServer` branch `claude/reader-handoff-session` (`READER_ORIGIN`, dev :8082);
+   not live until merged, deployed and `READER_ORIGIN` is set in production.
+5. **Magic link host.** Built in the same server branch (`app: 'assignments'`); same merge/deploy caveat.
 6. LTI-joined seats have `seatId: null` in the extension (ack response omits it); not this repo.
 
 ## Branches
