@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { fetchMyAssignments } from '../lib/assignments.js';
+import { formatDue, formatLabel, isDueSoon } from '../lib/format.js';
 
 export default function AssignmentsPage() {
   const { session, signOut } = useSession();
@@ -19,25 +20,39 @@ export default function AssignmentsPage() {
     return () => { cancelled = true; };
   }, [session.sessionToken, signOut]);
 
+  const items = [...state.items].sort((a, b) => new Date(a.closesAt) - new Date(b.closesAt));
+
   return (
-    <section className="app-main">
-      <h1>Your assignments</h1>
-      {state.status === 'loading' && <p>Loading…</p>}
+    <section className="page">
+      <h1 className="page-title">Assignments</h1>
+      {state.status === 'loading' && <p className="muted">Loading assignments.</p>}
       {state.status === 'error' && (
-        <p className="status-line status-error">Could not load your assignments. Try again in a moment.</p>
+        <p className="alert alert-error">Assignments could not be loaded. Try again in a moment.</p>
       )}
-      {state.status === 'ready' && state.items.length === 0 && (
-        <p>Nothing assigned right now. Open assignments appear here once your instructor adds them.</p>
+      {state.status === 'ready' && items.length === 0 && (
+        <p className="empty">You have no assignments right now. When your instructor adds one it will show up here.</p>
       )}
-      {state.items.map((a) => (
-        <div className="card card-row" key={a.assignmentId}>
-          <div>
-            <strong>{a.className}</strong>
-            <p className="meta">Closes {new Date(a.closesAt).toLocaleString()}</p>
-          </div>
-          <Link className="button" to={`/a/${a.assignmentId}`}>Open</Link>
-        </div>
-      ))}
+      {items.length > 0 && (
+        <table className="lms-table">
+          <thead>
+            <tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Due</th></tr>
+          </thead>
+          <tbody>
+            {items.map((a) => (
+              <tr key={a.assignmentId}>
+                <td>
+                  <Link className="row-link" to={`/a/${a.assignmentId}`}>{a.className}</Link>
+                </td>
+                <td>{a.documents[0] ? formatLabel(a.documents[0].format) : 'No file yet'}</td>
+                <td>
+                  {formatDue(a.closesAt)}
+                  {isDueSoon(a.closesAt) && <span className="tag">Due soon</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </section>
   );
 }

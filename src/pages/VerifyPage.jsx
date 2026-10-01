@@ -46,19 +46,24 @@ export default function VerifyPage() {
 
   if (state === 'confirm' || state === 'verifying') {
     return (
-      <section className="center-card">
-        <h1>Click below to sign in</h1>
-        <button type="button" onClick={handleConfirm} disabled={state === 'verifying'}>
-          {state === 'verifying' ? 'Signing in…' : 'Sign in to alcoia →'}
-        </button>
+      <section className="signin">
+        <div className="signin-box">
+          <h2>Sign in</h2>
+          <p>Select the button to finish signing in.</p>
+          <button type="button" className="block" onClick={handleConfirm} disabled={state === 'verifying'}>
+            {state === 'verifying' ? 'Signing in' : 'Sign in'}
+          </button>
+        </div>
       </section>
     );
   }
   return (
-    <section className="center-card">
-      <h1>Couldn’t sign you in</h1>
-      <p className="status-line status-error">{error}</p>
-      <p><Link to="/sign-in">Back to sign in</Link></p>
+    <section className="signin">
+      <div className="signin-box">
+        <h2>Sign-in failed</h2>
+        <p className="alert alert-error">{error}</p>
+        <p><Link to="/sign-in">Back to sign in</Link></p>
+      </div>
     </section>
   );
 }

@@ -11,13 +11,13 @@ export default function InvitePage() {
   const [params] = useSearchParams();
   const hasToken = Boolean(params.get('token'));
   return (
-    <section className="app-main">
-      <h1>Join a class</h1>
-      {!hasToken && <p className="status-line status-error">This invite link is missing its token.</p>}
-      <div className="notice">
-        Joining by invite isn’t available here yet. Before you join, you need to be told whether your
-        instructor sees only class-wide results or your individual results, and this page can’t look
-        that up safely yet.
+    <section className="page">
+      <h1 className="page-title">Join a class</h1>
+      {!hasToken && <p className="alert alert-error">This invite link is missing its token.</p>}
+      <div className="alert">
+        Joining with an invite link is not available here yet. Before you join you need to know whether
+        your instructor sees only class-wide results or your individual results, and this page cannot
+        show that yet.
       </div>
       <p><Link to="/sign-in">Sign in</Link></p>
     </section>

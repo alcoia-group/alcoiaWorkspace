@@ -1,9 +1,12 @@
+import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
 import { useEffect, useRef, useState } from 'react';
 
 // Word-style viewer for the server's structured DOCX model. It renders real
 // <h*>/<p>/<ul>/<table> elements inside page frames, so the alcoia extension
 // reads it like any article, while it looks like a document, not a web page.
 // Text goes through React only: nothing in the model is ever treated as markup.
+
+import AssetImage from './AssetImage.jsx';
 
 const SAFE_HREF = /^(https?:|mailto:)/i;
 
@@ -21,7 +24,7 @@ function Runs({ runs }) {
   });
 }
 
-function Blocks({ blocks }) {
+function Blocks({ blocks, asset }) {
   return blocks.map((block, i) => {
     switch (block.type) {
       case 'heading': {
@@ -47,7 +50,7 @@ function Blocks({ blocks }) {
               {block.rows.map((row, r) => (
                 <tr key={r}>
                   {row.map((cell, c) => (
-                    <td key={c} colSpan={cell.colSpan}><Blocks blocks={cell.blocks} /></td>
+                    <td key={c} colSpan={cell.colSpan}><Blocks blocks={cell.blocks} asset={asset} /></td>
                   ))}
                 </tr>
               ))}
@@ -55,8 +58,7 @@ function Blocks({ blocks }) {
           </table>
         );
       case 'image':
-        // Picture bytes are not served yet; say so instead of dropping it.
-        return <p key={i} className="docx-image-placeholder">[Image{block.alt ? `: ${block.alt}` : ''}]</p>;
+        return <AssetImage key={i} asset={asset} path={block.assetId} alt={block.alt} className="docx-image" />;
       default:
         return null;
     }
@@ -65,11 +67,13 @@ function Blocks({ blocks }) {
 
 const ZOOM_STEPS = [0.75, 0.9, 1, 1.15, 1.3, 1.5];
 
-export default function DocxViewer({ content, title, onDownload }) {
+export default function DocxViewer({ content, title, asset, onDownload }) {
   const pages = content.pages;
   const [zoomIndex, setZoomIndex] = useState(2);
   const [current, setCurrent] = useState(1);
   const pageRefs = useRef([]);
+  const fs = useFullscreen();
+  const controlsVisible = useIdleControls(fs.active);
 
   useEffect(() => {
     // Track which page is most visible for "Page n of N".
@@ -91,7 +95,7 @@ export default function DocxViewer({ content, title, onDownload }) {
   }, [pages.length, zoomIndex]);
 
   return (
-    <div className="viewer" style={{ '--z': ZOOM_STEPS[zoomIndex] }}>
+    <div className="viewer" style={{ '--z': ZOOM_STEPS[zoomIndex] }} data-idle={fs.active && !controlsVisible ? 'true' : undefined}>
       <div className="viewer-toolbar" role="toolbar" aria-label="Document controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Page {current} of {pages.length}</span>
@@ -99,6 +103,7 @@ export default function DocxViewer({ content, title, onDownload }) {
           <button type="button" className="secondary" onClick={() => setZoomIndex((z) => Math.max(0, z - 1))} disabled={zoomIndex === 0} aria-label="Zoom out">−</button>
           <span className="viewer-zoom">{Math.round(ZOOM_STEPS[zoomIndex] * 100)}%</span>
           <button type="button" className="secondary" onClick={() => setZoomIndex((z) => Math.min(ZOOM_STEPS.length - 1, z + 1))} disabled={zoomIndex === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
+          <button type="button" className="secondary" onClick={fs.toggle}>{fs.active ? 'Exit full screen' : 'Full screen'}</button>
           {onDownload && <button type="button" className="secondary" onClick={onDownload}>Download</button>}
         </span>
       </div>
@@ -111,7 +116,7 @@ export default function DocxViewer({ content, title, onDownload }) {
             ref={(el) => { pageRefs.current[i] = el; }}
             aria-label={`Page ${i + 1} of ${pages.length}`}
           >
-            <Blocks blocks={page.blocks} />
+            <Blocks blocks={page.blocks} asset={asset} />
           </article>
         ))}
       </div>

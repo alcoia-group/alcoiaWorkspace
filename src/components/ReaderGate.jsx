@@ -35,7 +35,7 @@ export default function ReaderGate() {
   }, [code, assignmentId, signIn]);
 
   if (state === 'exchanging') {
-    return <section className="app-main"><p>Opening your assignment…</p></section>;
+    return <section className="page"><p className="muted">Opening your assignment.</p></section>;
   }
   if (!session) {
     return <Navigate to="/sign-in" replace state={{ from: location.pathname }} />;

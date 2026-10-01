@@ -1,4 +1,4 @@
-import { apiGet } from './api.js';
+import { apiGet, API_BASE_URL } from './api.js';
 
 // GET /api/assignments/mine -> { assignments: [{ assignmentId, classId,
 // className, closesAt, documents: [{ documentId, format, status }] }] }.
@@ -22,4 +22,18 @@ export async function fetchDownloadUrl(documentId, sessionToken) {
 // not it exists.
 export async function fetchDocument(assignmentId, sessionToken) {
   return apiGet(`/api/assignments/${encodeURIComponent(assignmentId)}/document`, { sessionToken });
+}
+
+// GET /api/assignments/:id/document/file -> the original PDF bytes (needs the
+// session header, so it is fetched, not linked).
+export async function fetchPdfBytes(assignmentId, sessionToken) {
+  const res = await fetch(`${API_BASE_URL}/api/assignments/${encodeURIComponent(assignmentId)}/document/file`, {
+    headers: { Authorization: `Bearer ${sessionToken}` },
+  });
+  if (!res.ok) {
+    const err = new Error(`pdf ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return new Uint8Array(await res.arrayBuffer());
 }
