@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
+import { formatDue, formatLabel } from '../lib/format.js';
 import { fetchDocument, fetchDownloadUrl, fetchMyAssignments } from '../lib/assignments.js';
 import DocxViewer from '../components/viewers/DocxViewer.jsx';
 import SlideViewer from '../components/viewers/SlideViewer.jsx';
@@ -66,8 +67,16 @@ export default function ReaderPage() {
     const { assignment, doc } = state;
     const Viewer = { pptx: SlideViewer, pdf: PdfViewer }[doc.content.format] ?? DocxViewer;
     return (
-      <section className="app-main wide">
-        <Suspense fallback={<p style={{ padding: '24px' }}>Loading…</p>}>
+      <section className="reader">
+        <div className="crumbs">
+          <nav aria-label="Breadcrumb">
+            <Link to="/assignments">Assignments</Link>
+            <span className="crumb-sep" aria-hidden="true">/</span>
+            <span>{assignment.className}</span>
+          </nav>
+          <span className="crumb-due">Due {formatDue(assignment.closesAt)}</span>
+        </div>
+        <Suspense fallback={<p className="muted pad">Loading.</p>}>
           <Viewer
             content={doc.content}
             title={assignment.className}
@@ -75,40 +84,38 @@ export default function ReaderPage() {
             onDownload={() => handleDownload(doc.documentId)}
           />
         </Suspense>
-        {downloadError && <p className="status-line status-error" style={{ padding: '0 24px' }}>Could not get the download link.</p>}
+        {downloadError && <p className="alert alert-error">The download link could not be created.</p>}
       </section>
     );
   }
 
   const { status, assignment } = state;
   return (
-    <section className="app-main">
-      <p><Link to="/assignments">← Your assignments</Link></p>
-      {status === 'loading' && <p>Loading…</p>}
-      {status === 'error' && <p className="status-line status-error">Could not load this assignment.</p>}
+    <section className="page">
+      <p><Link to="/assignments">Back to assignments</Link></p>
+      {status === 'loading' && <p className="muted">Loading.</p>}
+      {status === 'error' && <p className="alert alert-error">This assignment could not be loaded.</p>}
       {status === 'missing' && (
         <>
-          <h1>Assignment not available</h1>
+          <h1 className="page-title">Assignment not available</h1>
           <p>It may have closed, or it may belong to a class you haven’t joined.</p>
         </>
       )}
       {status === 'ready' && (
         <>
-          <h1>{assignment.className}</h1>
-          <p className="meta">Closes {new Date(assignment.closesAt).toLocaleString()}</p>
-          <div className="notice">
-            This document can’t be shown in the page yet. You can download the original.
-          </div>
+          <h1 className="page-title">{assignment.className}</h1>
+          <p className="muted">Due {formatDue(assignment.closesAt)}</p>
+          <p className="alert">This file cannot be shown here. You can download the original.</p>
           {assignment.documents.length === 0 && <p>No document has been attached yet.</p>}
           {assignment.documents.map((d) => (
-            <div className="card card-row" key={d.documentId}>
-              <span>{d.format.toUpperCase()} document</span>
+            <div className="file-row" key={d.documentId}>
+              <span>{formatLabel(d.format)}</span>
               <button type="button" className="secondary" onClick={() => handleDownload(d.documentId)}>
                 Download
               </button>
             </div>
           ))}
-          {downloadError && <p className="status-line status-error">Could not get the download link.</p>}
+          {downloadError && <p className="alert alert-error">The download link could not be created.</p>}
         </>
       )}
     </section>

@@ -65,6 +65,17 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
   `claude/reader-handoff-session` there, unmerged) and not against the extension (the popup does not
   request a handoff yet).
 
+## Look and feel
+
+Deliberately plain, like a course site students already know: a dark slate top bar (name left, avatar,
+email and Sign out right), white content on light grey, a breadcrumb row on the reader ("Assignments /
+class", due date on the right), and the assignment list as an ordinary table (Name, Type, Due, with a
+"Due soon" tag inside 48 hours). Sans-serif UI, small 3 px corners, flat borders, one accent colour (the brand
+lilac, deepened) for primary buttons and links. No serif headings, tinted cards or decorative copy in the
+chrome; Word pages keep a serif because that is how a Word page looks. Plain wording ("Sign in", "Assignments
+could not be loaded"), no em dashes. Dates are written the way a course page does ("Dec 4, 2026 at 11:59 PM"),
+helpers in `src/lib/format.js`.
+
 ## Known gaps (all need `alcoiaServer` work; none are fixable here without inventing a contract)
 
 1. **DOCX, PPTX and PDF render in the page, but need the server branches deployed.** `GET

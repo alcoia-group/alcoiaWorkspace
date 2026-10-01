@@ -181,8 +181,8 @@ export default function PdfViewer({ content, title, asset, onDownload }) {
 
   const scrollTo = (n) => stageRef.current?.querySelector(`[data-page="${n}"]`)?.scrollIntoView?.({ block: 'start' });
 
-  if (error) return <p className="status-line status-error" style={{ padding: '24px' }}>Could not open this PDF. You can still download it.</p>;
-  if (!pdf || !base) return <p style={{ padding: '24px' }}>Loading…</p>;
+  if (error) return <p className="alert alert-error">This PDF could not be opened. You can still download it.</p>;
+  if (!pdf || !base) return <p className="muted pad">Loading.</p>;
 
   const scale = fit * ZOOM_STEPS[zoomIndex];
   const pages = Array.from({ length: content.pageCount }, (_, i) => i + 1);
