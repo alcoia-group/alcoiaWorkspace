@@ -3,9 +3,10 @@ import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { fetchDocument, fetchDownloadUrl, fetchMyAssignments } from '../lib/assignments.js';
 import DocxViewer from '../components/viewers/DocxViewer.jsx';
+import SlideViewer from '../components/viewers/SlideViewer.jsx';
 
-// The reader. Word documents render in the page (DocxViewer); a format the
-// server cannot render yet (PDF, PowerPoint for now) or a document that
+// The reader. Word documents (DocxViewer) and PowerPoint decks (SlideViewer)
+// render in the page; a format the server cannot render yet (PDF for now) or a document that
 // failed to convert falls back to the original download, said plainly.
 // A 401 means the session ended (reader sessions are time-limited): the
 // student is sent to sign in and brought straight back here.
@@ -61,11 +62,13 @@ export default function ReaderPage() {
   }
   if (state.status === 'ready' && state.doc?.content) {
     const { assignment, doc } = state;
+    const Viewer = doc.content.format === 'pptx' ? SlideViewer : DocxViewer;
     return (
       <section className="app-main wide">
-        <DocxViewer
+        <Viewer
           content={doc.content}
           title={assignment.className}
+          asset={{ assignmentId, sessionToken: session.sessionToken }}
           onDownload={() => handleDownload(doc.documentId)}
         />
         {downloadError && <p className="status-line status-error" style={{ padding: '0 24px' }}>Could not get the download link.</p>}

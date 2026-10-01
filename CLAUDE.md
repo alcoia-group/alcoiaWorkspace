@@ -31,6 +31,15 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
   can read it. Anything the server cannot render yet (PDF, PowerPoint, a failed conversion, or a pending
   server deploy) shows the assignment with a plain "can't be shown in the page yet" and a download button.
   Pictures show a labelled placeholder (bytes not served yet).
+- **PowerPoint decks render as a slide deck** (`SlideViewer`): the file's own aspect ratio, positioned text boxes
+  with the file's text sizes (scaled with the slide), colours, fonts and bullets, tables, pictures, a slide list,
+  Previous/Next, arrow/PageUp/PageDown/Space/Home/End keys, full screen, and the file's own **slide
+  transitions** (fade, push, wipe, split, cover, uncover, zoom, cut; anything else plays as a fade and says so).
+  A transition belongs to the slide being entered; going back plays a short fade; reduced-motion skips them.
+  Slides that advance by timer do so. Text is real `<p>`, bullet glyphs come from CSS (not part of the text).
+  Not shown: entrance/emphasis animations, charts, SmartArt, video (labelled placeholders).
+- Pictures inside Word and PowerPoint files load through an authenticated fetch (`lib/assets.js`), because an
+  `<img src>` cannot send the session header; shown as blob URLs, with a labelled placeholder on failure.
 - An ended session (401) clears itself and sends the student to sign in, then back to the same assignment.
 - `/invite/accept` is a deliberate stub, does not call accept.
 - **Extension handoff:** `/a/:assignmentId#c=<code>` exchanges the code once (`POST /api/reader/exchange`),
@@ -43,11 +52,10 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
 
 ## Known gaps (all need `alcoiaServer` work; none are fixable here without inventing a contract)
 
-1. **Only DOCX renders in the page.** `GET /api/assignments/:id/document` (server branch
-   `claude/document-content-docx`, unmerged, stacked on `claude/reader-handoff-session`) returns a structured
-   model, not HTML, and renders for DOCX only. **PPTX** (slide stage with transitions) and **PDF** (pdf.js,
-   `pdfjs-dist` approved) are the next items; until then they fall back to download. Pictures inside
-   Word files are not served yet.
+1. **DOCX and PPTX render in the page; PDF does not yet.** `GET /api/assignments/:id/document` and
+   `.../document/asset` (server branches `claude/document-content-docx` and `claude/document-content-pptx`,
+   unmerged, stacked on `claude/reader-handoff-session`) return structured models, not HTML. **PDF** (pdf.js,
+   `pdfjs-dist` approved) is next; until then it falls back to download. Entrance animations are not built.
 2. **Invite disclosure can't be shown before joining.** `POST /api/invites/accept` returns only
    `{ classId, seatId, role }`; the class and roster reads are staff-only. A student must be told the
    reporting mode before joining. Needs an invite-preview read (token in, class name + reportingMode out).

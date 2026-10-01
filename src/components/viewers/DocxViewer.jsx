@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 // reads it like any article, while it looks like a document, not a web page.
 // Text goes through React only: nothing in the model is ever treated as markup.
 
+import AssetImage from './AssetImage.jsx';
+
 const SAFE_HREF = /^(https?:|mailto:)/i;
 
 function Runs({ runs }) {
@@ -21,7 +23,7 @@ function Runs({ runs }) {
   });
 }
 
-function Blocks({ blocks }) {
+function Blocks({ blocks, asset }) {
   return blocks.map((block, i) => {
     switch (block.type) {
       case 'heading': {
@@ -47,7 +49,7 @@ function Blocks({ blocks }) {
               {block.rows.map((row, r) => (
                 <tr key={r}>
                   {row.map((cell, c) => (
-                    <td key={c} colSpan={cell.colSpan}><Blocks blocks={cell.blocks} /></td>
+                    <td key={c} colSpan={cell.colSpan}><Blocks blocks={cell.blocks} asset={asset} /></td>
                   ))}
                 </tr>
               ))}
@@ -55,8 +57,7 @@ function Blocks({ blocks }) {
           </table>
         );
       case 'image':
-        // Picture bytes are not served yet; say so instead of dropping it.
-        return <p key={i} className="docx-image-placeholder">[Image{block.alt ? `: ${block.alt}` : ''}]</p>;
+        return <AssetImage key={i} asset={asset} path={block.assetId} alt={block.alt} className="docx-image" />;
       default:
         return null;
     }
@@ -65,7 +66,7 @@ function Blocks({ blocks }) {
 
 const ZOOM_STEPS = [0.75, 0.9, 1, 1.15, 1.3, 1.5];
 
-export default function DocxViewer({ content, title, onDownload }) {
+export default function DocxViewer({ content, title, asset, onDownload }) {
   const pages = content.pages;
   const [zoomIndex, setZoomIndex] = useState(2);
   const [current, setCurrent] = useState(1);
@@ -111,7 +112,7 @@ export default function DocxViewer({ content, title, onDownload }) {
             ref={(el) => { pageRefs.current[i] = el; }}
             aria-label={`Page ${i + 1} of ${pages.length}`}
           >
-            <Blocks blocks={page.blocks} />
+            <Blocks blocks={page.blocks} asset={asset} />
           </article>
         ))}
       </div>
