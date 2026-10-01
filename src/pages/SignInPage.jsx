@@ -18,9 +18,10 @@ export default function SignInPage() {
     e.preventDefault();
     setState('sending');
     try {
-      // 'console' is the only browser-session kind the server issues; the
+      // app: 'assignments' makes the emailed link open this site, not the
+      // console. 'console' is the only browser-session kind the server issues; the
       // 'extension' kind needs a code handoff a web page can't complete.
-      await apiPost('/api/auth/magic-link', { email: email.trim(), kind: 'console' });
+      await apiPost('/api/auth/magic-link', { email: email.trim(), kind: 'console', app: 'assignments' });
       setPendingEmail(email.trim());
       setState('sent');
     } catch (err) {

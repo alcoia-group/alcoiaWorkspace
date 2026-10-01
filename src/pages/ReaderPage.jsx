@@ -1,31 +1,51 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
-import { fetchDownloadUrl, fetchMyAssignments } from '../lib/assignments.js';
+import { fetchDocument, fetchDownloadUrl, fetchMyAssignments } from '../lib/assignments.js';
+import DocxViewer from '../components/viewers/DocxViewer.jsx';
 
-// The reader itself is NOT built: alcoiaServer has no endpoint that returns
-// a document as HTML (the only document read is the signed download URL,
-// served as an attachment, and no PDF/PPTX conversion exists server-side --
-// DOCX extraction only decides documents.status, then discards the text).
-// This page shows what is real -- the assignment and its document -- and
-// says plainly that in-page reading is not available yet. See CLAUDE.md.
+// The reader. Word documents render in the page (DocxViewer); a format the
+// server cannot render yet (PDF, PowerPoint for now) or a document that
+// failed to convert falls back to the original download, said plainly.
+// A 401 means the session ended (reader sessions are time-limited): the
+// student is sent to sign in and brought straight back here.
 export default function ReaderPage() {
   const { assignmentId } = useParams();
-  const { session } = useSession();
-  const [state, setState] = useState({ status: 'loading', assignment: null });
+  const { session, signOut } = useSession();
+  const location = useLocation();
+  const [state, setState] = useState({ status: 'loading' });
   const [downloadError, setDownloadError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetchMyAssignments(session.sessionToken)
-      .then((items) => {
-        if (cancelled) return;
+    (async () => {
+      try {
+        const items = await fetchMyAssignments(session.sessionToken);
         const assignment = items.find((a) => a.assignmentId === assignmentId) ?? null;
-        setState({ status: assignment ? 'ready' : 'missing', assignment });
-      })
-      .catch(() => !cancelled && setState({ status: 'error', assignment: null }));
+        if (!assignment) {
+          if (!cancelled) setState({ status: 'missing' });
+          return;
+        }
+        let doc = null;
+        try {
+          doc = await fetchDocument(assignmentId, session.sessionToken);
+        } catch (err) {
+          if (err.status === 401) throw err;
+          // 404 (no document yet) and anything else: show the assignment without one.
+        }
+        if (!cancelled) setState({ status: 'ready', assignment, doc });
+      } catch (err) {
+        if (cancelled) return;
+        if (err.status === 401) setState({ status: 'expired' });
+        else setState({ status: 'error' });
+      }
+    })();
     return () => { cancelled = true; };
   }, [assignmentId, session.sessionToken]);
+
+  useEffect(() => {
+    if (state.status === 'expired') signOut();
+  }, [state.status, signOut]);
 
   async function handleDownload(documentId) {
     setDownloadError(false);
@@ -34,6 +54,23 @@ export default function ReaderPage() {
     } catch {
       setDownloadError(true);
     }
+  }
+
+  if (state.status === 'expired') {
+    return <Navigate to="/sign-in" replace state={{ from: location.pathname }} />;
+  }
+  if (state.status === 'ready' && state.doc?.content) {
+    const { assignment, doc } = state;
+    return (
+      <section className="app-main wide">
+        <DocxViewer
+          content={doc.content}
+          title={assignment.className}
+          onDownload={() => handleDownload(doc.documentId)}
+        />
+        {downloadError && <p className="status-line status-error" style={{ padding: '0 24px' }}>Could not get the download link.</p>}
+      </section>
+    );
   }
 
   const { status, assignment } = state;
@@ -53,7 +90,7 @@ export default function ReaderPage() {
           <h1>{assignment.className}</h1>
           <p className="meta">Closes {new Date(assignment.closesAt).toLocaleString()}</p>
           <div className="notice">
-            Reading in the page isn’t available yet. For now the document can only be downloaded.
+            This document can’t be shown in the page yet. You can download the original.
           </div>
           {assignment.documents.length === 0 && <p>No document has been attached yet.</p>}
           {assignment.documents.map((d) => (

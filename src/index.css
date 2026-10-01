@@ -164,3 +164,35 @@ button.secondary, .button.secondary { background: transparent; color: var(--text
 }
 .pill { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--paper-sunk); color: var(--ink-muted); }
 .pill-closed { background: var(--clay-wash); color: var(--clay-deep); }
+
+/* ── Document viewer (file-reader look) ───────────────────────────────── */
+.app-main.wide { max-width: none; padding: 0; }
+.viewer { --z: 1; }
+.viewer-toolbar {
+  position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 10px 24px; background: var(--paper-raised); border-bottom: 1px solid var(--card-border);
+}
+.viewer-title { font-family: var(--heading); color: var(--text-h); font-size: 17px; margin-right: auto; }
+.viewer-pageno, .viewer-zoom { font-size: 14px; color: var(--ink-muted); }
+.viewer-controls { display: flex; align-items: center; gap: 8px; }
+.viewer-controls button { padding: 6px 12px; }
+.viewer-stage {
+  background: var(--paper-sunk); padding: 24px 12px 64px; display: flex; flex-direction: column;
+  align-items: center; gap: 20px; min-height: calc(100svh - 110px);
+}
+.docx-page {
+  width: calc(816px * var(--z)); max-width: 100%; box-sizing: border-box;
+  min-height: calc(1056px * var(--z)); padding: calc(72px * var(--z));
+  background: var(--paper-raised); border: 1px solid var(--field-border); border-radius: 2px;
+  color: var(--ink); font-family: var(--heading); font-size: calc(16px * var(--z)); line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.docx-page p { margin: 0 0 0.8em; }
+.docx-heading { margin: 1.2em 0 0.5em; font-family: var(--heading); color: var(--ink); }
+.docx-page h1 { font-size: 1.8em; } .docx-page h2 { font-size: 1.4em; } .docx-page h3 { font-size: 1.2em; }
+.docx-list { margin: 0 0 0.8em; padding-left: 1.5em; }
+.docx-table { border-collapse: collapse; margin: 0 0 1em; width: 100%; }
+.docx-table td { border: 1px solid var(--field-border); padding: 0.4em 0.6em; vertical-align: top; }
+.docx-table td p:last-child { margin-bottom: 0; }
+.docx-image-placeholder { color: var(--ink-faint); font-style: italic; }
+@media (max-width: 700px) { .docx-page { padding: 24px 18px; min-height: 0; } .viewer-toolbar { padding: 8px 12px; } }

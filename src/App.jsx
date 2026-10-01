@@ -4,7 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 import SignInPage from './pages/SignInPage.jsx';
 import VerifyPage from './pages/VerifyPage.jsx';
 import AssignmentsPage from './pages/AssignmentsPage.jsx';
-import ReaderPage from './pages/ReaderPage.jsx';
+import ReaderGate from './components/ReaderGate.jsx';
 import InvitePage from './pages/InvitePage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
@@ -16,10 +16,12 @@ export default function App() {
         <Route path="/sign-in" element={<SignInPage />} />
         <Route path="/auth-verify" element={<VerifyPage />} />
         <Route path="/invite/accept" element={<InvitePage />} />
+        {/* /a/<uuid> is the shape the product plan names for the reader. It
+            handles its own auth: an extension handoff code signs the student
+            in directly, otherwise it falls back to the sign-in page. */}
+        <Route path="/a/:assignmentId" element={<ReaderGate />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/assignments" element={<AssignmentsPage />} />
-          {/* /a/<uuid> is the shape the product plan names for the reader. */}
-          <Route path="/a/:assignmentId" element={<ReaderPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Route>
