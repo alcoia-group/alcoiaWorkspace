@@ -47,6 +47,10 @@ theme only for now). Dev port 8081 (8080 is the console's). Session: `localStora
    link opens the console. Needs a per-origin verify base (or a new kind).
 6. LTI-joined seats have `seatId: null` in the extension (ack response omits it); not this repo.
 
+## Branches
+
+`main` is the default and merged by the owner via PRs. Agents work on `claude/*` branches only, never on `main`.
+
 ## Design
 
 See `SERVER-DESIGN.md` for the planned server, extension and reader work (design only, unbuilt).
