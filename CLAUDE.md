@@ -56,7 +56,7 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
 - Pictures inside Word and PowerPoint files load through an authenticated fetch (`lib/assets.js`), because an
   `<img src>` cannot send the session header; shown as blob URLs, with a labelled placeholder on failure.
 - An ended session (401) clears itself and sends the student to sign in, then back to the same assignment.
-- `/invite/accept` is a deliberate stub, does not call accept.
+- `/invite/accept?token=`: invite page. Previews the class, shows the reporting-mode notice (anonymous or identified wording), asks the student to sign in if needed, then accepts with `acknowledged: true` and goes to their assignments. The console's invite links point here (`VITE_ASSIGNMENTS_URL`).
 - **Extension handoff:** `/a/:assignmentId#c=<code>` exchanges the code once (`POST /api/reader/exchange`),
   signs the student in with a `reader` session and strips the fragment, no sign-in screen. A bad, used or
   expired code, or no code at all, falls back to the sign-in page. `ReaderGate`, `src/lib/handoff.js`.
@@ -102,9 +102,7 @@ says so in `teachingRecommendations`). This app never decides entitlement. Full 
    `claude/document-content-docx`, `...-pptx`, `claude/pdf-and-status-fixes`, stacked on
    `claude/reader-handoff-session`, unmerged). Old uploads keep a stale `unsupported` status until the server
    corrects it on first read or `npm run documents:reconvert` is run there. Entrance animations are not built.
-2. **Invite disclosure can't be shown before joining.** `POST /api/invites/accept` returns only
-   `{ classId, seatId, role }`; the class and roster reads are staff-only. A student must be told the
-   reporting mode before joining. Needs an invite-preview read (token in, class name + reportingMode out).
+2. ~~Invite disclosure before joining~~ **Built:** `POST /api/invites/preview` (server) returns class name and reporting mode, and `/invite/accept?token=` (`InvitePage`, `src/lib/invites.js`) shows the matching notice before sign-in or join. It then calls accept with `acknowledged: true`. The token never goes in a URL log beyond the link itself; it is sent in the body. Sign-in from this page returns to it (`setReturnPath`/`takeReturnPath`). The extension's join screen does the same through the same preview.
 3. **LTI redirect carries no session** (the extension handoff above is separate and built; this is LTI only). `buildRedirectUrl` in `lti.js` sets only `classId`/`assignmentId`;
    `ltiReaderBaseUrl` defaults to a console `.invalid` URL. Landing here from the ack/launch leaves the
    student signed out. Needs a handoff like `/launch/exchange`, and `LTI_READER_BASE_URL` pointed here.

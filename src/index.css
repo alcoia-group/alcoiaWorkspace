@@ -304,3 +304,9 @@ html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: 100svh; }
   .logo-light-only { display: none; }
   .logo-dark-only { display: block; }
 }
+
+.page.narrow { max-width: 620px; }
+.notice { background: #fff; border: 1px solid #c7cdd1; border-left: 4px solid #5c7a63; padding: 14px 16px; margin: 16px 0; }
+.notice h2 { margin-bottom: 8px; }
+.notice p { margin: 0 0 8px; }
+.notice p:last-child { margin-bottom: 0; }
