@@ -24,7 +24,7 @@ theme only for now). Dev port 8082 (8080 console, 8081 marketing default). Sessi
 ## What exists
 
 - `/sign-in` magic link (`kind: 'console'`), `/auth-verify` confirm-then-verify (token path only).
-- `/assignments` from `GET /api/assignments/mine`.
+- `/assignments` from `GET /api/assignments/mine`. An assignment's optional `name` (set in the console) is shown, with the class name beneath; without one the class name is used.
 - `/a/:assignmentId`: **Word documents render in the page** (`DocxViewer`): page frames on a neutral
   ground, headings, bold/italic/underline, links (http/https/mailto only), bullet and numbered lists,
   tables, a toolbar with "Page n of N", zoom and download. Real `<h*>/<p>/<ul>/<table>` DOM, so the extension
