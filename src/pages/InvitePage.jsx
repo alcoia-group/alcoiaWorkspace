@@ -4,6 +4,7 @@ import { useSession } from '../context/SessionContext.jsx';
 import { ApiError } from '../lib/api.js';
 import { previewInvite, acceptInvite } from '../lib/invites.js';
 import { setReturnPath } from '../lib/session.js';
+import ReportingNotice from '../components/ReportingNotice.jsx';
 
 const PREVIEW_ERRORS = {
   invalid_request: 'This invite link is missing its code.',
@@ -20,42 +21,6 @@ const JOIN_ERRORS = {
   domain_mismatch: 'This invite is only for people with a particular school email address, and the address you signed in with does not match.',
   seat_capacity_exceeded: 'This class is full. Ask your instructor.',
 };
-
-// The reporting-mode notice is the promise made to the student, and it cannot
-// be changed after they join. It is shown, in full, before there is any way to
-// join (the join button is rendered inside this component's ready state only).
-function ReportingNotice({ className, reportingMode }) {
-  return (
-    <div className="notice" role="region" aria-label="What your instructor can see">
-      <h2>What your instructor can see</h2>
-      {reportingMode === 'identified' ? (
-        <>
-          <p>
-            In <strong>{className}</strong>, your instructor sees <strong>individual results</strong>:
-            which parts of a reading you found hard and how you answered the questions, with your name
-            on them.
-          </p>
-          <p>
-            This was set when the class was created and cannot be changed after you join. If you would
-            rather not be seen individually, do not join this class.
-          </p>
-        </>
-      ) : (
-        <>
-          <p>
-            In <strong>{className}</strong>, your instructor sees <strong>aggregate results only</strong>,
-            things like “most of the class found section 2 hard.” Nothing about your own reading,
-            individually, is visible to them.
-          </p>
-          <p>
-            The one exception: if you choose to submit a reading receipt for a specific assignment, your
-            instructor sees that one receipt. Nothing else, and never automatically.
-          </p>
-        </>
-      )}
-    </div>
-  );
-}
 
 export default function InvitePage() {
   const [params] = useSearchParams();
