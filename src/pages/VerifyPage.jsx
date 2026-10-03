@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import Logo from '../components/Logo.jsx';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiPost, ApiError } from '../lib/api.js';
-import { takePendingEmail } from '../lib/session.js';
+import { takePendingEmail, takeReturnPath } from '../lib/session.js';
 import { useSession } from '../context/SessionContext.jsx';
 
 const ERROR_MESSAGES = {
@@ -37,7 +38,7 @@ export default function VerifyPage() {
       // Strip the spent token and navigate imperatively in the same tick;
       // signIn() swaps the layout tree and can remount this page.
       window.history.replaceState({}, '', window.location.pathname);
-      navigate('/assignments', { replace: true });
+      navigate(takeReturnPath() ?? '/assignments', { replace: true });
     } catch (err) {
       setError(ERROR_MESSAGES[err instanceof ApiError ? err.code : null] ?? 'Could not verify this link.');
       setState('error');
@@ -46,19 +47,26 @@ export default function VerifyPage() {
 
   if (state === 'confirm' || state === 'verifying') {
     return (
-      <section className="center-card">
-        <h1>Click below to sign in</h1>
-        <button type="button" onClick={handleConfirm} disabled={state === 'verifying'}>
-          {state === 'verifying' ? 'Signing in…' : 'Sign in to alcoia →'}
-        </button>
+      <section className="signin">
+        <div className="signin-box">
+          <Logo adaptive className="logo-auth" />
+          <h2>Sign in</h2>
+          <p>Select the button to finish signing in.</p>
+          <button type="button" className="block" onClick={handleConfirm} disabled={state === 'verifying'}>
+            {state === 'verifying' ? 'Signing in' : 'Sign in'}
+          </button>
+        </div>
       </section>
     );
   }
   return (
-    <section className="center-card">
-      <h1>Couldn’t sign you in</h1>
-      <p className="status-line status-error">{error}</p>
-      <p><Link to="/sign-in">Back to sign in</Link></p>
+    <section className="signin">
+      <div className="signin-box">
+        <Logo adaptive className="logo-auth" />
+        <h2>Sign-in failed</h2>
+        <p className="alert alert-error">{error}</p>
+        <p><Link to="/sign-in">Back to sign in</Link></p>
+      </div>
     </section>
   );
 }

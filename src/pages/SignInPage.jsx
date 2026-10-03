@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import wordmark from '../assets/img/alcoia-wordmark.png';
+import Logo from '../components/Logo.jsx';
 import { apiPost, ApiError } from '../lib/api.js';
-import { setPendingEmail } from '../lib/session.js';
+import { setPendingEmail, setReturnPath } from '../lib/session.js';
 import { useSession } from '../context/SessionContext.jsx';
 
 export default function SignInPage() {
@@ -18,10 +18,13 @@ export default function SignInPage() {
     e.preventDefault();
     setState('sending');
     try {
-      // 'console' is the only browser-session kind the server issues; the
+      // app: 'assignments' makes the emailed link open this site, not the
+      // console. 'console' is the only browser-session kind the server issues; the
       // 'extension' kind needs a code handoff a web page can't complete.
-      await apiPost('/api/auth/magic-link', { email: email.trim(), kind: 'console' });
+      await apiPost('/api/auth/magic-link', { email: email.trim(), kind: 'console', app: 'assignments' });
       setPendingEmail(email.trim());
+      // Carry the page that sent us here (an invite, say) across the emailed link.
+      if (location.state?.from) setReturnPath(location.state.from);
       setState('sent');
     } catch (err) {
       setMessage(
@@ -34,28 +37,28 @@ export default function SignInPage() {
   }
 
   return (
-    <section className="center-card">
-      <img src={wordmark} alt="alcoia" className="wordmark-img" />
-      {state === 'sent' ? (
-        <>
-          <h1>Check your email</h1>
-          <p>If that address can sign in, a link is on its way. It works once and expires soon.</p>
-        </>
-      ) : (
-        <form onSubmit={handleSubmit}>
-          <h1>Sign in to read your assignments</h1>
-          <p>We’ll email you a link. No password to remember.</p>
-          <label htmlFor="email">Email</label>
-          <input id="email" type="email" required autoComplete="email" value={email}
-            onChange={(e) => setEmail(e.target.value)} />
-          <p>
-            <button type="submit" disabled={state === 'sending'}>
-              {state === 'sending' ? 'Sending…' : 'Send sign-in link'}
+    <section className="signin">
+      <div className="signin-box">
+        <Logo adaptive className="logo-auth" />
+        {state === 'sent' ? (
+          <>
+            <h2>Check your email</h2>
+            <p>If that address can sign in, a link is on its way. It works once and expires soon.</p>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <h2>Sign in</h2>
+            <p>Enter your email address and we will send you a sign-in link.</p>
+            <label htmlFor="email">Email</label>
+            <input id="email" type="email" required autoComplete="email" value={email}
+              onChange={(e) => setEmail(e.target.value)} />
+            <button type="submit" className="block" disabled={state === 'sending'}>
+              {state === 'sending' ? 'Sending' : 'Send sign-in link'}
             </button>
-          </p>
-          {state === 'error' && <p className="status-line status-error">{message}</p>}
-        </form>
-      )}
+            {state === 'error' && <p className="alert alert-error">{message}</p>}
+          </form>
+        )}
+      </div>
     </section>
   );
 }

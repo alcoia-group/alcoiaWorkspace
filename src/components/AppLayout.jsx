@@ -1,17 +1,27 @@
 import { Link, Outlet } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
+import Logo from './Logo.jsx';
+import { useSessionKeepAlive } from '../lib/keepalive.js';
+import { initials } from '../lib/format.js';
 
 export default function AppLayout() {
   const { session, signOut } = useSession();
+  useSessionKeepAlive(session);
   return (
     <>
-      <header className="app-header">
-        <Link to="/" className="app-brand">alcoia</Link>
+      <header className="global-bar">
+        <Link to={session ? '/assignments' : '/sign-in'} className="global-brand" aria-label="alcoia home"><Logo onDark /></Link>
         {session && (
-          <div className="app-header-right">
-            {session.email && <span>{session.email}</span>}
-            <button type="button" className="secondary" onClick={signOut}>Sign out</button>
-          </div>
+          <>
+            <nav className="global-nav" aria-label="Main">
+              <Link to="/assignments">Assignments</Link>
+            </nav>
+            <div className="global-user">
+              <span className="avatar" aria-hidden="true">{initials(session.email)}</span>
+              {session.email && <span className="global-email">{session.email}</span>}
+              <button type="button" className="link-button" onClick={signOut}>Sign out</button>
+            </div>
+          </>
         )}
       </header>
       <main>

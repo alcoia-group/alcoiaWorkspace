@@ -1,31 +1,55 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
-import { fetchDownloadUrl, fetchMyAssignments } from '../lib/assignments.js';
+import { formatDue, formatLabel } from '../lib/format.js';
+import { fetchDocument, fetchDownloadUrl, fetchMyAssignments } from '../lib/assignments.js';
+import DocxViewer from '../components/viewers/DocxViewer.jsx';
+import SlideViewer from '../components/viewers/SlideViewer.jsx';
+// pdf.js is large; only load it for a PDF.
+const PdfViewer = lazy(() => import('../components/viewers/PdfViewer.jsx'));
 
-// The reader itself is NOT built: alcoiaServer has no endpoint that returns
-// a document as HTML (the only document read is the signed download URL,
-// served as an attachment, and no PDF/PPTX conversion exists server-side --
-// DOCX extraction only decides documents.status, then discards the text).
-// This page shows what is real -- the assignment and its document -- and
-// says plainly that in-page reading is not available yet. See CLAUDE.md.
+// The reader. Word documents (DocxViewer), PowerPoint decks (SlideViewer) and
+// PDFs (PdfViewer) render in the page; a document the server cannot read (a
+// scanned PDF, a failed conversion) falls back to the original download, said plainly.
+// A 401 means the session ended (reader sessions are time-limited): the
+// student is sent to sign in and brought straight back here.
 export default function ReaderPage() {
   const { assignmentId } = useParams();
-  const { session } = useSession();
-  const [state, setState] = useState({ status: 'loading', assignment: null });
+  const { session, signOut } = useSession();
+  const location = useLocation();
+  const [state, setState] = useState({ status: 'loading' });
   const [downloadError, setDownloadError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetchMyAssignments(session.sessionToken)
-      .then((items) => {
-        if (cancelled) return;
+    (async () => {
+      try {
+        const items = await fetchMyAssignments(session.sessionToken);
         const assignment = items.find((a) => a.assignmentId === assignmentId) ?? null;
-        setState({ status: assignment ? 'ready' : 'missing', assignment });
-      })
-      .catch(() => !cancelled && setState({ status: 'error', assignment: null }));
+        if (!assignment) {
+          if (!cancelled) setState({ status: 'missing' });
+          return;
+        }
+        let doc = null;
+        try {
+          doc = await fetchDocument(assignmentId, session.sessionToken);
+        } catch (err) {
+          if (err.status === 401) throw err;
+          // 404 (no document yet) and anything else: show the assignment without one.
+        }
+        if (!cancelled) setState({ status: 'ready', assignment, doc });
+      } catch (err) {
+        if (cancelled) return;
+        if (err.status === 401) setState({ status: 'expired' });
+        else setState({ status: 'error' });
+      }
+    })();
     return () => { cancelled = true; };
   }, [assignmentId, session.sessionToken]);
+
+  useEffect(() => {
+    if (state.status === 'expired') signOut();
+  }, [state.status, signOut]);
 
   async function handleDownload(documentId) {
     setDownloadError(false);
@@ -36,35 +60,62 @@ export default function ReaderPage() {
     }
   }
 
+  if (state.status === 'expired') {
+    return <Navigate to="/sign-in" replace state={{ from: location.pathname }} />;
+  }
+  if (state.status === 'ready' && state.doc?.content) {
+    const { assignment, doc } = state;
+    const Viewer = { pptx: SlideViewer, pdf: PdfViewer }[doc.content.format] ?? DocxViewer;
+    return (
+      <section className="reader">
+        <div className="crumbs">
+          <nav aria-label="Breadcrumb">
+            <Link to="/assignments">Assignments</Link>
+            <span className="crumb-sep" aria-hidden="true">/</span>
+            <span>{assignment.className}{assignment.name ? ` / ${assignment.name}` : ''}</span>
+          </nav>
+          <span className="crumb-due">Due {formatDue(assignment.closesAt)}</span>
+        </div>
+        <Suspense fallback={<p className="muted pad">Loading.</p>}>
+          <Viewer
+            content={doc.content}
+            title={assignment.name || assignment.className}
+            asset={{ assignmentId, sessionToken: session.sessionToken }}
+            onDownload={() => handleDownload(doc.documentId)}
+          />
+        </Suspense>
+        {downloadError && <p className="alert alert-error">The download link could not be created.</p>}
+      </section>
+    );
+  }
+
   const { status, assignment } = state;
   return (
-    <section className="app-main">
-      <p><Link to="/assignments">← Your assignments</Link></p>
-      {status === 'loading' && <p>Loading…</p>}
-      {status === 'error' && <p className="status-line status-error">Could not load this assignment.</p>}
+    <section className="page">
+      <p><Link to="/assignments">Back to assignments</Link></p>
+      {status === 'loading' && <p className="muted">Loading.</p>}
+      {status === 'error' && <p className="alert alert-error">This assignment could not be loaded.</p>}
       {status === 'missing' && (
         <>
-          <h1>Assignment not available</h1>
+          <h1 className="page-title">Assignment not available</h1>
           <p>It may have closed, or it may belong to a class you haven’t joined.</p>
         </>
       )}
       {status === 'ready' && (
         <>
-          <h1>{assignment.className}</h1>
-          <p className="meta">Closes {new Date(assignment.closesAt).toLocaleString()}</p>
-          <div className="notice">
-            Reading in the page isn’t available yet. For now the document can only be downloaded.
-          </div>
+          <h1 className="page-title">{assignment.className}</h1>
+          <p className="muted">Due {formatDue(assignment.closesAt)}</p>
+          <p className="alert">This file cannot be shown here. You can download the original.</p>
           {assignment.documents.length === 0 && <p>No document has been attached yet.</p>}
           {assignment.documents.map((d) => (
-            <div className="card card-row" key={d.documentId}>
-              <span>{d.format.toUpperCase()} document</span>
+            <div className="file-row" key={d.documentId}>
+              <span>{formatLabel(d.format)}</span>
               <button type="button" className="secondary" onClick={() => handleDownload(d.documentId)}>
                 Download
               </button>
             </div>
           ))}
-          {downloadError && <p className="status-line status-error">Could not get the download link.</p>}
+          {downloadError && <p className="alert alert-error">The download link could not be created.</p>}
         </>
       )}
     </section>
