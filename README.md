@@ -1,6 +1,6 @@
-# alcoia assignments (`assignments.alcoia.app`)
+# alcoia reader (`reader.alcoia.app`)
 
-The web reader for instructor-assigned readings. A student opens an assignment, the server checks who
+The web reader: where students, and later any general user, open readings. Today that is instructor-assigned readings; reading analytics (a Reader/Student plan feature) are planned and not built. A student opens an assignment, the server checks who
 they are and whether they belong to the class, and the document is shown as a real web page that
 looks like a file reader (Word pages, PowerPoint slides with their transitions, PDF pages). The alcoia
 browser extension runs on that page exactly as it runs on any article, so reading signals and
@@ -32,7 +32,7 @@ a reader opens themselves**; the assignment reader lives here.
 
 | Entry | Who | How it arrives |
 |---|---|---|
-| **Direct link / invite / extension** | Instructors without an LMS, or students outside one | The student opens `assignments.alcoia.app/a/<assignmentId>`, via the extension popup (signed in automatically), a shared link, or an invite code. |
+| **Direct link / invite / extension** | Instructors without an LMS, or students outside one | The student opens `reader.alcoia.app/a/<assignmentId>`, via the extension popup (signed in automatically), a shared link, or an invite code. |
 | **LTI launch** | Instructors who use Canvas, Moodle, Blackboard (LTI 1.3) | The student clicks the reading inside the LMS; the server validates the launch and lands them on the same page. |
 
 Either way it is the **same assignment record, the same outcomes endpoint and the same console view**.
@@ -267,11 +267,11 @@ or any LMS.
 - **This app (Cloudflare)**: build variable `VITE_API_BASE_URL=https://server.alcoia.app` (baked in at
   build time). `public/_redirects` (`/* /index.html 200`) makes deep links like `/a/<id>` and
   `/auth-verify` load the app; without it a direct visit or reload 404s.
-- **Server (Render)**: `READER_ORIGIN=https://assignments.alcoia.app` (fails closed in production if
+- **Server (Render)**: `READER_ORIGIN=https://reader.alcoia.app` (fails closed in production if
   unset), then `npm run documents:reconvert` once so old uploads stuck on "unsupported" are repaired.
   Placeholders, all approved as placeholders: `SESSION_TTL_READER_MS` (8 h), `SESSION_MAX_READER_MS`
   (7 d), `READER_HANDOFF_TTL_MS` (60 s), and the exchange rate limit.
-- **Extension**: its `READER_ORIGIN` constant (`https://assignments.alcoia.app`) must match the real domain.
+- **Extension**: its `READER_ORIGIN` constant (`https://reader.alcoia.app`) must match the real domain.
 - Dev: `npm install`, `npm run dev` (port 8082; console 8080). `npm run lint`, `npm run build`.
 
 **Merge order (the repo owner merges; agents only push `claude/*` branches).** Branches are stacked:

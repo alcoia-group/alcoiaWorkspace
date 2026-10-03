@@ -5,11 +5,13 @@ it describes what exists, not what is intended.
 
 ## What this is
 
-`assignments.alcoia.app`: the student-facing web app that replaces the extension's built-in PDF viewer
+`reader.alcoia.app` (**the reader**, formerly `assignments.alcoia.app` and "alcoia assignments"): the web app general users, students first, use. It replaces the extension's built-in PDF viewer
 for instructor-assigned readings. Planned shape: a student opens `/a/<assignmentId>`, the server checks
 session + class membership, the document is shown as a real web page, and the alcoia extension runs on
 it like on any article. Outcomes flow to the same `POST /api/assignments/:id/outcomes` and land in the
 console. Two entry points, one assignment: a direct link / invite (no LMS), or an LTI launch.
+
+**Why the name changed:** this is the interface every general user will use, and it will also show **reading analytics** (a Reader/Student plan feature on the pricing page). Reading analytics are **not built**; today the reader shows assigned documents, the assignment list, invites and the LTI landing. Routes (`/a/:id`, `/assignments`, `/invite/accept`, `/lti/join`) were deliberately not renamed: the extension and sent invite links depend on them. The magic-link request now sends `app: 'reader'` (the server still accepts the old `'assignments'`). The repository name is unchanged for now.
 
 Holds no business logic. The server decides entitlement, membership and reporting mode. Same product
 rules as the console: no leaderboards, no accuracy claims, receipts say "unaltered since issued".
@@ -114,7 +116,7 @@ says so in `teachingRecommendations`). This app never decides entitlement. Full 
 
 Build variable `VITE_API_BASE_URL=https://server.alcoia.app` (baked in at build time, like the console's).
 `public/_redirects` (`/* /index.html 200`) makes deep links such as `/a/<id>` and `/auth-verify` load the app;
-without it a direct visit or reload 404s. The server needs `READER_ORIGIN=https://assignments.alcoia.app`.
+without it a direct visit or reload 404s. The server needs `READER_ORIGIN=https://reader.alcoia.app`.
 Reader sessions slide while the student is active: the server extends one on use (8 h idle window, 7 day cap,
 placeholders), and `src/lib/keepalive.js` pings `POST /api/reader/keepalive` every 5 minutes while the tab is
 visible and something was touched in the last 10 minutes. An idle tab still ends after the idle window; a reload
