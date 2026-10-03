@@ -19,6 +19,16 @@ rules as the console: no leaderboards, no accuracy claims, receipts say "unalter
 
 **Where the workspace is headed (direction, not a commitment).** "Workspace" was chosen over "reader" because it is a place to work, not only a document viewer, so it has room to grow. **Supported today:** assigned readings, several documents and assignments per user (the assignment list), class invites and the LTI landing. **Possible later, none of it built:** notes, a user's own uploaded documents (Reader and Student plans only), reading analytics (Reader and Student plans), discussions, exercises and saved material. Each needs its own design and privacy review before it ships (anything stored per user is new account-linked data; see the server's CLAUDE.md, section 2 invariants and section 12). Keep this paragraph honest: move an item up only when it exists.
 
+**How the workspace behaves (decided, mostly unbuilt).** A reading assigned to you opens directly in the document view (`/a/:id`, built).
+Opening the workspace itself (its home) is meant to offer more, **reserved to people with the Reader or Student plan (a seat that
+gives the Reader plan counts):** uploading your own documents, and **reading analytics, always available there**. Free accounts
+can open assigned readings but not uploads or analytics. The server decides this, never the app (server invariant 8): it will
+return the capability in `GET /api/entitlements` `features[]`. **Nothing of this exists yet.** The pricing page already lists both, with
+the FAQ saying they are not available yet. **Privacy objection to settle in the audit, not assume away:** reading analytics about a person
+need a record of what that person read, which the server must not hold (server invariant 1). They have to be computed on the device from
+local history (the extension already keeps it locally) or from the bounded, assignment-scoped data the server already has; a new
+per-person reading-history table is not allowed without the owner changing that invariant.
+
 ## Stack
 
 React + Vite, plain JS, `react-router-dom`, no UI kit. Tokens/fonts copied from alcoiaConsole (light
