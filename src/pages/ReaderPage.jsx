@@ -72,14 +72,14 @@ export default function ReaderPage() {
           <nav aria-label="Breadcrumb">
             <Link to="/assignments">Assignments</Link>
             <span className="crumb-sep" aria-hidden="true">/</span>
-            <span>{assignment.className}</span>
+            <span>{assignment.className}{assignment.name ? ` / ${assignment.name}` : ''}</span>
           </nav>
           <span className="crumb-due">Due {formatDue(assignment.closesAt)}</span>
         </div>
         <Suspense fallback={<p className="muted pad">Loading.</p>}>
           <Viewer
             content={doc.content}
-            title={assignment.className}
+            title={assignment.name || assignment.className}
             asset={{ assignmentId, sessionToken: session.sessionToken }}
             onDownload={() => handleDownload(doc.documentId)}
           />

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Logo from '../components/Logo.jsx';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { apiPost, ApiError } from '../lib/api.js';
-import { takePendingEmail } from '../lib/session.js';
+import { takePendingEmail, takeReturnPath } from '../lib/session.js';
 import { useSession } from '../context/SessionContext.jsx';
 
 const ERROR_MESSAGES = {
@@ -38,7 +38,7 @@ export default function VerifyPage() {
       // Strip the spent token and navigate imperatively in the same tick;
       // signIn() swaps the layout tree and can remount this page.
       window.history.replaceState({}, '', window.location.pathname);
-      navigate('/assignments', { replace: true });
+      navigate(takeReturnPath() ?? '/assignments', { replace: true });
     } catch (err) {
       setError(ERROR_MESSAGES[err instanceof ApiError ? err.code : null] ?? 'Could not verify this link.');
       setState('error');

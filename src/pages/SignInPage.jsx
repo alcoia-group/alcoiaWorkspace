@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import Logo from '../components/Logo.jsx';
 import { apiPost, ApiError } from '../lib/api.js';
-import { setPendingEmail } from '../lib/session.js';
+import { setPendingEmail, setReturnPath } from '../lib/session.js';
 import { useSession } from '../context/SessionContext.jsx';
 
 export default function SignInPage() {
@@ -23,6 +23,8 @@ export default function SignInPage() {
       // 'extension' kind needs a code handoff a web page can't complete.
       await apiPost('/api/auth/magic-link', { email: email.trim(), kind: 'console', app: 'assignments' });
       setPendingEmail(email.trim());
+      // Carry the page that sent us here (an invite, say) across the emailed link.
+      if (location.state?.from) setReturnPath(location.state.from);
       setState('sent');
     } catch (err) {
       setMessage(

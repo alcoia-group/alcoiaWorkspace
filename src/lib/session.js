@@ -47,3 +47,20 @@ export function takePendingEmail() {
   localStorage.removeItem(PENDING_EMAIL_KEY);
   return email;
 }
+
+// Where to go after sign-in finishes. The emailed link opens in a fresh page
+// load, so router state is gone by then; this carries the destination (for
+// example an invite page) across it.
+const RETURN_KEY = 'alcoia_assignments_return';
+
+export function setReturnPath(path) {
+  if (typeof path === 'string' && path.startsWith('/') && !path.startsWith('//')) {
+    localStorage.setItem(RETURN_KEY, path);
+  }
+}
+
+export function takeReturnPath() {
+  const path = localStorage.getItem(RETURN_KEY);
+  localStorage.removeItem(RETURN_KEY);
+  return path && path.startsWith('/') && !path.startsWith('//') ? path : null;
+}
