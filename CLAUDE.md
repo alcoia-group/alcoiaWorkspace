@@ -5,15 +5,29 @@ it describes what exists, not what is intended.
 
 ## What this is
 
-`assignments.alcoia.app`: the student-facing web app that replaces the extension's built-in PDF viewer
+`workspace.alcoia.app` (**the workspace**, formerly `assignments.alcoia.app` / "alcoia assignments", then briefly `reader.alcoia.app`): the web app general users, students first, use. It replaces the extension's built-in PDF viewer
 for instructor-assigned readings. Planned shape: a student opens `/a/<assignmentId>`, the server checks
 session + class membership, the document is shown as a real web page, and the alcoia extension runs on
 it like on any article. Outcomes flow to the same `POST /api/assignments/:id/outcomes` and land in the
 console. Two entry points, one assignment: a direct link / invite (no LMS), or an LTI launch.
 
+**Why the name changed:** this is the interface every general user will use. Besides assigned readings it is meant to let users with a Reader or Student plan **upload their own documents**, and to show **reading analytics** (a Reader/Student plan feature). **Neither is built**; today it shows assigned documents, the assignment list, invites and the LTI landing. It is called the workspace, not the reader, so it is not confused with the Reader *plan*. Routes (`/a/:id`, `/assignments`, `/invite/accept`, `/lti/join`) were deliberately not renamed: the extension and sent invite links depend on them. The magic-link request sends `app: 'workspace'` (the server still accepts `'reader'` and `'assignments'`). The repository name is unchanged for now.
+
 Holds no business logic. The server decides entitlement, membership and reporting mode. Same product
 rules as the console: no leaderboards, no accuracy claims, receipts say "unaltered since issued".
 `ALCOIA-PLATFORM-SPEC.md` and `SERVER-ARCHITECTURE.md` (copied from the console) must stay in this root.
+
+**Where the workspace is headed (direction, not a commitment).** "Workspace" was chosen over "reader" because it is a place to work, not only a document viewer, so it has room to grow. **Supported today:** assigned readings, several documents and assignments per user (the assignment list), class invites and the LTI landing. **Possible later, none of it built:** notes, a user's own uploaded documents (Reader and Student plans only), reading analytics (Reader and Student plans), discussions, exercises and saved material. Each needs its own design and privacy review before it ships (anything stored per user is new account-linked data; see the server's CLAUDE.md, section 2 invariants and section 12). Keep this paragraph honest: move an item up only when it exists.
+
+**How the workspace behaves (decided, mostly unbuilt).** A reading assigned to you opens directly in the document view (`/a/:id`, built).
+Opening the workspace itself (its home) is meant to offer more, **reserved to people with the Reader or Student plan (a seat that
+gives the Reader plan counts):** uploading your own documents, and **reading analytics, always available there**. Free accounts
+can open assigned readings but not uploads or analytics. The server decides this, never the app (server invariant 8): it will
+return the capability in `GET /api/entitlements` `features[]`. **Nothing of this exists yet.** The pricing page already lists both, with
+the FAQ saying they are not available yet. **Privacy objection to settle in the audit, not assume away:** reading analytics about a person
+need a record of what that person read, which the server must not hold (server invariant 1). They have to be computed on the device from
+local history (the extension already keeps it locally) or from the bounded, assignment-scoped data the server already has; a new
+per-person reading-history table is not allowed without the owner changing that invariant.
 
 ## Stack
 
@@ -114,7 +128,7 @@ says so in `teachingRecommendations`). This app never decides entitlement. Full 
 
 Build variable `VITE_API_BASE_URL=https://server.alcoia.app` (baked in at build time, like the console's).
 `public/_redirects` (`/* /index.html 200`) makes deep links such as `/a/<id>` and `/auth-verify` load the app;
-without it a direct visit or reload 404s. The server needs `READER_ORIGIN=https://assignments.alcoia.app`.
+without it a direct visit or reload 404s. The server needs `READER_ORIGIN=https://workspace.alcoia.app`.
 Reader sessions slide while the student is active: the server extends one on use (8 h idle window, 7 day cap,
 placeholders), and `src/lib/keepalive.js` pings `POST /api/reader/keepalive` every 5 minutes while the tab is
 visible and something was touched in the last 10 minutes. An idle tab still ends after the idle window; a reload

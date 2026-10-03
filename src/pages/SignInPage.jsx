@@ -18,10 +18,10 @@ export default function SignInPage() {
     e.preventDefault();
     setState('sending');
     try {
-      // app: 'assignments' makes the emailed link open this site, not the
+      // app: 'workspace' makes the emailed link open this site, not the
       // console. 'console' is the only browser-session kind the server issues; the
       // 'extension' kind needs a code handoff a web page can't complete.
-      await apiPost('/api/auth/magic-link', { email: email.trim(), kind: 'console', app: 'assignments' });
+      await apiPost('/api/auth/magic-link', { email: email.trim(), kind: 'console', app: 'workspace' });
       setPendingEmail(email.trim());
       // Carry the page that sent us here (an invite, say) across the emailed link.
       if (location.state?.from) setReturnPath(location.state.from);

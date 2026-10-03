@@ -8,7 +8,7 @@ before they are built.
 ## 1. Rules this has to satisfy
 
 1. From the extension, an assignment opens **already signed in**, no sign-in click-through.
-2. With nothing (no extension, no code), `assignments.alcoia.app` keeps its default: sign-in page.
+2. With nothing (no extension, no code), `workspace.alcoia.app` keeps its default: sign-in page.
 3. An assignment is visible only to (a) an account holding an active seat in its class, or (b) someone
    holding a valid code. A guessed URL reveals nothing, not even that the assignment exists.
 4. The reader is a **normal web page** (real DOM text, paragraphs) so the extension works on it
@@ -39,7 +39,7 @@ Today the extension holds a 90-day `extension` session and opens its own PDF vie
 1. Popup "Open" calls `POST /api/assignments/:id/reader-handoff` with the extension session.
    Server checks the seat (404 otherwise), mints a single-use code (60 s placeholder TTL, hashed at
    rest, new `reader_handoff_codes` table, same shape as `extension_handoff_codes`) and returns it.
-2. Extension opens `https://assignments.alcoia.app/a/<id>#c=<code>`. The code is in the **fragment**
+2. Extension opens `https://workspace.alcoia.app/a/<id>#c=<code>`. The code is in the **fragment**
    so it never reaches server logs, `Referer`, or history sync as a request.
 3. The app calls `POST /api/reader/exchange { code, assignmentId }`, receives a session, strips the
    fragment, and renders. No sign-in screen is shown.
@@ -52,7 +52,7 @@ page must not hold the extension's 90-day credential, and a `reader` session mus
 kind (`assignments/mine`, document content, outcomes). TTL placeholder 8 h, tracked as unapproved.
 
 The extension keeps using its own session for outcomes; the page's session is only for fetching
-content. The extension recognises an assignment page by URL (`assignments.alcoia.app/a/<uuid>`),
+content. The extension recognises an assignment page by URL (`workspace.alcoia.app/a/<uuid>`),
 no page script, and sets `assignmentId` for `host.js` from the path. The extension's PDF viewer stays
 for readers' own documents; assignments move to the web.
 
