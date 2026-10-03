@@ -5,17 +5,19 @@ it describes what exists, not what is intended.
 
 ## What this is
 
-`reader.alcoia.app` (**the reader**, formerly `assignments.alcoia.app` and "alcoia assignments"): the web app general users, students first, use. It replaces the extension's built-in PDF viewer
+`workspace.alcoia.app` (**the workspace**, formerly `assignments.alcoia.app` / "alcoia assignments", then briefly `reader.alcoia.app`): the web app general users, students first, use. It replaces the extension's built-in PDF viewer
 for instructor-assigned readings. Planned shape: a student opens `/a/<assignmentId>`, the server checks
 session + class membership, the document is shown as a real web page, and the alcoia extension runs on
 it like on any article. Outcomes flow to the same `POST /api/assignments/:id/outcomes` and land in the
 console. Two entry points, one assignment: a direct link / invite (no LMS), or an LTI launch.
 
-**Why the name changed:** this is the interface every general user will use, and it will also show **reading analytics** (a Reader/Student plan feature on the pricing page). Reading analytics are **not built**; today the reader shows assigned documents, the assignment list, invites and the LTI landing. Routes (`/a/:id`, `/assignments`, `/invite/accept`, `/lti/join`) were deliberately not renamed: the extension and sent invite links depend on them. The magic-link request now sends `app: 'reader'` (the server still accepts the old `'assignments'`). The repository name is unchanged for now.
+**Why the name changed:** this is the interface every general user will use. Besides assigned readings it is meant to let users with a Reader or Student plan **upload their own documents**, and to show **reading analytics** (a Reader/Student plan feature). **Neither is built**; today it shows assigned documents, the assignment list, invites and the LTI landing. It is called the workspace, not the reader, so it is not confused with the Reader *plan*. Routes (`/a/:id`, `/assignments`, `/invite/accept`, `/lti/join`) were deliberately not renamed: the extension and sent invite links depend on them. The magic-link request sends `app: 'workspace'` (the server still accepts `'reader'` and `'assignments'`). The repository name is unchanged for now.
 
 Holds no business logic. The server decides entitlement, membership and reporting mode. Same product
 rules as the console: no leaderboards, no accuracy claims, receipts say "unaltered since issued".
 `ALCOIA-PLATFORM-SPEC.md` and `SERVER-ARCHITECTURE.md` (copied from the console) must stay in this root.
+
+**Where the workspace is headed (direction, not a commitment).** "Workspace" was chosen over "reader" because it is a place to work, not only a document viewer, so it has room to grow. **Supported today:** assigned readings, several documents and assignments per user (the assignment list), class invites and the LTI landing. **Possible later, none of it built:** notes, a user's own uploaded documents (Reader and Student plans only), reading analytics (Reader and Student plans), discussions, exercises and saved material. Each needs its own design and privacy review before it ships (anything stored per user is new account-linked data; see the server's CLAUDE.md, section 2 invariants and section 12). Keep this paragraph honest: move an item up only when it exists.
 
 ## Stack
 
@@ -116,7 +118,7 @@ says so in `teachingRecommendations`). This app never decides entitlement. Full 
 
 Build variable `VITE_API_BASE_URL=https://server.alcoia.app` (baked in at build time, like the console's).
 `public/_redirects` (`/* /index.html 200`) makes deep links such as `/a/<id>` and `/auth-verify` load the app;
-without it a direct visit or reload 404s. The server needs `READER_ORIGIN=https://reader.alcoia.app`.
+without it a direct visit or reload 404s. The server needs `READER_ORIGIN=https://workspace.alcoia.app`.
 Reader sessions slide while the student is active: the server extends one on use (8 h idle window, 7 day cap,
 placeholders), and `src/lib/keepalive.js` pings `POST /api/reader/keepalive` every 5 minutes while the tab is
 visible and something was touched in the last 10 minutes. An idle tab still ends after the idle window; a reload
