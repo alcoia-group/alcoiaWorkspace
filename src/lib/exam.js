@@ -9,8 +9,10 @@ import { apiGet, apiPost, ApiError } from './api.js';
 // An error carries `.code` from the server; a 503 with `retryable: true` means nothing was lost.
 const base = '/api/exam/sessions';
 
-export const startExam = (assignmentId, sessionToken, questionCount) =>
-  apiPost(base, { assignmentId, ...(questionCount ? { questionCount } : {}) }, { sessionToken });
+// `assignmentIds`: one or several readings. The server checks each one for this account; a
+// single one it cannot open fails the whole request with the same 404 (nothing is revealed).
+export const startExam = (assignmentIds, sessionToken, questionCount) =>
+  apiPost(base, { assignmentIds: [].concat(assignmentIds), ...(questionCount ? { questionCount } : {}) }, { sessionToken });
 export const answerExam = (id, sessionToken, payload) => apiPost(`${base}/${encodeURIComponent(id)}/answer`, payload, { sessionToken });
 export const nextExam = (id, sessionToken) => apiPost(`${base}/${encodeURIComponent(id)}/next`, {}, { sessionToken });
 export const finishExam = (id, sessionToken) => apiPost(`${base}/${encodeURIComponent(id)}/finish`, {}, { sessionToken });
@@ -24,6 +26,7 @@ export function examErrorKind(err) {
   if (err.status === 404 && err.code === 'assignment_not_found') return 'no_access';
   if (err.status === 404) return 'session_gone';
   if (err.status === 422 && err.code === 'no_examinable_material') return 'no_material';
+  if (err.status === 422 && (err.code === 'duplicate_source' || err.code === 'invalid_sources')) return 'bad_selection';
   if (err.status === 503) return 'unavailable';
   if (err.status === 409) return 'conflict';
   return 'error';

@@ -9,8 +9,8 @@ export const MARKETING_URL = import.meta.env.VITE_MARKETING_URL || 'https://alco
 // plan name or consent value from anywhere else.
 //   200 -> { kind: 'ready', data }
 //   403 capability_required -> { kind: 'upgrade' }  (not on a plan that includes it)
-//   403 learner_memory_consent_required -> { kind: 'memory', status }  (never_enabled |
-//       disabled | reconsent_required); no analytics data accompanies it
+//   403 learner_memory_consent_required -> { kind: 'memory', status }  (the learner turned
+//       learning memory off: 'disabled'); no analytics data accompanies it
 // Anything else (401, 5xx, network) throws for the page to handle.
 export async function fetchLearnerAnalytics(sessionToken) {
   try {
@@ -18,7 +18,7 @@ export async function fetchLearnerAnalytics(sessionToken) {
   } catch (err) {
     if (err instanceof ApiError && err.status === 403) {
       if (err.code === 'capability_required') return { kind: 'upgrade' };
-      if (err.code === 'learner_memory_consent_required') return { kind: 'memory', status: err.body?.status ?? 'never_enabled' };
+      if (err.code === 'learner_memory_consent_required') return { kind: 'memory', status: err.body?.status ?? 'disabled' };
     }
     throw err;
   }

@@ -359,3 +359,5 @@ html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: 100svh; }
 .exam-feedback { margin: 16px 0; }
 .exam-review { padding-left: 18px; }
 @media (max-width: 560px) { .exam-list li { flex-direction: column; align-items: stretch; } }
+.exam-pick { display: flex; gap: 10px; align-items: center; cursor: pointer; width: 100%; }
+.exam-pick input { width: 18px; height: 18px; }
