@@ -15,6 +15,7 @@ export default function AppLayout() {
           <>
             <nav className="global-nav" aria-label="Main">
               <Link to="/assignments">Assignments</Link>
+              <Link to="/analytics">Learner analytics</Link>
             </nav>
             <div className="global-user">
               <span className="avatar" aria-hidden="true">{initials(session.email)}</span>

@@ -1,10 +1,11 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 export class ApiError extends Error {
-  constructor(status, code) {
+  constructor(status, code, body = null) {
     super(code ?? `${status}`);
     this.status = status;
     this.code = code ?? null;
+    this.body = body; // the server's error body, e.g. a consent status
   }
 }
 
@@ -20,7 +21,7 @@ async function request(path, { method = 'GET', body, sessionToken } = {}) {
   });
   const responseBody = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new ApiError(res.status, responseBody?.error);
+    throw new ApiError(res.status, responseBody?.error, responseBody);
   }
   return responseBody;
 }

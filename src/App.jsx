@@ -7,6 +7,7 @@ import AssignmentsPage from './pages/AssignmentsPage.jsx';
 import ReaderGate from './components/ReaderGate.jsx';
 import InvitePage from './pages/InvitePage.jsx';
 import LtiJoinPage from './pages/LtiJoinPage.jsx';
+import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
 export default function App() {
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/a/:assignmentId" element={<ReaderGate />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/assignments" element={<AssignmentsPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Route>
