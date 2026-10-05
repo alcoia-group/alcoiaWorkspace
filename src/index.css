@@ -345,3 +345,17 @@ html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: 100svh; }
   .global-email { display: none; }
   .global-user { margin-left: auto; }
 }
+
+/* Exam Mode */
+.exam-page { max-width: 760px; }
+.exam-list { list-style: none; margin: 16px 0; padding: 0; border: 1px solid var(--border, #d9d9d9); border-radius: 3px; }
+.exam-list li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--border, #d9d9d9); }
+.exam-list li:last-child { border-bottom: 0; }
+.exam-card { border: 1px solid var(--border, #d9d9d9); border-radius: 3px; padding: 16px; margin: 16px 0; background: #fff; }
+.exam-meta { display: flex; flex-direction: column; gap: 2px; font-size: 13px; margin-bottom: 8px; }
+.exam-question { font-size: 18px; line-height: 1.5; margin: 8px 0 0; }
+.exam-page textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px; border: 1px solid var(--border, #bbb); border-radius: 3px; margin-top: 4px; }
+.exam-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-top: 12px; }
+.exam-feedback { margin: 16px 0; }
+.exam-review { padding-left: 18px; }
+@media (max-width: 560px) { .exam-list li { flex-direction: column; align-items: stretch; } }

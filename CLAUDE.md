@@ -147,3 +147,10 @@ See `SERVER-DESIGN.md` for the planned server, extension and reader work (design
 
 One item per session. Report what was verified with real output. No new runtime dependency without asking.
 Commits/pushes only when the owner directs it in that session.
+
+---
+
+## Exam Mode (`/exam`)
+
+`ExamPage` (`src/pages/ExamPage.jsx`, `src/lib/exam.js`), nav link "Exam Mode". Reader and Student plans only; the **server decides** everything (capability, access, questions, correctness, whether memory is used). Flow: pick one of `GET /api/assignments/mine`, then `POST /api/exam/sessions`, answer (free text or skip), feedback with a model answer, next, end any time, summary. A 403 `capability_required` shows the plan notice; 503 shows a retry message (your typed answer stays); 422 `no_examinable_material` and 404 have their own copy; a memory-off note links to the console's account-based-learning settings. No score, ranking or prediction is shown. Sessions are not resumed after a reload. **Verified:** build clean and a Playwright pass with the API mocked (start, answer, feedback, next, end, summary, upgrade state, no horizontal overflow at 375 px); not against a real server or model. No test runner exists here and none was added.
+
