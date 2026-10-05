@@ -151,9 +151,7 @@ function Recent({ r }) {
 
 function MemoryOff({ status }) {
   const copy = {
-    never_enabled: ['Learner analytics uses your private learning memory, which you have not turned on.', 'Turn on account-based learning to start building it. alcoia does not turn it on for you.'],
     disabled: ['Your private learning memory is turned off, so analytics cannot be shown.', 'Nothing was deleted. Turn it back on and your analytics resume.'],
-    reconsent_required: ['What account-based learning covers has changed.', 'Please review and accept the updated description before analytics can resume. Your earlier choice does not carry over.'],
   }[status] ?? ['Your private learning memory is not currently available, so analytics cannot be shown.', ''];
   return (
     <div className="notice">

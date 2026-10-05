@@ -5,7 +5,7 @@ import { fetchMyAssignments } from '../lib/assignments.js';
 import { startExam, answerExam, nextExam, finishExam, examErrorKind } from '../lib/exam.js';
 import { MARKETING_URL, CONSOLE_URL } from '../lib/analytics.js';
 
-// Exam Mode: a private practice session on one reading. One question at a time, free-text answer,
+// Exam Mode: a private practice session on one or several readings (up to six). One question at a time, free-text answer,
 // feedback, then the next. You can stop at any time, with no penalty. No score, no ranking, no
 // prediction of any result. The server decides access, questions, correctness and what is
 // remembered; this page only shows them.
@@ -19,7 +19,8 @@ const VERDICT = { correct: 'Correct', partial: 'Partly there', incorrect: 'Not q
 const ERROR_COPY = {
   network: 'The request could not be completed. Check your connection and try again.',
   unavailable: 'Questions could not be prepared right now. Nothing was lost; try again in a moment.',
-  no_material: 'This reading has no text that Exam Mode can ask about yet (for example a scanned PDF).',
+  no_material: 'The selected readings have no text that Exam Mode can ask about yet (for example a scanned PDF).',
+  bad_selection: 'Choose between one and six different readings.',
   no_access: 'That reading is not available to you.',
   session_gone: 'This session has ended or expired. Start a new one.',
   conflict: 'That action is not available right now.',
@@ -46,12 +47,13 @@ function Summary({ s, onAgain }) {
         {s.skipped > 0 && <li><span>Skipped</span><span className="an-count">{s.skipped}</span></li>}
         <li><span>Highest level shown</span><span className="an-count">{s.highestLevelDemonstrated ? s.highestLevelDemonstrated.label : 'None yet'}</span></li>
       </ul>
-      {s.strengths.length > 0 && <p><strong>Went well:</strong> paragraph{s.strengths.length > 1 ? 's' : ''} {s.strengths.map((x) => x.paragraph).join(', ')}.</p>}
+      {s.strengths.length > 0 && <p><strong>Went well:</strong> {s.strengths.map((x) => `${x.source ? `${x.source}, ` : ''}paragraph ${x.paragraph}`).join('; ')}.</p>}
+      {s.bySource?.length > 1 && <ul className="an-list">{s.bySource.map((b) => <li key={b.source}><span>{b.source}</span><span className="an-count">{b.asked} asked, {b.correct} correct</span></li>)}</ul>}
       {s.needsReview.length > 0 && (
         <>
           <h3>Worth another look</h3>
           <ul className="exam-review">
-            {s.needsReview.map((n, i) => <li key={i}><span className="muted">Paragraph {n.paragraph} · {VERDICT[n.verdict]}</span><div>{n.question}</div></li>)}
+            {s.needsReview.map((n, i) => <li key={i}><span className="muted">{n.source ? `${n.source}, ` : ''}Paragraph {n.paragraph} · {VERDICT[n.verdict]}</span><div>{n.question}</div></li>)}
           </ul>
         </>
       )}
@@ -74,6 +76,7 @@ export default function ExamPage() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const [upgrade, setUpgrade] = useState(false);
+  const [picked, setPicked] = useState([]);
   const [summary, setSummary] = useState(null);
   const [lastQ, setLastQ] = useState(null);
 
@@ -105,8 +108,9 @@ export default function ExamPage() {
     }
   };
 
-  const begin = async (assignmentId) => {
-    const s = await run(() => startExam(assignmentId, token));
+  const togglePick = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length < 6 ? [...p, id] : p));
+  const begin = async () => {
+    const s = await run(() => startExam(picked, token));
     if (!s) return;
     setExam(s);
     setText('');
@@ -136,7 +140,7 @@ export default function ExamPage() {
     setSummary(r.summary);
     setPhase('summary');
   };
-  const reset = () => { setExam(null); setSummary(null); setResult(null); setPhase('choose'); };
+  const reset = () => { setPicked([]); setExam(null); setSummary(null); setResult(null); setPhase('choose'); };
 
   const q = phase === 'feedback' ? lastQ : exam?.question;
   const total = exam?.progress?.target;
@@ -144,7 +148,7 @@ export default function ExamPage() {
   return (
     <section className="page exam-page">
       <h1 className="page-title">Exam Mode</h1>
-      <p className="muted">Private practice on one reading. Questions come only from that reading. You can stop whenever you like.</p>
+      <p className="muted">Private practice on one or more of your readings. Questions come only from the readings you choose. You can stop whenever you like.</p>
       {upgrade && <Upgrade />}
       {problem && <p className="alert alert-error" role="alert">{ERROR_COPY[problem]}</p>}
 
@@ -156,14 +160,22 @@ export default function ExamPage() {
             <div className="notice"><h2>No readings to practise yet</h2><p>When a reading is assigned to you it appears here. <Link to="/assignments">Back to assignments</Link></p></div>
           )}
           {Array.isArray(assignments) && assignments.length > 0 && (
-            <ul className="exam-list">
-              {assignments.map((a) => (
-                <li key={a.assignmentId}>
-                  <div><strong>{a.name || a.className}</strong>{a.name && a.className && <div className="muted">{a.className}</div>}</div>
-                  <button type="button" className="button" disabled={busy} onClick={() => begin(a.assignmentId)}>{busy ? 'Preparing…' : 'Start'}</button>
-                </li>
-              ))}
-            </ul>
+            <>
+              <p className="muted">Choose one or more readings (up to six). Questions are spread across the ones you pick.</p>
+              <ul className="exam-list">
+                {assignments.map((a) => (
+                  <li key={a.assignmentId}>
+                    <label className="exam-pick">
+                      <input type="checkbox" checked={picked.includes(a.assignmentId)} onChange={() => togglePick(a.assignmentId)} disabled={busy} />
+                      <span><strong>{a.name || a.className}</strong>{a.name && a.className && <span className="muted"> · {a.className}</span>}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <button type="button" className="button" disabled={busy || picked.length === 0} onClick={begin}>
+                {busy ? 'Preparing…' : `Start exam${picked.length > 1 ? ` with ${picked.length} readings` : ''}`}
+              </button>
+            </>
           )}
         </>
       )}
@@ -172,7 +184,7 @@ export default function ExamPage() {
         <div className="exam-card">
           <div className="exam-meta">
             <span>Question {q.number} of up to {total}</span>
-            <span>{TYPE_LABEL[q.type] ?? q.type} · {q.levelLabel} · from paragraph {q.paragraph}</span>
+            <span>{TYPE_LABEL[q.type] ?? q.type} · {q.levelLabel} · from {exam.sources?.length > 1 ? `${q.source.label}, ` : ''}paragraph {q.paragraph}</span>
             {exam.personalized
               ? <span className="muted">Using your private learning memory to choose questions.</span>
               : <span className="muted">Learning memory is off, so questions are chosen from the reading alone. <a href={`${CONSOLE_URL}/settings#learning-memory`}>Settings</a></span>}
