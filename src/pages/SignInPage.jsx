@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import Logo from '../components/Logo.jsx';
+import LegalLinks from '../components/LegalLinks.jsx';
 import { apiPost, ApiError } from '../lib/api.js';
 import { setPendingEmail, setReturnPath } from '../lib/session.js';
 import { useSession } from '../context/SessionContext.jsx';
@@ -58,6 +59,7 @@ export default function SignInPage() {
             {state === 'error' && <p className="alert alert-error">{message}</p>}
           </form>
         )}
+        <LegalLinks lead="By signing in you agree to the" />
       </div>
     </section>
   );

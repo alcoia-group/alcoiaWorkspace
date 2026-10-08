@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import LegalLinks from '../components/LegalLinks.jsx';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { ApiError } from '../lib/api.js';
@@ -93,6 +94,7 @@ export default function InvitePage() {
             <button type="button" onClick={goSignIn}>Sign in to join</button>
           )}
           {joinError && <p className="alert alert-error">{joinError}</p>}
+          <LegalLinks lead="By joining you agree to the" />
         </>
       )}
 
