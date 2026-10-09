@@ -15,6 +15,7 @@ export default function AppLayout() {
           <>
             <nav className="global-nav" aria-label="Main">
               <Link to="/assignments">Assignments</Link>
+              <Link to="/files">My files</Link>
               <Link to="/analytics">Learner analytics</Link>
               <Link to="/exam">Exam Mode</Link>
             </nav>

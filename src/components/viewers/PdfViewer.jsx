@@ -3,6 +3,7 @@ import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import 'pdfjs-dist/web/pdf_viewer.css';
 import { fetchPdfBytes } from '../../lib/assignments.js';
+import { assetBase } from '../../lib/assets.js';
 import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -130,7 +131,7 @@ export default function PdfViewer({ content, title, asset, onDownload }) {
     let cancelled = false;
     let doc = null;
     let task = null;
-    fetchPdfBytes(asset.assignmentId, asset.sessionToken)
+    fetchPdfBytes(assetBase(asset), asset.sessionToken)
       .then((data) => {
         task = pdfjs.getDocument({ data, isEvalSupported: false });
         return task.promise;
@@ -149,7 +150,7 @@ export default function PdfViewer({ content, title, asset, onDownload }) {
       task?.destroy?.();
       doc?.destroy?.();
     };
-  }, [asset.assignmentId, asset.sessionToken]);
+  }, [asset.assignmentId, asset.personalId, asset.sessionToken]);
 
   // "Fit" is the page filling the stage width (up to a comfortable maximum).
   useEffect(() => {

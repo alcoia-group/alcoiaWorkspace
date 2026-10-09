@@ -24,10 +24,10 @@ export async function fetchDocument(assignmentId, sessionToken) {
   return apiGet(`/api/assignments/${encodeURIComponent(assignmentId)}/document`, { sessionToken });
 }
 
-// GET /api/assignments/:id/document/file -> the original PDF bytes (needs the
+// GET <base>/document/file (base = assetBase(asset): an assignment or a personal file) -> the original PDF bytes (needs the
 // session header, so it is fetched, not linked).
-export async function fetchPdfBytes(assignmentId, sessionToken) {
-  const res = await fetch(`${API_BASE_URL}/api/assignments/${encodeURIComponent(assignmentId)}/document/file`, {
+export async function fetchPdfBytes(base, sessionToken) {
+  const res = await fetch(`${API_BASE_URL}${base}/document/file`, {
     headers: { Authorization: `Bearer ${sessionToken}` },
   });
   if (!res.ok) {

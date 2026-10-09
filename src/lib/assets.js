@@ -9,12 +9,12 @@ import { API_BASE_URL } from './api.js';
 // user goes away.
 const cache = new Map(); // key -> { promise, url, refs }
 
-function acquire(assignmentId, path, sessionToken) {
-  const key = `${assignmentId}\n${path}`;
+function acquire(base, path, sessionToken) {
+  const key = `${base}\n${path}`;
   let entry = cache.get(key);
   if (!entry) {
     entry = { refs: 0, url: null, promise: null };
-    entry.promise = fetch(`${API_BASE_URL}/api/assignments/${encodeURIComponent(assignmentId)}/document/asset?path=${encodeURIComponent(path)}`, {
+    entry.promise = fetch(`${API_BASE_URL}${base}/document/asset?path=${encodeURIComponent(path)}`, {
       headers: { Authorization: `Bearer ${sessionToken}` },
     })
       .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(String(res.status)))))
@@ -38,11 +38,12 @@ function acquire(assignmentId, path, sessionToken) {
   };
 }
 
-export function useAssetUrl(assignmentId, path, sessionToken) {
+// `base` is the API path of the document's owner: /api/assignments/<id> or /api/personal-documents/<id>.
+export function useAssetUrl(base, path, sessionToken) {
   const [state, setState] = useState({ url: null, failed: false });
   useEffect(() => {
     let cancelled = false;
-    const handle = acquire(assignmentId, path, sessionToken);
+    const handle = acquire(base, path, sessionToken);
     handle.promise.then(
       (url) => !cancelled && setState({ url, failed: false }),
       () => !cancelled && setState({ url: null, failed: true }),
@@ -51,6 +52,14 @@ export function useAssetUrl(assignmentId, path, sessionToken) {
       cancelled = true;
       handle.release();
     };
-  }, [assignmentId, path, sessionToken]);
+  }, [base, path, sessionToken]);
   return state;
+}
+
+// Where a document's bytes and pictures are served from: an assigned reading or one of the
+// user's own files. The viewers only ever pass `asset` through.
+export function assetBase(asset) {
+  return asset.personalId
+    ? `/api/personal-documents/${encodeURIComponent(asset.personalId)}`
+    : `/api/assignments/${encodeURIComponent(asset.assignmentId)}`;
 }

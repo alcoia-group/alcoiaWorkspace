@@ -155,3 +155,10 @@ Commits/pushes only when the owner directs it in that session.
 
 
 **Legal pages:** the workspace has none of its own. One set covers every alcoia app and lives on the marketing site (`alcoia.app/legal/terms`, `/privacy-policy`, `/cookies`). `LegalLinks` links to them from the sign-in and invite screens (`VITE_MARKETING_URL`, default https://alcoia.app). The "By signing in / joining you agree to" wording is legal-adjacent and awaiting owner review.
+
+
+---
+
+## My files and personal-file Exam Mode
+
+`/files` (`FilesPage`, `src/lib/personalDocuments.js`): the user's own PDF, Word and PowerPoint files. Upload by picker or drag-and-drop (raw bytes with progress, `apiUploadWithProgress`), usage bar against the quota the server reports (250 MB to start), delete with an inline confirm. `/f/:id` (`PersonalFilePage`) shows a file with the same viewers as an assigned reading; the viewers take `asset={{ personalId }}` instead of `assignmentId` (`assetBase()` in `lib/assets.js` builds `/api/personal-documents/<id>` or `/api/assignments/<id>`). Exam Mode lists accepted files beside assigned readings and sends `personalDocumentIds` (up to six sources in all). **The server decides everything** (plan: `canUpload` / 403 `capability_required` on upload only, quota 413, ownership 404, per-file ceiling 413 `file_too_large`); a free user sees the plan notice and can still open and delete files. Practice on a personal file is not added to learning memory (memory is keyed by assignment). Personal-file pages are ordinary pages to the alcoia extension (it only treats `/a/<id>` as a class reading, so no outcomes are reported). **Verified:** build and lint clean; My files page in a real browser with the API mocked (list, usage, delete confirm, no horizontal scroll at 375 px). **Not verified:** uploads or the viewers against a real server, Exam Mode with a file, the extension on `/f/:id`.

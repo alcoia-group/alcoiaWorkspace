@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { fetchMyAssignments } from '../lib/assignments.js';
 import { startExam, answerExam, nextExam, finishExam, examErrorKind } from '../lib/exam.js';
+import { listPersonalDocuments } from '../lib/personalDocuments.js';
 import { MARKETING_URL, CONSOLE_URL } from '../lib/analytics.js';
 
 // Exam Mode: a private practice session on one or several readings (up to six). One question at a time, free-text answer,
@@ -76,7 +77,9 @@ export default function ExamPage() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const [upgrade, setUpgrade] = useState(false);
-  const [picked, setPicked] = useState([]);
+  const [picked, setPicked] = useState([]); // assignment ids
+  const [files, setFiles] = useState([]);
+  const [pickedFiles, setPickedFiles] = useState([]);
   const [summary, setSummary] = useState(null);
   const [lastQ, setLastQ] = useState(null);
 
@@ -91,6 +94,12 @@ export default function ExamPage() {
       });
     return () => { cancelled = true; };
   }, [token, signOut]);
+
+  useEffect(() => {
+    let cancelled = false;
+    listPersonalDocuments(token).then((b) => !cancelled && setFiles(b.documents.filter((d) => d.status === 'accepted')), () => {});
+    return () => { cancelled = true; };
+  }, [token]);
 
   const run = async (fn) => {
     setBusy(true);
@@ -108,9 +117,11 @@ export default function ExamPage() {
     }
   };
 
-  const togglePick = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length < 6 ? [...p, id] : p));
+  const total_picked = picked.length + pickedFiles.length;
+  const togglePick = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : total_picked < 6 ? [...p, id] : p));
+  const togglePickFile = (id) => setPickedFiles((p) => (p.includes(id) ? p.filter((x) => x !== id) : total_picked < 6 ? [...p, id] : p));
   const begin = async () => {
-    const s = await run(() => startExam(picked, token));
+    const s = await run(() => startExam(picked, token, undefined, pickedFiles));
     if (!s) return;
     setExam(s);
     setText('');
@@ -140,7 +151,7 @@ export default function ExamPage() {
     setSummary(r.summary);
     setPhase('summary');
   };
-  const reset = () => { setPicked([]); setExam(null); setSummary(null); setResult(null); setPhase('choose'); };
+  const reset = () => { setPicked([]); setPickedFiles([]); setExam(null); setSummary(null); setResult(null); setPhase('choose'); };
 
   const q = phase === 'feedback' ? lastQ : exam?.question;
   const total = exam?.progress?.target;
@@ -156,10 +167,10 @@ export default function ExamPage() {
         <>
           {assignments === null && <p className="muted">Loading your readings.</p>}
           {assignments === 'error' && <p className="alert alert-error">Your readings could not be loaded.</p>}
-          {Array.isArray(assignments) && assignments.length === 0 && (
+          {Array.isArray(assignments) && assignments.length === 0 && files.length === 0 && (
             <div className="notice"><h2>No readings to practise yet</h2><p>When a reading is assigned to you it appears here. <Link to="/assignments">Back to assignments</Link></p></div>
           )}
-          {Array.isArray(assignments) && assignments.length > 0 && (
+          {Array.isArray(assignments) && (assignments.length > 0 || files.length > 0) && (
             <>
               <p className="muted">Choose one or more readings (up to six). Questions are spread across the ones you pick.</p>
               <ul className="exam-list">
@@ -171,9 +182,17 @@ export default function ExamPage() {
                     </label>
                   </li>
                 ))}
+                {files.map((f) => (
+                  <li key={f.id}>
+                    <label className="exam-pick">
+                      <input type="checkbox" checked={pickedFiles.includes(f.id)} onChange={() => togglePickFile(f.id)} disabled={busy} />
+                      <span><strong>{f.name}</strong><span className="muted"> · my file</span></span>
+                    </label>
+                  </li>
+                ))}
               </ul>
-              <button type="button" className="button" disabled={busy || picked.length === 0} onClick={begin}>
-                {busy ? 'Preparing…' : `Start exam${picked.length > 1 ? ` with ${picked.length} readings` : ''}`}
+              <button type="button" className="button" disabled={busy || total_picked === 0} onClick={begin}>
+                {busy ? 'Preparing…' : `Start exam${total_picked > 1 ? ` with ${total_picked} readings` : ''}`}
               </button>
             </>
           )}
