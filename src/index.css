@@ -361,3 +361,12 @@ html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: 100svh; }
 @media (max-width: 560px) { .exam-list li { flex-direction: column; align-items: stretch; } }
 .exam-pick { display: flex; gap: 10px; align-items: center; cursor: pointer; width: 100%; }
 .exam-pick input { width: 18px; height: 18px; }
+
+/* My files */
+.usage { margin: 16px 0; max-width: 480px; }
+.usage-bar { height: 8px; background: #e3e6e8; border-radius: 4px; overflow: hidden; }
+.usage-fill { height: 100%; background: var(--accent, #6b4fb3); }
+.dropzone { border: 1px dashed #98a1a7; padding: 20px; margin: 16px 0; background: #fff; border-radius: 3px; }
+table.list { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #c7cdd1; margin: 16px 0; }
+table.list th, table.list td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #e3e6e8; }
+.small { font-size: 13px; }

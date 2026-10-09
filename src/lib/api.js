@@ -49,3 +49,27 @@ export async function apiUpload(path, file, { sessionToken } = {}) {
   }
   return responseBody;
 }
+
+export function apiDelete(path, opts) {
+  return request(path, { ...opts, method: 'DELETE' });
+}
+
+// Upload with progress (fetch cannot report upload progress). Same raw-bytes contract as
+// apiUpload; `onProgress(fraction)` is called while the file is sent.
+export function apiUploadWithProgress(path, file, { sessionToken, onProgress } = {}) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE_URL}${path}`);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    if (sessionToken) xhr.setRequestHeader('Authorization', `Bearer ${sessionToken}`);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress?.(e.loaded / e.total); };
+    xhr.onload = () => {
+      let body = null;
+      try { body = JSON.parse(xhr.responseText); } catch { /* not JSON */ }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+      else reject(new ApiError(xhr.status, body?.error, body));
+    };
+    xhr.onerror = () => reject(new ApiError(0, 'network'));
+    xhr.send(file);
+  });
+}

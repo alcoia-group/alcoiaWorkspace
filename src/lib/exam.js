@@ -11,8 +11,14 @@ const base = '/api/exam/sessions';
 
 // `assignmentIds`: one or several readings. The server checks each one for this account; a
 // single one it cannot open fails the whole request with the same 404 (nothing is revealed).
-export const startExam = (assignmentIds, sessionToken, questionCount) =>
-  apiPost(base, { assignmentIds: [].concat(assignmentIds), ...(questionCount ? { questionCount } : {}) }, { sessionToken });
+// `personalDocumentIds`: the user's own files (practice on them is private and is not remembered
+// as learning memory, which belongs to assigned readings).
+export const startExam = (assignmentIds, sessionToken, questionCount, personalDocumentIds = []) =>
+  apiPost(base, {
+    ...(assignmentIds.length ? { assignmentIds: [].concat(assignmentIds) } : {}),
+    ...(personalDocumentIds.length ? { personalDocumentIds } : {}),
+    ...(questionCount ? { questionCount } : {}),
+  }, { sessionToken });
 export const answerExam = (id, sessionToken, payload) => apiPost(`${base}/${encodeURIComponent(id)}/answer`, payload, { sessionToken });
 export const nextExam = (id, sessionToken) => apiPost(`${base}/${encodeURIComponent(id)}/next`, {}, { sessionToken });
 export const finishExam = (id, sessionToken) => apiPost(`${base}/${encodeURIComponent(id)}/finish`, {}, { sessionToken });
