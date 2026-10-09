@@ -128,8 +128,7 @@ says so in `teachingRecommendations`). This app never decides entitlement. Full 
 ## Deploying (Cloudflare)
 
 Build variable `VITE_API_BASE_URL=https://server.alcoia.app` (baked in at build time, like the console's).
-`public/_redirects` (`/* /index.html 200`) makes deep links such as `/a/<id>` and `/auth-verify` load the app;
-without it a direct visit or reload 404s. The server needs `READER_ORIGIN=https://workspace.alcoia.app`.
+Deep links such as `/a/<id>` and `/auth-verify` load the app through `wrangler.jsonc` (`assets.not_found_handling: single-page-application`), deployed with `npx wrangler deploy`. A `public/_redirects` file with `/* /index.html 200` must NOT exist: Workers assets rejects it as an infinite loop (error 100324) and the deploy fails. The server needs `READER_ORIGIN=https://workspace.alcoia.app`.
 Reader sessions slide while the student is active: the server extends one on use (8 h idle window, 7 day cap,
 placeholders), and `src/lib/keepalive.js` pings `POST /api/reader/keepalive` every 5 minutes while the tab is
 visible and something was touched in the last 10 minutes. An idle tab still ends after the idle window; a reload
