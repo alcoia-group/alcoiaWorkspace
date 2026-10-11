@@ -168,3 +168,6 @@ Visible text says "Material(s)" instead of "Assignment(s)" (routes and API uncha
 
 ## Passages you met again
 `/analytics` shows `revisited` from the learner-analytics response (counts only: passages met again, hard the first time, correct since, still worth another look). Server decides plan and consent. Verified by lint and build only.
+
+## How you tend to struggle, and ideas across readings
+`/analytics` shows two more cards from the learner-analytics response: `strugglePattern` (five counts and, only when one kind clearly leads, a plain sentence; private to the learner, no score) and `concepts` (ideas that appear in more than one of the learner's readings, with passage counts and how many are worth another look). The server decides plan, consent and what is returned; empty results render nothing. Verified by lint and build only; the concept list stays empty until the server has built concept indexes.

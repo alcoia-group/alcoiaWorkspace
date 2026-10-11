@@ -75,3 +75,6 @@ Philosophy: a comparison is for noticing, not for judging. It uses the same coar
 - A passive "drifting" signal (private to the policy, never shown to an instructor).
 - Scenario or application questions inline (they need a new validity rule that is not a quote).
 - Making the teaching-recommendations switch follow the instructor's account instead of one browser.
+
+## Part 4 - struggle profile and concept layer (workspace)
+`/analytics` renders two new cards from the server: "How you tend to struggle" (five counts, a plain sentence only when one kind clearly leads, a note that it is private and a count not a score) and "Ideas that come up in more than one reading". Nothing is computed here. Verified by lint and build only, not in a browser or against a deployed server.

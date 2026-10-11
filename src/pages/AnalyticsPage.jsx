@@ -157,6 +157,60 @@ function Revisited({ r }) {
   );
 }
 
+const STRUGGLE_LABEL = {
+  confusion: 'Feeling confused',
+  overload: 'Too much at once',
+  unclear: 'Not sure why',
+  confidentlyWrong: 'Sure of an answer that was wrong',
+  unsureWrong: 'Unsure and wrong',
+};
+const STRUGGLE_MAIN = {
+  confusion: 'confusion is what you most often report or show.',
+  overload: 'feeling overloaded is what you most often report or show.',
+  unclear: 'difficulty you could not name is what you most often report or show.',
+  confidentlyWrong: 'being sure of an answer that turned out wrong is the most common.',
+  unsureWrong: 'wrong answers you were unsure about are the most common.',
+};
+
+// How the learner tends to struggle: five running counts. Private to them; no score, no comparison.
+function StrugglePattern({ s }) {
+  if (!s || s.state !== 'ready') return null;
+  return (
+    <section className="an-section" aria-labelledby="an-struggle">
+      <h2 id="an-struggle">How you tend to struggle</h2>
+      <ul className="an-list">
+        {Object.keys(STRUGGLE_LABEL).map((k) => (
+          <li key={k}><span>{STRUGGLE_LABEL[k]}</span><span className="an-count">{s.counts[k]}</span></li>
+        ))}
+      </ul>
+      {s.main ? <p>So far, {STRUGGLE_MAIN[s.main]}</p> : <p className="muted">No single kind stands out yet.</p>}
+      <p className="muted">Only you can see this. It is a count, not a score, and your instructor never sees it.</p>
+    </section>
+  );
+}
+
+// Ideas that appear in more than one of the learner's readings.
+function Concepts({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <section className="an-section" aria-labelledby="an-concepts">
+      <h2 id="an-concepts">Ideas that come up in more than one reading</h2>
+      <ul className="an-list">
+        {items.map((c) => (
+          <li key={c.label}>
+            <span>{c.label}</span>
+            <span className="an-count">
+              {plural(c.readings, 'reading', 'readings')} · {plural(c.passages, 'passage', 'passages')}
+              {c.needAnotherLook > 0 ? ` · ${c.needAnotherLook} worth another look` : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="muted">Ideas are matched by the words used in each reading, so a related idea named differently may not appear.</p>
+    </section>
+  );
+}
+
 function Recent({ r }) {
   return (
     <section className="an-section" aria-labelledby="an-recent">
@@ -233,6 +287,8 @@ export default function AnalyticsPage() {
           <NeedsWork items={data.needsWork} />
           <Progress p={data.progress} />
           <Revisited r={data.revisited} />
+          <Concepts items={data.concepts} />
+          <StrugglePattern s={data.strugglePattern} />
           <Recent r={data.recent} />
           {data.truncated && <p className="muted">Showing your most recent passages only.</p>}
           <details className="an-how">
