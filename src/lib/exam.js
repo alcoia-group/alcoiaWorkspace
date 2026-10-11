@@ -32,6 +32,7 @@ export function examErrorKind(err) {
   if (err.status === 404 && err.code === 'assignment_not_found') return 'no_access';
   if (err.status === 404) return 'session_gone';
   if (err.status === 422 && err.code === 'no_examinable_material') return 'no_material';
+  if (err.status === 422 && err.code === 'nothing_needs_practice') return 'nothing_needed';
   if (err.status === 422 && (err.code === 'duplicate_source' || err.code === 'invalid_sources')) return 'bad_selection';
   if (err.status === 503) return 'unavailable';
   if (err.status === 409) return 'conflict';
