@@ -165,3 +165,6 @@ Commits/pushes only when the owner directs it in that session.
 
 ## Wording, receipts notice and Exam Mode early stop
 Visible text says "Material(s)" instead of "Assignment(s)" (routes and API unchanged). The anonymous-class notice no longer promises a receipt exception, because the server refuses receipts for anonymous classes. Exam Mode handles two server responses added in Stage B: `422 nothing_needs_practice` on start (friendly message) and a `next` response that ends the session early with a summary (`stoppedEarly`). Verified by lint and build only; no test runner here.
+
+## Passages you met again
+`/analytics` shows `revisited` from the learner-analytics response (counts only: passages met again, hard the first time, correct since, still worth another look). Server decides plan and consent. Verified by lint and build only.

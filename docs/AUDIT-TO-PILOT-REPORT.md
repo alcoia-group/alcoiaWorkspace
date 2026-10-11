@@ -61,9 +61,17 @@ Verified: lint (one older warning) and build pass. No automated tests exist in t
 - **Private stays private.** Anything built from a student's private learning memory no longer reaches the instructor by default.
 - **Plain words for people who read.** Anyone should understand an explanation, and people reading course material should see the word "material", not homework vocabulary.
 
+## Part 3 - quick-check spacing and reassigned material
+
+Owner asked for: (1) quick checks for fluent readers must never appear within 30 seconds of a normal card, and a normal card wins if both are due; (2) improvement on reassigned material, seen by the instructor in the console and by the learner (paid analytics) as a different use.
+
+Commits in alcoiaworkspace:
+- `74b43d1`: Learner analytics shows 'Passages you met again': how many came up in more than one reading, how many were hard the first time, how many have been answered correctly since and how many are still worth another look. Counts from the learner's own answers only; the server decides plan and learning-memory consent as before.
+
+Philosophy: a comparison is for noticing, not for judging. It uses the same coarse bands and small-group rules as everything else, says plainly that the two runs are different students, and shows learners only their own history.
+
 ## Agreed but not built yet (so nothing is claimed that does not exist)
 - A struggle profile that carries *how* a student struggles across readings, and a concept layer that links ideas between readings.
 - A passive "drifting" signal (private to the policy, never shown to an instructor).
-- "Improvement since last time" for reused material.
 - Scenario or application questions inline (they need a new validity rule that is not a quote).
 - Making the teaching-recommendations switch follow the instructor's account instead of one browser.
