@@ -70,7 +70,7 @@ export default function ReaderPage() {
       <section className="reader">
         <div className="crumbs">
           <nav aria-label="Breadcrumb">
-            <Link to="/assignments">Assignments</Link>
+            <Link to="/assignments">Materials</Link>
             <span className="crumb-sep" aria-hidden="true">/</span>
             <span>{assignment.className}{assignment.name ? ` / ${assignment.name}` : ''}</span>
           </nav>
@@ -92,12 +92,12 @@ export default function ReaderPage() {
   const { status, assignment } = state;
   return (
     <section className="page">
-      <p><Link to="/assignments">Back to assignments</Link></p>
+      <p><Link to="/assignments">Back to materials</Link></p>
       {status === 'loading' && <p className="muted">Loading.</p>}
-      {status === 'error' && <p className="alert alert-error">This assignment could not be loaded.</p>}
+      {status === 'error' && <p className="alert alert-error">This material could not be loaded.</p>}
       {status === 'missing' && (
         <>
-          <h1 className="page-title">Assignment not available</h1>
+          <h1 className="page-title">Material not available</h1>
           <p>It may have closed, or it may belong to a class you haven’t joined.</p>
         </>
       )}

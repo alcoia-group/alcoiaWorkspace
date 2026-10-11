@@ -20,7 +20,7 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const weekLabel = (iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 function AssignmentLabel({ item }) {
-  if (!item.accessible) return <span className="muted">An assignment you no longer have access to</span>;
+  if (!item.accessible) return <span className="muted">A piece of material you no longer have access to</span>;
   const a = item.assignment;
   return (
     <>
