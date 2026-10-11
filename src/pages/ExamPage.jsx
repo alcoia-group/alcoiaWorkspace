@@ -177,7 +177,7 @@ export default function ExamPage() {
           {assignments === null && <p className="muted">Loading your readings.</p>}
           {assignments === 'error' && <p className="alert alert-error">Your readings could not be loaded.</p>}
           {Array.isArray(assignments) && assignments.length === 0 && files.length === 0 && (
-            <div className="notice"><h2>No readings to practise yet</h2><p>When a reading is assigned to you it appears here. <Link to="/assignments">Back to assignments</Link></p></div>
+            <div className="notice"><h2>No readings to practise yet</h2><p>When a reading is assigned to you it appears here. <Link to="/assignments">Back to materials</Link></p></div>
           )}
           {Array.isArray(assignments) && (assignments.length > 0 || files.length > 0) && (
             <>

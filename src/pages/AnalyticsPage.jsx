@@ -20,7 +20,7 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const weekLabel = (iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 function AssignmentLabel({ item }) {
-  if (!item.accessible) return <span className="muted">An assignment you no longer have access to</span>;
+  if (!item.accessible) return <span className="muted">A piece of material you no longer have access to</span>;
   const a = item.assignment;
   return (
     <>
@@ -137,6 +137,26 @@ function Progress({ p }) {
   );
 }
 
+// Passages that came up again in a later reading. Counts from the learner's own answers only.
+function Revisited({ r }) {
+  if (!r || !r.passages) return null;
+  return (
+    <section className="an-section" aria-labelledby="an-revisited">
+      <h2 id="an-revisited">Passages you met again</h2>
+      <p>{plural(r.passages, 'passage', 'passages')} came up in more than one of your readings.</p>
+      {r.struggledBefore > 0 ? (
+        <ul className="an-list">
+          <li><span>You found it hard the first time</span><span className="an-count">{plural(r.struggledBefore, 'passage', 'passages')}</span></li>
+          <li><span>Answered correctly since</span><span className="an-count">{plural(r.wentWellSince, 'passage', 'passages')}</span></li>
+          <li><span>Still worth another look</span><span className="an-count">{plural(r.stillStruggling, 'passage', 'passages')}</span></li>
+        </ul>
+      ) : (
+        <p className="muted">You did not struggle with any of them the first time.</p>
+      )}
+    </section>
+  );
+}
+
 function Recent({ r }) {
   return (
     <section className="an-section" aria-labelledby="an-recent">
@@ -212,6 +232,7 @@ export default function AnalyticsPage() {
           <Review r={data.review} />
           <NeedsWork items={data.needsWork} />
           <Progress p={data.progress} />
+          <Revisited r={data.revisited} />
           <Recent r={data.recent} />
           {data.truncated && <p className="muted">Showing your most recent passages only.</p>}
           <details className="an-how">
