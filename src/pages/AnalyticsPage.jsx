@@ -212,60 +212,48 @@ function Concepts({ items }) {
 }
 
 
-const LEVEL_LABEL = { needs_help: 'Needs another look', developing: 'Building', secure: 'Solid so far', unknown: 'Not enough answers yet' };
-const LEVEL_TONE = { needs_help: 'due', developing: 'mid', secure: 'good', unknown: 'none' };
-const NEXT_STEP = {
-  correct_a_misconception: 'Worth checking your understanding: some answers you were sure of turned out wrong.',
-  review_the_explanation: 'Worth another read of the explanation.',
-  try_recalling_it: 'Next, try recalling it in your own words.',
-  try_applying_it: 'Next, try using it in a new situation.',
-  review_later: 'A review later will help it stick.',
-  nothing_needed: 'Nothing needed right now.',
-  not_enough_evidence: 'Not enough answers yet to say.',
-};
-const DIM_LABEL = { understanding: 'Understanding', recall: 'Recall', transfer: 'Using it in new situations', retention: 'Remembering later' };
-const DIM_STATE = { none: 'no answers yet', positive: 'going well', negative: 'not yet', uncertain: 'mixed so far' };
+import SubjectRow from '../components/SubjectRow.jsx';
+import { LEVEL_LABEL, LEVEL_ORDER, LEVEL_TONE, countByLevel } from '../lib/subjects.js';
 
-// One subject (an idea) across every reading, in separate dimensions. No score and no comparison: each dimension says
-// what the learner's own answers show, and "no answers yet" is never read as a weakness.
+const SUMMARY_TOP = 5;
+const DOC_TOP = 5;
+
+// A short summary of every idea the learner has met: how many are at each level and the few that most need a look. The
+// full list (any number of ideas) lives on its own page, so this page stays short at 5 subjects or 50.
 function Subjects({ items }) {
   if (!items || items.length === 0) return null;
+  const counts = countByLevel(items);
+  const top = items.filter((s) => s.level === 'needs_help').slice(0, SUMMARY_TOP);
   return (
     <section className="an-section" aria-labelledby="an-subjects">
       <h2 id="an-subjects">By subject</h2>
-      <p className="muted">Each idea you have met, across all your readings. Recognising an answer, explaining it, recalling it, using it somewhere new and remembering it later are kept apart because each shows something different.</p>
-      <ul className="an-subjects">
-        {items.map((s) => (
-          <li key={s.label} className="an-subject">
-            <div className="an-subject-head">
-              <strong>{s.label}</strong>
-              <span className={`an-pill an-${LEVEL_TONE[s.level]}`}>{LEVEL_LABEL[s.level]}</span>
-            </div>
-            <dl className="an-dims">
-              {Object.keys(DIM_LABEL).map((k) => (
-                <div key={k}>
-                  <dt>{DIM_LABEL[k]}</dt>
-                  <dd>{DIM_STATE[s.dimensions[k].state]}{s.dimensions[k].answers > 0 ? ` (${plural(s.dimensions[k].answers, 'answer', 'answers')})` : ''}</dd>
-                </div>
-              ))}
-              <div><dt>Met in your reading</dt><dd>{s.dimensions.encounters === 0 ? 'not recorded yet' : plural(s.dimensions.encounters, 'time', 'times')}</dd></div>
-            </dl>
-            <p className="muted">{NEXT_STEP[s.nextStep]}{s.uncertainty === 'high' && s.level !== 'unknown' ? ' This rests on very few answers.' : ''}</p>
-          </li>
+      <p className="muted">{plural(items.length, 'idea', 'ideas')} met across your readings. Recognising an answer, explaining it, recalling it, using it somewhere new and remembering it later are kept apart because each shows something different.</p>
+      <ul className="an-chips" aria-label="Ideas by level">
+        {LEVEL_ORDER.filter((l) => counts[l] > 0).map((l) => (
+          <li key={l}><Link className={`an-chip an-${LEVEL_TONE[l]}`} to={`/analytics/subjects?level=${l}`}>{counts[l]} {LEVEL_LABEL[l].toLowerCase()}</Link></li>
         ))}
       </ul>
+      {top.length > 0 && (
+        <>
+          <h3 className="an-subhead">Worth another look</h3>
+          <div className="an-subjects">{top.map((s) => <SubjectRow key={s.key ?? s.label} s={s} />)}</div>
+        </>
+      )}
+      <p><Link className="row-link" to="/analytics/subjects">See all {plural(items.length, 'idea', 'ideas')}</Link></p>
     </section>
   );
 }
 
 // One reading at a time: what you have answered, what is waiting, and how its ideas stand.
 function Documents({ items }) {
+  const [all, setAll] = useState(false);
   if (!items || items.length === 0) return null;
+  const visible = all ? items : items.slice(0, DOC_TOP);
   return (
     <section className="an-section" aria-labelledby="an-documents">
       <h2 id="an-documents">By document</h2>
       <ul className="an-subjects">
-        {items.map((d, i) => (
+        {visible.map((d, i) => (
           <li key={i} className="an-subject">
             <div className="an-subject-head">
               {d.accessible ? <span><Link className="row-link" to={`/a/${d.assignment.assignmentId}`} reloadDocument>{d.assignment.name || d.assignment.className}</Link>{d.assignment.name && d.assignment.className && <span className="muted"> · {d.assignment.className}</span>}</span> : <span className="muted">A piece of material you no longer have access to</span>}
@@ -284,6 +272,9 @@ function Documents({ items }) {
           </li>
         ))}
       </ul>
+      {items.length > DOC_TOP && (
+        <p><button type="button" className="btn btn-secondary" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${items.length} documents`}</button></p>
+      )}
     </section>
   );
 }
