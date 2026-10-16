@@ -279,6 +279,26 @@ function Documents({ items }) {
   );
 }
 
+// The ideas in the user's own uploaded files, at the level their answers so far show. Files with no ideas found yet are left out.
+function PersonalFiles({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <section className="an-section" aria-labelledby="an-files">
+      <h2 id="an-files">Your own files</h2>
+      <ul className="an-subjects">
+        {items.map((f) => (
+          <li key={f.personalDocumentId} className="an-subject">
+            <div className="an-subject-head"><Link className="row-link" to={`/f/${f.personalDocumentId}`} reloadDocument>{f.name}</Link></div>
+            <ul className="an-chips" aria-label="Ideas in this file">
+              {f.concepts.map((c) => <li key={c.label} className={`an-chip an-${LEVEL_TONE[c.level] ?? 'muted'}`}>{c.label}: {(LEVEL_LABEL[c.level] ?? 'No answers yet').toLowerCase()}</li>)}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function Recent({ r }) {
   return (
     <section className="an-section" aria-labelledby="an-recent">
@@ -354,6 +374,7 @@ export default function AnalyticsPage() {
           <Review r={data.review} />
           <Subjects items={data.subjects} />
           <Documents items={data.documents} />
+          <PersonalFiles items={data.personalFiles} />
           <NeedsWork items={data.needsWork} />
           <Progress p={data.progress} />
           <Revisited r={data.revisited} />
