@@ -211,6 +211,94 @@ function Concepts({ items }) {
   );
 }
 
+
+import SubjectRow from '../components/SubjectRow.jsx';
+import { LEVEL_LABEL, LEVEL_ORDER, LEVEL_TONE, countByLevel } from '../lib/subjects.js';
+
+const SUMMARY_TOP = 5;
+const DOC_TOP = 5;
+
+// A short summary of every idea the learner has met: how many are at each level and the few that most need a look. The
+// full list (any number of ideas) lives on its own page, so this page stays short at 5 subjects or 50.
+function Subjects({ items }) {
+  if (!items || items.length === 0) return null;
+  const counts = countByLevel(items);
+  const top = items.filter((s) => s.level === 'needs_help').slice(0, SUMMARY_TOP);
+  return (
+    <section className="an-section" aria-labelledby="an-subjects">
+      <h2 id="an-subjects">By subject</h2>
+      <p className="muted">{plural(items.length, 'idea', 'ideas')} met across your readings. Recognising an answer, explaining it, recalling it, using it somewhere new and remembering it later are kept apart because each shows something different.</p>
+      <ul className="an-chips" aria-label="Ideas by level">
+        {LEVEL_ORDER.filter((l) => counts[l] > 0).map((l) => (
+          <li key={l}><Link className={`an-chip an-${LEVEL_TONE[l]}`} to={`/analytics/subjects?level=${l}`}>{counts[l]} {LEVEL_LABEL[l].toLowerCase()}</Link></li>
+        ))}
+      </ul>
+      {top.length > 0 && (
+        <>
+          <h3 className="an-subhead">Worth another look</h3>
+          <div className="an-subjects">{top.map((s) => <SubjectRow key={s.key ?? s.label} s={s} />)}</div>
+        </>
+      )}
+      <p><Link className="row-link" to="/analytics/subjects">See all {plural(items.length, 'idea', 'ideas')}</Link></p>
+    </section>
+  );
+}
+
+// One reading at a time: what you have answered, what is waiting, and how its ideas stand.
+function Documents({ items }) {
+  const [all, setAll] = useState(false);
+  if (!items || items.length === 0) return null;
+  const visible = all ? items : items.slice(0, DOC_TOP);
+  return (
+    <section className="an-section" aria-labelledby="an-documents">
+      <h2 id="an-documents">By document</h2>
+      <ul className="an-subjects">
+        {visible.map((d, i) => (
+          <li key={i} className="an-subject">
+            <div className="an-subject-head">
+              {d.accessible ? <span><Link className="row-link" to={`/a/${d.assignment.assignmentId}`} reloadDocument>{d.assignment.name || d.assignment.className}</Link>{d.assignment.name && d.assignment.className && <span className="muted"> · {d.assignment.className}</span>}</span> : <span className="muted">A piece of material you no longer have access to</span>}
+              {d.daysSinceActivity !== null && <span className="muted">{d.daysSinceActivity === 0 ? 'last worked on today' : `last worked on ${plural(d.daysSinceActivity, 'day', 'days')} ago`}</span>}
+            </div>
+            <p>
+              {plural(d.passagesAnswered, 'passage', 'passages')} answered, {d.passagesCorrect} answered correctly with no misses
+              {d.passagesWorthAnotherLook > 0 ? `, ${d.passagesWorthAnotherLook} worth another look` : ''}
+              {d.reviewsWaiting > 0 ? `, ${plural(d.reviewsWaiting, 'review', 'reviews')} waiting` : ''}.
+            </p>
+            {d.accessible && d.concepts.length > 0 && (
+              <ul className="an-chips" aria-label="Ideas in this document">
+                {d.concepts.map((c) => <li key={c.label} className={`an-chip an-${LEVEL_TONE[c.level]}`}>{c.label}: {LEVEL_LABEL[c.level].toLowerCase()}</li>)}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+      {items.length > DOC_TOP && (
+        <p><button type="button" className="btn btn-secondary" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${items.length} documents`}</button></p>
+      )}
+    </section>
+  );
+}
+
+// The ideas in the user's own uploaded files, at the level their answers so far show. Files with no ideas found yet are left out.
+function PersonalFiles({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <section className="an-section" aria-labelledby="an-files">
+      <h2 id="an-files">Your own files</h2>
+      <ul className="an-subjects">
+        {items.map((f) => (
+          <li key={f.personalDocumentId} className="an-subject">
+            <div className="an-subject-head"><Link className="row-link" to={`/f/${f.personalDocumentId}`} reloadDocument>{f.name}</Link></div>
+            <ul className="an-chips" aria-label="Ideas in this file">
+              {f.concepts.map((c) => <li key={c.label} className={`an-chip an-${LEVEL_TONE[c.level] ?? 'muted'}`}>{c.label}: {(LEVEL_LABEL[c.level] ?? 'No answers yet').toLowerCase()}</li>)}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function Recent({ r }) {
   return (
     <section className="an-section" aria-labelledby="an-recent">
@@ -284,6 +372,9 @@ export default function AnalyticsPage() {
         <>
           <Overview o={data.overview} />
           <Review r={data.review} />
+          <Subjects items={data.subjects} />
+          <Documents items={data.documents} />
+          <PersonalFiles items={data.personalFiles} />
           <NeedsWork items={data.needsWork} />
           <Progress p={data.progress} />
           <Revisited r={data.revisited} />

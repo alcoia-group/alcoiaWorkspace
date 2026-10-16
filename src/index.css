@@ -338,6 +338,18 @@ html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: 100svh; }
 .an-rowcount { text-align: right; color: #5b6770; }
 .an-how { margin: 16px 0; color: #5b6770; }
 .an-how summary { cursor: pointer; }
+.an-subjects { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 12px; }
+.an-subject { padding: 12px 0; border-top: 1px solid #e5e8ea; }
+.an-subject-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; }
+.an-subject p { margin: 6px 0 0; }
+.an-pill { font-size: 13px; padding: 2px 8px; border-radius: 10px; color: #fff; }
+.an-pill.an-none { color: #2d3b45; }
+.an-dims { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; margin: 8px 0 0; }
+.an-dims dt { font-size: 12px; color: #5b6770; }
+.an-dims dd { margin: 0; font-size: 14px; }
+.an-chips { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.an-chip { font-size: 13px; padding: 2px 8px; border-radius: 10px; color: #fff; }
+.an-chip.an-none { color: #2d3b45; }
 @media (max-width: 520px) { .global-nav a + a { margin-left: 12px; } .an-rows li { grid-template-columns: 96px 1fr 28px; } }
 /* narrow screens: the top bar wraps and drops the email instead of scrolling sideways */
 @media (max-width: 560px) {
@@ -370,3 +382,18 @@ html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: 100svh; }
 table.list { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #c7cdd1; margin: 16px 0; }
 table.list th, table.list td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #e3e6e8; }
 .small { font-size: 13px; }
+
+/* By subject: collapsible rows, level filters and search for long lists */
+.an-collapsible > summary { cursor: pointer; list-style: none; }
+.an-collapsible > summary::-webkit-details-marker { display: none; }
+.an-collapsible > summary::before { content: "\25B8"; margin-right: 8px; color: #5b6770; }
+.an-collapsible[open] > summary::before { content: "\25BE"; }
+.an-collapsible > summary:focus-visible { outline: 2px solid #5c4ea0; outline-offset: 2px; }
+.an-hint { font-size: 13px; flex-basis: 100%; }
+.an-subhead { font-size: 15px; margin: 16px 0 0; }
+.an-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.an-filter { border: 1px solid #c7cdd1; background: #fff; border-radius: 3px; padding: 6px 12px; cursor: pointer; font: inherit; }
+.an-filter.is-on { background: #2d3b45; color: #fff; border-color: #2d3b45; }
+.an-search { display: grid; gap: 4px; max-width: 360px; margin: 8px 0 12px; }
+.an-search input { font: inherit; padding: 8px 10px; border: 1px solid #c7cdd1; border-radius: 3px; }
+a.an-chip { text-decoration: none; }
