@@ -211,6 +211,83 @@ function Concepts({ items }) {
   );
 }
 
+
+const LEVEL_LABEL = { needs_help: 'Needs another look', developing: 'Building', secure: 'Solid so far', unknown: 'Not enough answers yet' };
+const LEVEL_TONE = { needs_help: 'due', developing: 'mid', secure: 'good', unknown: 'none' };
+const NEXT_STEP = {
+  correct_a_misconception: 'Worth checking your understanding: some answers you were sure of turned out wrong.',
+  review_the_explanation: 'Worth another read of the explanation.',
+  try_recalling_it: 'Next, try recalling it in your own words.',
+  try_applying_it: 'Next, try using it in a new situation.',
+  review_later: 'A review later will help it stick.',
+  nothing_needed: 'Nothing needed right now.',
+  not_enough_evidence: 'Not enough answers yet to say.',
+};
+const DIM_LABEL = { understanding: 'Understanding', recall: 'Recall', transfer: 'Using it in new situations', retention: 'Remembering later' };
+const DIM_STATE = { none: 'no answers yet', positive: 'going well', negative: 'not yet', uncertain: 'mixed so far' };
+
+// One subject (an idea) across every reading, in separate dimensions. No score and no comparison: each dimension says
+// what the learner's own answers show, and "no answers yet" is never read as a weakness.
+function Subjects({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <section className="an-section" aria-labelledby="an-subjects">
+      <h2 id="an-subjects">By subject</h2>
+      <p className="muted">Each idea you have met, across all your readings. Recognising an answer, explaining it, recalling it, using it somewhere new and remembering it later are kept apart because each shows something different.</p>
+      <ul className="an-subjects">
+        {items.map((s) => (
+          <li key={s.label} className="an-subject">
+            <div className="an-subject-head">
+              <strong>{s.label}</strong>
+              <span className={`an-pill an-${LEVEL_TONE[s.level]}`}>{LEVEL_LABEL[s.level]}</span>
+            </div>
+            <dl className="an-dims">
+              {Object.keys(DIM_LABEL).map((k) => (
+                <div key={k}>
+                  <dt>{DIM_LABEL[k]}</dt>
+                  <dd>{DIM_STATE[s.dimensions[k].state]}{s.dimensions[k].answers > 0 ? ` (${plural(s.dimensions[k].answers, 'answer', 'answers')})` : ''}</dd>
+                </div>
+              ))}
+              <div><dt>Met in your reading</dt><dd>{s.dimensions.encounters === 0 ? 'not recorded yet' : plural(s.dimensions.encounters, 'time', 'times')}</dd></div>
+            </dl>
+            <p className="muted">{NEXT_STEP[s.nextStep]}{s.uncertainty === 'high' && s.level !== 'unknown' ? ' This rests on very few answers.' : ''}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// One reading at a time: what you have answered, what is waiting, and how its ideas stand.
+function Documents({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <section className="an-section" aria-labelledby="an-documents">
+      <h2 id="an-documents">By document</h2>
+      <ul className="an-subjects">
+        {items.map((d, i) => (
+          <li key={i} className="an-subject">
+            <div className="an-subject-head">
+              {d.accessible ? <span><Link className="row-link" to={`/a/${d.assignment.assignmentId}`} reloadDocument>{d.assignment.name || d.assignment.className}</Link>{d.assignment.name && d.assignment.className && <span className="muted"> · {d.assignment.className}</span>}</span> : <span className="muted">A piece of material you no longer have access to</span>}
+              {d.daysSinceActivity !== null && <span className="muted">{d.daysSinceActivity === 0 ? 'last worked on today' : `last worked on ${plural(d.daysSinceActivity, 'day', 'days')} ago`}</span>}
+            </div>
+            <p>
+              {plural(d.passagesAnswered, 'passage', 'passages')} answered, {d.passagesCorrect} answered correctly with no misses
+              {d.passagesWorthAnotherLook > 0 ? `, ${d.passagesWorthAnotherLook} worth another look` : ''}
+              {d.reviewsWaiting > 0 ? `, ${plural(d.reviewsWaiting, 'review', 'reviews')} waiting` : ''}.
+            </p>
+            {d.accessible && d.concepts.length > 0 && (
+              <ul className="an-chips" aria-label="Ideas in this document">
+                {d.concepts.map((c) => <li key={c.label} className={`an-chip an-${LEVEL_TONE[c.level]}`}>{c.label}: {LEVEL_LABEL[c.level].toLowerCase()}</li>)}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function Recent({ r }) {
   return (
     <section className="an-section" aria-labelledby="an-recent">
@@ -284,6 +361,8 @@ export default function AnalyticsPage() {
         <>
           <Overview o={data.overview} />
           <Review r={data.review} />
+          <Subjects items={data.subjects} />
+          <Documents items={data.documents} />
           <NeedsWork items={data.needsWork} />
           <Progress p={data.progress} />
           <Revisited r={data.revisited} />

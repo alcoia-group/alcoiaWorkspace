@@ -338,6 +338,18 @@ html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: 100svh; }
 .an-rowcount { text-align: right; color: #5b6770; }
 .an-how { margin: 16px 0; color: #5b6770; }
 .an-how summary { cursor: pointer; }
+.an-subjects { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 12px; }
+.an-subject { padding: 12px 0; border-top: 1px solid #e5e8ea; }
+.an-subject-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; }
+.an-subject p { margin: 6px 0 0; }
+.an-pill { font-size: 13px; padding: 2px 8px; border-radius: 10px; color: #fff; }
+.an-pill.an-none { color: #2d3b45; }
+.an-dims { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; margin: 8px 0 0; }
+.an-dims dt { font-size: 12px; color: #5b6770; }
+.an-dims dd { margin: 0; font-size: 14px; }
+.an-chips { list-style: none; padding: 0; margin: 6px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.an-chip { font-size: 13px; padding: 2px 8px; border-radius: 10px; color: #fff; }
+.an-chip.an-none { color: #2d3b45; }
 @media (max-width: 520px) { .global-nav a + a { margin-left: 12px; } .an-rows li { grid-template-columns: 96px 1fr 28px; } }
 /* narrow screens: the top bar wraps and drops the email instead of scrolling sideways */
 @media (max-width: 560px) {
