@@ -7,6 +7,7 @@ import 'pdfjs-dist/web/pdf_viewer.css';
 import { fetchPdfBytes } from '../../lib/assignments.js';
 import { assetBase } from '../../lib/assets.js';
 import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
+import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -129,6 +130,7 @@ export default function PdfViewer({ content, title, asset, onDownload, marks }) 
   const stageRef = useRef(null);
   const fs = useFullscreen();
   const controlsVisible = useIdleControls(fs.active);
+  const bankItems = useBankItems(asset.assignmentId, asset.sessionToken, Boolean(asset.assignmentId));
 
   useEffect(() => {
     let cancelled = false;
@@ -199,6 +201,9 @@ export default function PdfViewer({ content, title, asset, onDownload, marks }) 
         <OptionalBadge marks={marks} unit={pageUnit(current)} />
         <span className="viewer-controls">
           <MarkToggle marks={marks} unit={pageUnit(current)} />
+          {asset.assignmentId && bankItems && (
+            <ProveSkip assignmentId={asset.assignmentId} sessionToken={asset.sessionToken} items={bankItems} page={current} pageCount={content.pageCount} onSkip={scrollTo} />
+          )}
           <button type="button" className="secondary" onClick={() => setZoomIndex((z) => Math.max(0, z - 1))} disabled={zoomIndex === 0} aria-label="Zoom out">−</button>
           <span className="viewer-zoom">{Math.round(ZOOM_STEPS[zoomIndex] * 100)}%</span>
           <button type="button" className="secondary" onClick={() => setZoomIndex((z) => Math.min(ZOOM_STEPS.length - 1, z + 1))} disabled={zoomIndex === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>
