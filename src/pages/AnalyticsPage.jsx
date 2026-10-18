@@ -101,6 +101,27 @@ function NeedsWork({ items }) {
   );
 }
 
+function ExplainBackSection({ items }) {
+  const shown = items.filter((e) => e.ideas > 0);
+  if (shown.length === 0) return null;
+  return (
+    <section className="an-section" aria-labelledby="an-explain">
+      <h2 id="an-explain">Explain it back</h2>
+      <p className="muted">From your last explanation of each reading: how many of its key ideas it covered. Counts only; what you wrote is never kept.</p>
+      <ul className="an-list">
+        {shown.map((e, i) => (
+          <li key={i}>
+            <div><AssignmentLabel item={e} /></div>
+            <span className="an-count">
+              {e.covered} of {e.ideas} covered{e.partly > 0 ? `, ${e.partly} partly` : ''}{e.missing > 0 ? `, ${e.missing} to revisit` : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function Progress({ p }) {
   const maxWeek = Math.max(1, ...p.firstAnsweredByWeek.map((w) => w.units));
   const scheduled = p.retentionStages.reduce((n, s) => n + s.units, 0);
@@ -200,6 +221,7 @@ export default function AnalyticsPage() {
       {state.status === 'error' && <p className="alert alert-error">Your analytics could not be loaded. Try again in a moment.</p>}
       {result?.kind === 'upgrade' && <Upgrade />}
       {result?.kind === 'memory' && <MemoryOff status={result.status} />}
+      {data?.state === 'empty' && (data.explainBack ?? []).length > 0 && <ExplainBackSection items={data.explainBack} />}
       {data?.state === 'empty' && (
         <div className="notice">
           <h2>Your analytics will appear as you learn</h2>
@@ -211,6 +233,7 @@ export default function AnalyticsPage() {
           <Overview o={data.overview} />
           <Review r={data.review} />
           <NeedsWork items={data.needsWork} />
+          <ExplainBackSection items={data.explainBack ?? []} />
           <Progress p={data.progress} />
           <Recent r={data.recent} />
           {data.truncated && <p className="muted">Showing your most recent passages only.</p>}

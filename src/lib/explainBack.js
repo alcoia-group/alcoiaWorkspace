@@ -4,13 +4,15 @@ export const MIN_CHARS = 40;
 export const MAX_CHARS = 3000;
 const KEY = (id) => `alcoia_workspace_explainback_${id}`;
 
-// GET /api/assignments/:id/explain-back -> { available, ideaCount }. Any failure means "not shown".
+// GET /api/assignments/:id/explain-back -> { available, ideaCount, previous }. `previous` is the
+// learner's own last result, sent only when their account-based learning is on. Any failure
+// means "not shown".
 export async function fetchExplainBackAvailability(assignmentId, sessionToken) {
   try {
     const body = await apiGet(`/api/assignments/${encodeURIComponent(assignmentId)}/explain-back`, { sessionToken });
-    return body?.available === true;
+    return { available: body?.available === true, previous: Array.isArray(body?.previous) ? body.previous : null };
   } catch {
-    return false;
+    return { available: false, previous: null };
   }
 }
 

@@ -19,7 +19,11 @@ export default function ExplainBack({ assignmentId, sessionToken }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchExplainBackAvailability(assignmentId, sessionToken).then((ok) => { if (!cancelled) setAvailable(ok); });
+    fetchExplainBackAvailability(assignmentId, sessionToken).then((r) => {
+      if (cancelled) return;
+      setAvailable(r.available);
+      if (r.previous) setFeedback((f) => f ?? r.previous);
+    });
     return () => { cancelled = true; };
   }, [assignmentId, sessionToken]);
 
@@ -50,7 +54,8 @@ export default function ExplainBack({ assignmentId, sessionToken }) {
       <p>
         Last step. Without looking, write the main ideas of what you just read, in your own words.
         What you write is checked and then discarded. Your instructor never sees it, only how many
-        students covered each idea.
+        students covered each idea. If account-based learning is on, which ideas you covered is kept
+        privately for you (never your words) so you can see what to revisit in Learner analytics.
       </p>
       {!feedback && (
         <form onSubmit={check}>
