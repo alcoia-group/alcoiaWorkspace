@@ -130,7 +130,8 @@ export default function PdfViewer({ content, title, asset, onDownload, marks }) 
   const stageRef = useRef(null);
   const fs = useFullscreen();
   const controlsVisible = useIdleControls(fs.active);
-  const bankItems = useBankItems(asset.assignmentId, asset.sessionToken, Boolean(asset.assignmentId));
+  const bankId = asset.assignmentId ?? asset.personalId;
+  const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
 
   useEffect(() => {
     let cancelled = false;
@@ -201,8 +202,8 @@ export default function PdfViewer({ content, title, asset, onDownload, marks }) 
         <OptionalBadge marks={marks} unit={pageUnit(current)} />
         <span className="viewer-controls">
           <MarkToggle marks={marks} unit={pageUnit(current)} />
-          {asset.assignmentId && bankItems && (
-            <ProveSkip assignmentId={asset.assignmentId} sessionToken={asset.sessionToken} items={bankItems} page={current} pageCount={content.pageCount} onSkip={scrollTo} />
+          {bankId && bankItems && (
+            <ProveSkip personal={Boolean(asset.personalId)} assignmentId={bankId} sessionToken={asset.sessionToken} items={bankItems} page={current} pageCount={content.pageCount} onSkip={scrollTo} />
           )}
           <button type="button" className="secondary" onClick={() => setZoomIndex((z) => Math.max(0, z - 1))} disabled={zoomIndex === 0} aria-label="Zoom out">−</button>
           <span className="viewer-zoom">{Math.round(ZOOM_STEPS[zoomIndex] * 100)}%</span>

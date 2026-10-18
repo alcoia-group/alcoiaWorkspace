@@ -9,7 +9,7 @@ const KEY = (id) => `alcoia_workspace_prep_${id}`;
 const remember = (id, v) => { try { localStorage.setItem(KEY(id), v); } catch { /* storage unavailable */ } };
 const recall = (id) => { try { return localStorage.getItem(KEY(id)); } catch { return null; } };
 
-export default function BeforeYouRead({ assignmentId, content, sessionToken }) {
+export default function BeforeYouRead({ assignmentId, content, sessionToken, personal = false }) {
   const [open, setOpen] = useState(() => recall(assignmentId) !== 'skipped');
   const [items, setItems] = useState(null); // null = loading, [] = none
   const [results, setResults] = useState({}); // itemId -> { choiceId, correct, correctChoiceId, explanation }
@@ -18,17 +18,17 @@ export default function BeforeYouRead({ assignmentId, content, sessionToken }) {
   useEffect(() => {
     if (!open) return undefined;
     let cancelled = false;
-    fetchQuestionBank(assignmentId, sessionToken).then((bank) => {
+    fetchQuestionBank(assignmentId, sessionToken, { personal }).then((bank) => {
       if (!cancelled) setItems(bank ? pickWarmup(bank.items) : []);
     });
     return () => { cancelled = true; };
-  }, [assignmentId, sessionToken, open]);
+  }, [assignmentId, sessionToken, open, personal]);
 
   async function choose(item, choiceId) {
     if (results[item.id]) return;
     setResults((prev) => ({ ...prev, [item.id]: { choiceId, pending: true } }));
     try {
-      const r = await checkBankAnswer(assignmentId, item.id, choiceId, sessionToken);
+      const r = await checkBankAnswer(assignmentId, item.id, choiceId, sessionToken, personal);
       setResults((prev) => ({ ...prev, [item.id]: { choiceId, ...r } }));
     } catch {
       setResults((prev) => ({ ...prev, [item.id]: { choiceId, error: true } }));

@@ -1,14 +1,18 @@
 import { apiPost, API_BASE_URL } from './api.js';
+import { assetBase } from './assets.js';
+
+// `personal` true: the id is one of the user's own files (/api/personal-documents/:id), else an assignment.
+export const bankBase = (id, personal) => assetBase(personal ? { personalId: id } : { assignmentId: id });
 
 // The question bank of an assigned reading (server: questions are written once per document).
 //   GET  /api/assignments/:id/question-bank -> 200 { items: [{ id, paragraph, question, choices: [{id, text}] }] }
 //                                              202 { status: 'preparing' }   422 { error: 'no_questions' }
 //   POST .../question-bank/answer { itemId, choiceId } -> { correct, correctChoiceId, explanation, span }
 // The answers never travel with the questions; each is checked by the server. Checking records nothing.
-export async function fetchQuestionBank(assignmentId, sessionToken, { attempts = 8, delayMs = 2500 } = {}) {
+export async function fetchQuestionBank(assignmentId, sessionToken, { attempts = 8, delayMs = 2500, personal = false } = {}) {
   for (let i = 0; i < attempts; i++) {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/assignments/${encodeURIComponent(assignmentId)}/question-bank`, {
+      const res = await fetch(`${API_BASE_URL}${bankBase(assignmentId, personal)}/question-bank`, {
         headers: { Authorization: `Bearer ${sessionToken}` },
       });
       if (res.status === 200) return await res.json();
@@ -21,8 +25,8 @@ export async function fetchQuestionBank(assignmentId, sessionToken, { attempts =
   return null;
 }
 
-export const checkBankAnswer = (assignmentId, itemId, choiceId, sessionToken) =>
-  apiPost(`/api/assignments/${encodeURIComponent(assignmentId)}/question-bank/answer`, { itemId, choiceId }, { sessionToken });
+export const checkBankAnswer = (assignmentId, itemId, choiceId, sessionToken, personal = false) =>
+  apiPost(`${bankBase(assignmentId, personal)}/question-bank/answer`, { itemId, choiceId }, { sessionToken });
 
 // Up to `n` items spread across the document, so the warm-up samples its breadth.
 export function pickWarmup(items, n = 3) {

@@ -5,18 +5,18 @@ import { rememberTried, stretchFrom, triedBefore } from '../lib/proveSkip.js';
 // "Prove it to skip", PDFs of assigned readings only. Answer a few questions about the part you
 // are on; if every one is right the page scrolls to the next part. Reader's own convenience:
 // nothing is scored, recorded or sent to anyone. One try per part on this device.
-export function useBankItems(assignmentId, sessionToken, enabled) {
+export function useBankItems(assignmentId, sessionToken, enabled, personal = false) {
   const [items, setItems] = useState(null);
   useEffect(() => {
     if (!enabled || !assignmentId) return undefined;
     let cancelled = false;
-    fetchQuestionBank(assignmentId, sessionToken).then((bank) => { if (!cancelled) setItems(bank?.items ?? []); });
+    fetchQuestionBank(assignmentId, sessionToken, { personal }).then((bank) => { if (!cancelled) setItems(bank?.items ?? []); });
     return () => { cancelled = true; };
-  }, [assignmentId, sessionToken, enabled]);
+  }, [assignmentId, sessionToken, enabled, personal]);
   return items;
 }
 
-export default function ProveSkip({ assignmentId, sessionToken, items, page, pageCount, onSkip }) {
+export default function ProveSkip({ assignmentId, sessionToken, items, page, pageCount, onSkip, personal = false }) {
   const stretch = items ? stretchFrom(items, page, pageCount) : null;
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState({}); // itemId -> { choiceId, correct, correctChoiceId, explanation } | { pending } | { error }
@@ -45,7 +45,7 @@ export default function ProveSkip({ assignmentId, sessionToken, items, page, pag
     if (results[item.id]) return;
     setResults((prev) => ({ ...prev, [item.id]: { choiceId, pending: true } }));
     try {
-      const r = await checkBankAnswer(assignmentId, item.id, choiceId, sessionToken);
+      const r = await checkBankAnswer(assignmentId, item.id, choiceId, sessionToken, personal);
       setResults((prev) => ({ ...prev, [item.id]: { choiceId, ...r } }));
     } catch {
       setResults((prev) => ({ ...prev, [item.id]: { choiceId, error: true } }));

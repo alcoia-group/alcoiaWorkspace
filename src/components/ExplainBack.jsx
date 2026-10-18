@@ -9,7 +9,7 @@ const MARK = { covered: '✓', partly: '~', missing: '○' };
 // key ideas you covered. The text is checked and thrown away; the instructor only ever sees how
 // many students covered each idea. It never blocks anything: if the check is unavailable, the
 // reader just carries on.
-export default function ExplainBack({ assignmentId, sessionToken }) {
+export default function ExplainBack({ assignmentId, sessionToken, personal = false }) {
   const [available, setAvailable] = useState(false);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,13 +19,13 @@ export default function ExplainBack({ assignmentId, sessionToken }) {
 
   useEffect(() => {
     let cancelled = false;
-    fetchExplainBackAvailability(assignmentId, sessionToken).then((r) => {
+    fetchExplainBackAvailability(assignmentId, sessionToken, personal).then((r) => {
       if (cancelled) return;
       setAvailable(r.available);
       if (r.previous) setFeedback((f) => f ?? r.previous);
     });
     return () => { cancelled = true; };
-  }, [assignmentId, sessionToken]);
+  }, [assignmentId, sessionToken, personal]);
 
   if (!available || hidden) return null;
 
@@ -34,7 +34,7 @@ export default function ExplainBack({ assignmentId, sessionToken }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await submitExplainBack(assignmentId, text, sessionToken);
+      const res = await submitExplainBack(assignmentId, text, sessionToken, personal);
       setFeedback(res.ideas);
       saveLastFeedback(assignmentId, res.ideas);
     } catch (err) {
@@ -53,9 +53,9 @@ export default function ExplainBack({ assignmentId, sessionToken }) {
       <h2 id="eb-heading">Explain it back</h2>
       <p>
         Last step. Without looking, write the main ideas of what you just read, in your own words.
-        What you write is checked and then discarded. Your instructor never sees it, only how many
-        students covered each idea. If account-based learning is on, which ideas you covered is kept
-        privately for you (never your words) so you can see what to revisit in Learner analytics.
+        {personal
+          ? ' What you write is checked and then discarded. This is your own file, so nothing about it is recorded or shared.'
+          : ' What you write is checked and then discarded. Your instructor never sees it, only how many students covered each idea. If account-based learning is on, which ideas you covered is kept privately for you (never your words), so you can see what to revisit in Learner analytics.'}
       </p>
       {!feedback && (
         <form onSubmit={check}>

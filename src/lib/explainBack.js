@@ -1,15 +1,16 @@
 import { apiGet, apiPost } from './api.js';
+import { bankBase } from './questionBank.js';
 
 export const MIN_CHARS = 40;
 export const MAX_CHARS = 3000;
-const KEY = (id) => `alcoia_workspace_explainback_${id}`;
+const KEY = (id) => `alcoia_workspace_explainback_${id}`; // personal files use their own id, which never collides
 
 // GET /api/assignments/:id/explain-back -> { available, ideaCount, previous }. `previous` is the
 // learner's own last result, sent only when their account-based learning is on. Any failure
 // means "not shown".
-export async function fetchExplainBackAvailability(assignmentId, sessionToken) {
+export async function fetchExplainBackAvailability(assignmentId, sessionToken, personal = false) {
   try {
-    const body = await apiGet(`/api/assignments/${encodeURIComponent(assignmentId)}/explain-back`, { sessionToken });
+    const body = await apiGet(`${bankBase(assignmentId, personal)}/explain-back`, { sessionToken });
     return { available: body?.available === true, previous: Array.isArray(body?.previous) ? body.previous : null };
   } catch {
     return { available: false, previous: null };
@@ -17,8 +18,8 @@ export async function fetchExplainBackAvailability(assignmentId, sessionToken) {
 }
 
 // POST -> { ideas: [{ text, level }], recorded }. Throws ApiError (422, 429, 503 ...).
-export function submitExplainBack(assignmentId, text, sessionToken) {
-  return apiPost(`/api/assignments/${encodeURIComponent(assignmentId)}/explain-back`, { text }, { sessionToken });
+export function submitExplainBack(assignmentId, text, sessionToken, personal = false) {
+  return apiPost(`${bankBase(assignmentId, personal)}/explain-back`, { text }, { sessionToken });
 }
 
 // The last feedback is kept on this device so the panel is not empty after a reload.
