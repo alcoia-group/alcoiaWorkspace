@@ -5,6 +5,7 @@ import { formatDue, formatLabel } from '../lib/format.js';
 import { fetchDocument, fetchDownloadUrl, fetchMyAssignments } from '../lib/assignments.js';
 import DocxViewer from '../components/viewers/DocxViewer.jsx';
 import SlideViewer from '../components/viewers/SlideViewer.jsx';
+import BeforeYouRead from '../components/BeforeYouRead.jsx';
 // pdf.js is large; only load it for a PDF.
 const PdfViewer = lazy(() => import('../components/viewers/PdfViewer.jsx'));
 
@@ -76,6 +77,7 @@ export default function ReaderPage() {
           </nav>
           <span className="crumb-due">Due {formatDue(assignment.closesAt)}</span>
         </div>
+        <BeforeYouRead assignmentId={assignmentId} content={doc.content} sessionToken={session.sessionToken} />
         <Suspense fallback={<p className="muted pad">Loading.</p>}>
           <Viewer
             content={doc.content}
