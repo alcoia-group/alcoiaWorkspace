@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import MarkToggle, { OptionalBadge } from '../MarkToggle.jsx';
 import { pageUnit } from '../../lib/sectionMarks.js';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -8,6 +8,7 @@ import { fetchPdfBytes } from '../../lib/assignments.js';
 import { assetBase } from '../../lib/assets.js';
 import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
+import { pdfConfig } from '../../lib/proveSkip.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -131,6 +132,7 @@ export default function PdfViewer({ content, title, asset, onDownload, marks }) 
   const fs = useFullscreen();
   const controlsVisible = useIdleControls(fs.active);
   const bankId = asset.assignmentId ?? asset.personalId;
+  const skipConfig = useMemo(() => pdfConfig(content.pageCount), [content.pageCount]);
   const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
 
   useEffect(() => {
@@ -203,7 +205,7 @@ export default function PdfViewer({ content, title, asset, onDownload, marks }) 
         <span className="viewer-controls">
           <MarkToggle marks={marks} unit={pageUnit(current)} />
           {bankId && bankItems && (
-            <ProveSkip personal={Boolean(asset.personalId)} assignmentId={bankId} sessionToken={asset.sessionToken} items={bankItems} page={current} pageCount={content.pageCount} onSkip={scrollTo} />
+            <ProveSkip personal={Boolean(asset.personalId)} assignmentId={bankId} sessionToken={asset.sessionToken} items={bankItems} start={current} config={skipConfig} onSkip={scrollTo} />
           )}
           <button type="button" className="secondary" onClick={() => setZoomIndex((z) => Math.max(0, z - 1))} disabled={zoomIndex === 0} aria-label="Zoom out">−</button>
           <span className="viewer-zoom">{Math.round(ZOOM_STEPS[zoomIndex] * 100)}%</span>

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { checkBankAnswer, fetchQuestionBank, outlineOf, pickWarmup } from '../lib/questionBank.js';
+import { markSeen, readSeen } from '../lib/proveSkip.js';
 
 // Shown above an assigned reading: a map of the reading (from the file's own headings or slide
 // titles) and, when the reading has questions, two or three to try BEFORE reading. Nothing here is
 // scored, ranked or sent to the instructor: it is the reader's own warm-up (trying first helps what
 // follows stick, even when the answer is a guess). Skippable, and remembered per reading.
+// What was answered is kept on this device so "Prove it to skip" does not ask the same question again
+// and counts a right answer here toward the part it belongs to (lib/proveSkip.js).
 const KEY = (id) => `alcoia_workspace_prep_${id}`;
 const remember = (id, v) => { try { localStorage.setItem(KEY(id), v); } catch { /* storage unavailable */ } };
 const recall = (id) => { try { return localStorage.getItem(KEY(id)); } catch { return null; } };
@@ -29,6 +32,8 @@ export default function BeforeYouRead({ assignmentId, content, sessionToken, per
     setResults((prev) => ({ ...prev, [item.id]: { choiceId, pending: true } }));
     try {
       const r = await checkBankAnswer(assignmentId, item.id, choiceId, sessionToken, personal);
+      // Only the first answer to a question counts, however many times the page is reloaded.
+      if (!readSeen(assignmentId)[item.id]) markSeen(assignmentId, item.id, r.correct ? 'c' : 'w');
       setResults((prev) => ({ ...prev, [item.id]: { choiceId, ...r } }));
     } catch {
       setResults((prev) => ({ ...prev, [item.id]: { choiceId, error: true } }));

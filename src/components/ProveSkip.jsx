@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { checkBankAnswer, fetchQuestionBank } from '../lib/questionBank.js';
-import { rememberTried, stretchFrom, triedBefore } from '../lib/proveSkip.js';
+import { markSeen, readSeen, stretchFrom } from '../lib/proveSkip.js';
 
-// "Prove it to skip", PDFs of assigned readings only. Answer a few questions about the part you
-// are on; if every one is right the page scrolls to the next part. Reader's own convenience:
-// nothing is scored, recorded or sent to anyone. One try per part on this device.
+// "Prove it to skip", every format (see lib/proveSkip.js). Answer a few questions about the part you
+// are on; if every one is right the viewer goes to the next part. Reader's own convenience: nothing
+// is scored, recorded or sent to anyone. One try per part on this device. Questions already met in
+// the "Before you read" warm-up are not asked twice, and a right answer there counts toward the part.
 export function useBankItems(assignmentId, sessionToken, enabled, personal = false) {
   const [items, setItems] = useState(null);
   useEffect(() => {
@@ -16,36 +17,43 @@ export function useBankItems(assignmentId, sessionToken, enabled, personal = fal
   return items;
 }
 
-export default function ProveSkip({ assignmentId, sessionToken, items, page, pageCount, onSkip, personal = false }) {
-  const stretch = items ? stretchFrom(items, page, pageCount) : null;
+export default function ProveSkip({ assignmentId, sessionToken, items, start, config, onSkip, personal = false }) {
   const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState(() => readSeen(assignmentId));
   const [results, setResults] = useState({}); // itemId -> { choiceId, correct, correctChoiceId, explanation } | { pending } | { error }
-  const lockedStart = useRef(null); // the part this panel was opened for, so scrolling does not swap questions
-
-  const active = open && lockedStart.current != null ? stretchFrom(items ?? [], lockedStart.current, pageCount) : null;
-  const shown = active ?? stretch;
+  const locked = useRef(null); // the offer this panel was opened for, so scrolling does not swap the questions
 
   useEffect(() => {
-    if (!active) return;
-    const rs = active.items.map((it) => results[it.id]);
-    if (rs.some((r) => !r || r.pending)) return;
-    if (rs.some((r) => r.error)) return;
+    const refresh = () => setSeen(readSeen(assignmentId));
+    refresh();
+    window.addEventListener('alcoia:seen', refresh);
+    return () => window.removeEventListener('alcoia:seen', refresh);
+  }, [assignmentId]);
+
+  const offer = open && locked.current ? locked.current : (items ? stretchFrom(items, start, config, seen) : null);
+
+  useEffect(() => {
+    if (!open || !locked.current) return;
+    const asked = locked.current.fresh;
+    const rs = asked.map((it) => results[it.id]);
+    if (rs.some((r) => !r || r.pending || r.error)) return;
     if (rs.every((r) => r.correct)) {
       setOpen(false);
-      onSkip(active.nextPage);
+      onSkip(locked.current.target);
     } else {
-      rememberTried(assignmentId, active.startPage);
+      // A miss closes this part on this device: none of its questions are asked again.
+      for (const it of locked.current.items) markSeen(assignmentId, it.id, 'x');
     }
   }, [results]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!shown) return null;
-  const tried = triedBefore(assignmentId, shown.startPage);
+  if (!offer) return null;
 
   async function choose(item, choiceId) {
     if (results[item.id]) return;
     setResults((prev) => ({ ...prev, [item.id]: { choiceId, pending: true } }));
     try {
       const r = await checkBankAnswer(assignmentId, item.id, choiceId, sessionToken, personal);
+      markSeen(assignmentId, item.id, r.correct ? 'c' : 'w');
       setResults((prev) => ({ ...prev, [item.id]: { choiceId, ...r } }));
     } catch {
       setResults((prev) => ({ ...prev, [item.id]: { choiceId, error: true } }));
@@ -57,25 +65,29 @@ export default function ProveSkip({ assignmentId, sessionToken, items, page, pag
       <button
         type="button"
         className="secondary"
-        disabled={tried}
-        title={tried ? 'You tried this part already. Keep reading it.' : 'Answer a few questions about this part. If you get them all right, you go straight to the next part.'}
-        onClick={() => { lockedStart.current = shown.startPage; setResults({}); setOpen(true); }}
+        disabled={offer.tried}
+        title={offer.tried ? 'You tried this part already. Keep reading it.' : 'Answer a few questions about this part. If you get them all right, you go straight to the next part.'}
+        onClick={() => { locked.current = offer; setResults({}); setOpen(true); }}
       >
-        {tried ? 'Tried this part' : 'Prove it to skip'}
+        {offer.tried ? 'Tried this part' : 'Prove it to skip'}
       </button>
     );
   }
 
-  const done = active.items.every((it) => results[it.id] && !results[it.id].pending);
-  const allRight = done && active.items.every((it) => results[it.id].correct);
+  const asked = offer.fresh;
+  const done = asked.every((it) => results[it.id] && !results[it.id].pending);
+  const allRight = done && asked.every((it) => results[it.id].correct);
   return (
     <div className="skip-panel" role="dialog" aria-label="Prove it to skip">
       <div className="prep-head">
-        <strong>Prove you know pages {active.startPage} to {active.endPage}</strong>
+        <strong>Prove you know {offer.range}</strong>
         <button type="button" className="link-button" onClick={() => setOpen(false)}>Close</button>
       </div>
-      <span className="muted small">Get every answer right and you go to page {active.nextPage}. One try. Nothing here is scored or sent to anyone.</span>
-      {active.items.map((item, n) => {
+      <span className="muted small">
+        Get every answer right and you go to {offer.goesTo}. One try. Nothing here is scored or sent to anyone.
+        {offer.proved > 0 && ` ${offer.proved} ${offer.proved === 1 ? 'question' : 'questions'} from the warm-up already counted.`}
+      </span>
+      {asked.map((item, n) => {
         const r = results[item.id];
         return (
           <fieldset key={item.id} className="prep-q" disabled={Boolean(r)}>
@@ -85,7 +97,7 @@ export default function ProveSkip({ assignmentId, sessionToken, items, page, pag
               const right = r?.correctChoiceId === c.id;
               return (
                 <label key={c.id} className={`prep-choice${right ? ' is-right' : ''}${picked && r && !right ? ' is-wrong' : ''}`}>
-                  <input type="radio" name={item.id} value={c.id} checked={picked} onChange={() => choose(item, c.id)} /> {c.text}
+                  <input type="radio" name={`skip-${item.id}`} value={c.id} checked={picked} onChange={() => choose(item, c.id)} /> {c.text}
                 </label>
               );
             })}

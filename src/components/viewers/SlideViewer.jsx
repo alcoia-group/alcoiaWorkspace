@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { resolveTransition } from '../../lib/transitions.js';
 import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
 import AssetImage from './AssetImage.jsx';
 import MarkToggle, { OptionalBadge } from '../MarkToggle.jsx';
 import { slideUnit } from '../../lib/sectionMarks.js';
+import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
+import { slideConfig } from '../../lib/proveSkip.js';
 
 // PowerPoint-style viewer for the server's slide model. Every slide is drawn
 // at the file's own aspect ratio from fractional geometry, with the file's
@@ -153,6 +155,9 @@ export default function SlideViewer({ content, title, asset, onDownload, marks }
   const pendingJob = useRef(null);
   const fs = useFullscreen();
   const controlsVisible = useIdleControls(fs.active);
+  const bankId = asset.assignmentId ?? asset.personalId;
+  const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
+  const skipConfig = useMemo(() => slideConfig(slides.length), [slides.length]);
 
   const go = useCallback((next) => {
     const current = indexRef.current;
@@ -246,6 +251,9 @@ export default function SlideViewer({ content, title, asset, onDownload, marks }
         <OptionalBadge marks={marks} unit={slideUnit(index + 1)} />
         <span className="viewer-controls">
           <MarkToggle marks={marks} unit={slideUnit(index + 1)} />
+          {bankId && bankItems && (
+            <ProveSkip personal={Boolean(asset.personalId)} assignmentId={bankId} sessionToken={asset.sessionToken} items={bankItems} start={index + 1} config={skipConfig} onSkip={(slide) => go(slide - 1)} />
+          )}
           <button type="button" className="secondary" onClick={() => go(index - 1)} disabled={index === 0} aria-label="Previous slide">←</button>
           <button type="button" className="secondary" onClick={() => go(index + 1)} disabled={index === slides.length - 1} aria-label="Next slide">→</button>
           <button type="button" className="secondary" onClick={fs.toggle}>{fs.active ? 'Exit full screen' : 'Full screen'}</button>
