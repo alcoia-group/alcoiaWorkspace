@@ -7,6 +7,8 @@ import { useEffect, useRef, useState } from 'react';
 // Text goes through React only: nothing in the model is ever treated as markup.
 
 import AssetImage from './AssetImage.jsx';
+import MarkToggle from '../MarkToggle.jsx';
+import { wordUnit } from '../../lib/sectionMarks.js';
 
 const SAFE_HREF = /^(https?:|mailto:)/i;
 
@@ -24,8 +26,23 @@ function Runs({ runs }) {
   });
 }
 
-function Blocks({ blocks, asset }) {
+function Blocks({ blocks, asset, marks, page }) {
   return blocks.map((block, i) => {
+    const node = renderBlock(block, i, asset);
+    if (marks === undefined || page === undefined || node === null) return node;
+    const unit = wordUnit(page, i);
+    const optional = marks.optional.has(unit);
+    return (
+      <div key={i} className={optional ? 'docx-unit is-optional' : 'docx-unit'} data-unit={unit}>
+        {node}
+        <MarkToggle marks={marks} unit={unit} className="mark-toggle secondary" />
+      </div>
+    );
+  });
+}
+
+function renderBlock(block, i, asset) {
+  {
     switch (block.type) {
       case 'heading': {
         const Tag = `h${Math.min(Math.max(block.level, 1), 6)}`;
@@ -62,12 +79,12 @@ function Blocks({ blocks, asset }) {
       default:
         return null;
     }
-  });
+  }
 }
 
 const ZOOM_STEPS = [0.75, 0.9, 1, 1.15, 1.3, 1.5];
 
-export default function DocxViewer({ content, title, asset, onDownload }) {
+export default function DocxViewer({ content, title, asset, onDownload, marks }) {
   const pages = content.pages;
   const [zoomIndex, setZoomIndex] = useState(2);
   const [current, setCurrent] = useState(1);
@@ -116,7 +133,7 @@ export default function DocxViewer({ content, title, asset, onDownload }) {
             ref={(el) => { pageRefs.current[i] = el; }}
             aria-label={`Page ${i + 1} of ${pages.length}`}
           >
-            <Blocks blocks={page.blocks} asset={asset} />
+            <Blocks blocks={page.blocks} asset={asset} marks={marks ?? undefined} page={i} />
           </article>
         ))}
       </div>

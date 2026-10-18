@@ -383,3 +383,13 @@ table.list th, table.list td { text-align: left; padding: 8px 12px; border-botto
 .prep-choice.is-right { border-color: #5c7a63; background: #eef4ef; }
 .prep-choice.is-wrong { border-color: #b3563a; background: #fbf0ec; }
 .prep-explain { margin: 6px 0 0; }
+
+/* Core / optional marks on an assigned reading. The label is CSS (not DOM text), so the
+   extension never reads it as part of the passage. */
+.docx-unit { position: relative; }
+.docx-unit.is-optional { opacity: 0.62; border-left: 3px dashed var(--border, #bbb); padding-left: 0.6em; }
+.docx-unit.is-optional::before { content: 'Optional'; display: block; font: 600 11px/1.4 system-ui, sans-serif; color: #666; text-transform: uppercase; letter-spacing: 0.05em; }
+.docx-unit .mark-toggle { position: absolute; top: 0; right: -9.5em; font-size: 12px; padding: 2px 8px; opacity: 0; }
+.docx-unit:hover .mark-toggle, .docx-unit .mark-toggle:focus { opacity: 1; }
+@media (max-width: 900px) { .docx-unit .mark-toggle { position: static; display: block; opacity: 1; margin: 2px 0 8px; } }
+.optional-badge { font: 600 11px/1 system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #999; border-radius: 3px; padding: 3px 6px; color: #555; }

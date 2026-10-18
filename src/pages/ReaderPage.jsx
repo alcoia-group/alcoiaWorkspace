@@ -6,6 +6,7 @@ import { fetchDocument, fetchDownloadUrl, fetchMyAssignments } from '../lib/assi
 import DocxViewer from '../components/viewers/DocxViewer.jsx';
 import SlideViewer from '../components/viewers/SlideViewer.jsx';
 import BeforeYouRead from '../components/BeforeYouRead.jsx';
+import { fetchSectionMarks, saveSectionMarks } from '../lib/sectionMarks.js';
 // pdf.js is large; only load it for a PDF.
 const PdfViewer = lazy(() => import('../components/viewers/PdfViewer.jsx'));
 
@@ -20,6 +21,8 @@ export default function ReaderPage() {
   const location = useLocation();
   const [state, setState] = useState({ status: 'loading' });
   const [downloadError, setDownloadError] = useState(false);
+  const [markState, setMarkState] = useState(null); // { optional: Set, canEdit } once loaded
+  const [markError, setMarkError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +50,30 @@ export default function ReaderPage() {
     })();
     return () => { cancelled = true; };
   }, [assignmentId, session.sessionToken]);
+
+  // Core / optional marks. A failure just means no marks are shown; the reading still opens.
+  useEffect(() => {
+    let cancelled = false;
+    fetchSectionMarks(assignmentId, session.sessionToken)
+      .then((m) => { if (!cancelled) setMarkState(m); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [assignmentId, session.sessionToken]);
+
+  async function toggleMark(unit) {
+    if (!markState) return;
+    const next = new Set(markState.optional);
+    if (next.has(unit)) next.delete(unit); else next.add(unit);
+    setMarkError(false);
+    setMarkState({ ...markState, optional: next }); // shown at once, undone if the save fails
+    try {
+      const saved = await saveSectionMarks(assignmentId, next, session.sessionToken);
+      setMarkState((m) => (m ? { ...m, optional: saved } : m));
+    } catch {
+      setMarkState(markState);
+      setMarkError(true);
+    }
+  }
 
   useEffect(() => {
     if (state.status === 'expired') signOut();
@@ -84,9 +111,11 @@ export default function ReaderPage() {
             title={assignment.name || assignment.className}
             asset={{ assignmentId, sessionToken: session.sessionToken }}
             onDownload={() => handleDownload(doc.documentId)}
+            marks={markState ? { ...markState, toggle: toggleMark } : null}
           />
         </Suspense>
         {downloadError && <p className="alert alert-error">The download link could not be created.</p>}
+        {markError && <p className="alert alert-error">That change could not be saved. Try again.</p>}
       </section>
     );
   }

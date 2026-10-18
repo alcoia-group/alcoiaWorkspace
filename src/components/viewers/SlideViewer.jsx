@@ -2,6 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { resolveTransition } from '../../lib/transitions.js';
 import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
 import AssetImage from './AssetImage.jsx';
+import MarkToggle, { OptionalBadge } from '../MarkToggle.jsx';
+import { slideUnit } from '../../lib/sectionMarks.js';
 
 // PowerPoint-style viewer for the server's slide model. Every slide is drawn
 // at the file's own aspect ratio from fractional geometry, with the file's
@@ -139,7 +141,7 @@ function Thumb({ slide, slideSize, asset, number, current, onSelect }) {
   );
 }
 
-export default function SlideViewer({ content, title, asset, onDownload }) {
+export default function SlideViewer({ content, title, asset, onDownload, marks }) {
   const { slides, slideSize } = content;
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(null);
@@ -230,7 +232,9 @@ export default function SlideViewer({ content, title, asset, onDownload }) {
       <div className="viewer-toolbar" role="toolbar" aria-label="Presentation controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Slide {index + 1} of {slides.length}</span>
+        <OptionalBadge marks={marks} unit={slideUnit(index + 1)} />
         <span className="viewer-controls">
+          <MarkToggle marks={marks} unit={slideUnit(index + 1)} />
           <button type="button" className="secondary" onClick={() => go(index - 1)} disabled={index === 0} aria-label="Previous slide">←</button>
           <button type="button" className="secondary" onClick={() => go(index + 1)} disabled={index === slides.length - 1} aria-label="Next slide">→</button>
           <button type="button" className="secondary" onClick={fs.toggle}>{fs.active ? 'Exit full screen' : 'Full screen'}</button>
