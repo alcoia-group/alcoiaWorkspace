@@ -130,6 +130,7 @@ export default function DocxViewer({ content, title, asset, onDownload, marks })
             key={i}
             className="docx-page"
             data-page={i + 1}
+            data-anno-scope={`d:${i + 1}`}
             ref={(el) => { pageRefs.current[i] = el; }}
             aria-label={`Page ${i + 1} of ${pages.length}`}
           >

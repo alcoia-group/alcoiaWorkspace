@@ -88,6 +88,7 @@ function PdfPage({ pdf, number, scale, base, onNear }) {
       ref={ref}
       className="pdf-page"
       data-page={number}
+      data-anno-scope={`f:${number}`}
       aria-label={`Page ${number}`}
       style={{ width: base.w * scale, height: base.h * scale, '--scale-factor': scale, '--user-unit': 1, '--total-scale-factor': scale }}
     >

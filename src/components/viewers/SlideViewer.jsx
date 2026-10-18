@@ -220,9 +220,20 @@ export default function SlideViewer({ content, title, asset, onDownload, marks }
   const touch = useRef(null);
   const onStageClick = (e) => {
     if (!fs.active) return;
+    if (window.getSelection()?.toString()) return; // selecting text is not a slide change
     const box = e.currentTarget.getBoundingClientRect();
     go(e.clientX - box.left < box.width / 3 ? index - 1 : index + 1);
   };
+
+  // The notes panel asks for a slide by its scope ("s:4").
+  useEffect(() => {
+    const onGoto = (e) => {
+      const [k, n] = String(e.detail?.scope ?? '').split(':');
+      if (k === 's' && Number(n) >= 1) go(Number(n) - 1);
+    };
+    window.addEventListener('alcoia:goto-scope', onGoto);
+    return () => window.removeEventListener('alcoia:goto-scope', onGoto);
+  }, [go]);
 
   const slide = slides[index];
   const note = resolveTransition(slide.transition).note;
@@ -265,7 +276,7 @@ export default function SlideViewer({ content, title, asset, onDownload, marks }
                 <Slide slide={slides[leaving]} slideSize={slideSize} asset={asset} />
               </div>
             )}
-            <div className="slide-layer" ref={incomingRef} data-role="current" style={{ zIndex: onTop === 'outgoing' ? 1 : 2 }}>
+            <div className="slide-layer" ref={incomingRef} data-role="current" data-anno-scope={`s:${index + 1}`} style={{ zIndex: onTop === 'outgoing' ? 1 : 2 }}>
               <Slide slide={slide} slideSize={slideSize} asset={asset} />
             </div>
           </div>

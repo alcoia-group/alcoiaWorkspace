@@ -393,3 +393,60 @@ table.list th, table.list td { text-align: left; padding: 8px 12px; border-botto
 .docx-unit:hover .mark-toggle, .docx-unit .mark-toggle:focus { opacity: 1; }
 @media (max-width: 900px) { .docx-unit .mark-toggle { position: static; display: block; opacity: 1; margin: 2px 0 8px; } }
 .optional-badge { font: 600 11px/1 system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #999; border-radius: 3px; padding: 3px 6px; color: #555; }
+
+/* Reading tools (Annotator). Text marks use the CSS Custom Highlight API so the page text is untouched. */
+::highlight(alc-hl-yellow) { background-color: rgba(255, 214, 10, 0.45); }
+::highlight(alc-ul-yellow) { text-decoration: underline; text-decoration-color: #d4a500; text-decoration-thickness: 2px; }
+::highlight(alc-wv-yellow) { text-decoration: underline wavy; text-decoration-color: #d4a500; text-decoration-thickness: 1.5px; }
+::highlight(alc-st-yellow) { text-decoration: line-through; text-decoration-color: #d4a500; text-decoration-thickness: 2px; }
+::highlight(alc-hl-green) { background-color: rgba(52, 199, 89, 0.38); }
+::highlight(alc-ul-green) { text-decoration: underline; text-decoration-color: #1f9d45; text-decoration-thickness: 2px; }
+::highlight(alc-wv-green) { text-decoration: underline wavy; text-decoration-color: #1f9d45; text-decoration-thickness: 1.5px; }
+::highlight(alc-st-green) { text-decoration: line-through; text-decoration-color: #1f9d45; text-decoration-thickness: 2px; }
+::highlight(alc-hl-blue) { background-color: rgba(10, 132, 255, 0.32); }
+::highlight(alc-ul-blue) { text-decoration: underline; text-decoration-color: #1769d1; text-decoration-thickness: 2px; }
+::highlight(alc-wv-blue) { text-decoration: underline wavy; text-decoration-color: #1769d1; text-decoration-thickness: 1.5px; }
+::highlight(alc-st-blue) { text-decoration: line-through; text-decoration-color: #1769d1; text-decoration-thickness: 2px; }
+::highlight(alc-hl-pink) { background-color: rgba(255, 105, 180, 0.38); }
+::highlight(alc-ul-pink) { text-decoration: underline; text-decoration-color: #d6336c; text-decoration-thickness: 2px; }
+::highlight(alc-wv-pink) { text-decoration: underline wavy; text-decoration-color: #d6336c; text-decoration-thickness: 1.5px; }
+::highlight(alc-st-pink) { text-decoration: line-through; text-decoration-color: #d6336c; text-decoration-thickness: 2px; }
+::highlight(alc-hl-orange) { background-color: rgba(255, 149, 0, 0.40); }
+::highlight(alc-ul-orange) { text-decoration: underline; text-decoration-color: #d9730d; text-decoration-thickness: 2px; }
+::highlight(alc-wv-orange) { text-decoration: underline wavy; text-decoration-color: #d9730d; text-decoration-thickness: 1.5px; }
+::highlight(alc-st-orange) { text-decoration: line-through; text-decoration-color: #d9730d; text-decoration-thickness: 2px; }
+::highlight(alc-hl-purple) { background-color: rgba(175, 82, 222, 0.34); }
+::highlight(alc-ul-purple) { text-decoration: underline; text-decoration-color: #8e44ad; text-decoration-thickness: 2px; }
+::highlight(alc-wv-purple) { text-decoration: underline wavy; text-decoration-color: #8e44ad; text-decoration-thickness: 1.5px; }
+::highlight(alc-st-purple) { text-decoration: line-through; text-decoration-color: #8e44ad; text-decoration-thickness: 2px; }
+.annotator-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 12px; background: var(--paper-raised, #fff); border-bottom: 1px solid var(--field-border, #ddd); position: sticky; top: 0; z-index: 20; }
+.annotator-spacer { flex: 1; }
+.annotator .tool { background: transparent; border: 1px solid var(--field-border, #ccc); border-radius: 3px; padding: 4px 9px; font: inherit; font-size: 13px; cursor: pointer; color: inherit; }
+.annotator .tool.on { background: var(--lilac-wash, #ece6f7); border-color: var(--lilac-deep, #6b4fa3); }
+.tool-icon { display: inline-block; margin-right: 5px; font-weight: 700; line-height: 1; padding: 0 2px; }
+.tool-highlight { background: var(--f); } .tool-underline { text-decoration: underline; text-decoration-color: var(--c); text-decoration-thickness: 2px; }
+.tool-wavy { text-decoration: underline wavy; text-decoration-color: var(--c); } .tool-strike { text-decoration: line-through; text-decoration-color: var(--c); }
+.swatches { display: inline-flex; gap: 4px; margin-left: 4px; }
+.annotator .swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid transparent; padding: 0; cursor: pointer; }
+.annotator .swatch.on { border-color: var(--ink, #222); }
+.annotator-note { margin: 6px 12px; font-size: 13px; }
+.annotator-body { display: flex; align-items: flex-start; }
+.annotator-doc { flex: 1; min-width: 0; }
+.annotator-panel { width: 300px; flex: none; max-height: 80vh; overflow: auto; position: sticky; top: 52px; padding: 12px; border-left: 1px solid var(--field-border, #ddd); background: var(--paper-raised, #fff); font-size: 14px; }
+.annotator-panel ul { list-style: none; margin: 0; padding: 0; }
+.annotator-panel li { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 8px; }
+.annotator-panel .mark-row { flex: 1; display: flex; gap: 8px; text-align: left; background: transparent; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.mark-chip { width: 14px; height: 14px; border-radius: 3px; flex: none; margin-top: 3px; background: var(--f); border-bottom: 2px solid var(--c); }
+.mark-body { display: flex; flex-direction: column; gap: 2px; }
+.mark-where { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.04em; }
+.mark-note { font-style: italic; }
+.panel-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.annotator-pop { position: fixed; z-index: 60; background: var(--paper-raised, #fff); border: 1px solid var(--field-border, #ccc); border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); padding: 8px; display: flex; flex-direction: column; gap: 6px; width: 250px; max-width: calc(100vw - 20px); }
+.annotator-pop textarea { width: 100%; box-sizing: border-box; font: inherit; }
+.pop-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.stroke-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+.stroke-layer[data-active='pen'] { pointer-events: auto; cursor: crosshair; touch-action: none; }
+.stroke-layer[data-active='eraser'] { pointer-events: none; }
+.annotator[data-tool='highlight'] .annotator-doc, .annotator[data-tool='underline'] .annotator-doc, .annotator[data-tool='wavy'] .annotator-doc, .annotator[data-tool='strike'] .annotator-doc { cursor: text; }
+.docx-page { position: relative; }
+@media (max-width: 900px) { .annotator-body { flex-direction: column; } .annotator-panel { width: auto; position: static; border-left: 0; border-top: 1px solid var(--field-border, #ddd); max-height: none; } }

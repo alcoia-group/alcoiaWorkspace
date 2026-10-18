@@ -6,6 +6,7 @@ import { fetchDocument, fetchDownloadUrl, fetchMyAssignments } from '../lib/assi
 import DocxViewer from '../components/viewers/DocxViewer.jsx';
 import SlideViewer from '../components/viewers/SlideViewer.jsx';
 import BeforeYouRead from '../components/BeforeYouRead.jsx';
+import Annotator from '../components/Annotator.jsx';
 import { fetchSectionMarks, saveSectionMarks } from '../lib/sectionMarks.js';
 // pdf.js is large; only load it for a PDF.
 const PdfViewer = lazy(() => import('../components/viewers/PdfViewer.jsx'));
@@ -105,6 +106,7 @@ export default function ReaderPage() {
           <span className="crumb-due">Due {formatDue(assignment.closesAt)}</span>
         </div>
         <BeforeYouRead assignmentId={assignmentId} content={doc.content} sessionToken={session.sessionToken} />
+        <Annotator docKey={`a:${assignmentId}`} title={assignment.name || assignment.className}>
         <Suspense fallback={<p className="muted pad">Loading.</p>}>
           <Viewer
             content={doc.content}
@@ -114,6 +116,7 @@ export default function ReaderPage() {
             marks={markState ? { ...markState, toggle: toggleMark } : null}
           />
         </Suspense>
+        </Annotator>
         {downloadError && <p className="alert alert-error">The download link could not be created.</p>}
         {markError && <p className="alert alert-error">That change could not be saved. Try again.</p>}
       </section>

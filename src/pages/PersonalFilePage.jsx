@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { downloadPersonalFile, fetchPersonalContent } from '../lib/personalDocuments.js';
 import DocxViewer from '../components/viewers/DocxViewer.jsx';
+import Annotator from '../components/Annotator.jsx';
 import SlideViewer from '../components/viewers/SlideViewer.jsx';
 const PdfViewer = lazy(() => import('../components/viewers/PdfViewer.jsx'));
 
@@ -38,6 +39,7 @@ export default function PersonalFilePage() {
             <span>{doc.name}</span>
           </nav>
         </div>
+        <Annotator docKey={`f:${id}`} title={doc.name}>
         <Suspense fallback={<p className="muted pad">Loading.</p>}>
           <Viewer
             content={doc.content}
@@ -46,6 +48,7 @@ export default function PersonalFilePage() {
             onDownload={() => downloadPersonalFile({ id, name: doc.name, format: doc.format }, session.sessionToken)}
           />
         </Suspense>
+        </Annotator>
       </section>
     );
   }
