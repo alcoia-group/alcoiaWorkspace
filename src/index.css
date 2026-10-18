@@ -450,3 +450,14 @@ table.list th, table.list td { text-align: left; padding: 8px 12px; border-botto
 .annotator[data-tool='highlight'] .annotator-doc, .annotator[data-tool='underline'] .annotator-doc, .annotator[data-tool='wavy'] .annotator-doc, .annotator[data-tool='strike'] .annotator-doc { cursor: text; }
 .docx-page { position: relative; }
 @media (max-width: 900px) { .annotator-body { flex-direction: column; } .annotator-panel { width: auto; position: static; border-left: 0; border-top: 1px solid var(--field-border, #ddd); max-height: none; } }
+
+/* Explain it back */
+.explain-back { max-width: 820px; margin: 24px auto; padding: 16px 20px; background: var(--paper-raised, #fff); border: 1px solid var(--field-border, #ddd); border-left: 3px solid var(--lilac-deep, #6b4fa3); border-radius: 3px; }
+.explain-back h2 { margin-top: 0; }
+.explain-back textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px; }
+.explain-back-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+.explain-back-ideas { list-style: none; padding: 0; margin: 0; }
+.explain-back-ideas li { display: flex; gap: 10px; margin-bottom: 8px; }
+.explain-back-ideas li[data-level='missing'] { color: #555; }
+.eb-mark { width: 1.4em; flex: none; font-weight: 700; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
