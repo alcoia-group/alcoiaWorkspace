@@ -68,7 +68,7 @@ export default function BeforeYouRead({ assignmentId, content, sessionToken, per
       {items === null && <p className="muted">Looking for warm-up questions.</p>}
       {Array.isArray(items) && items.length > 0 && (
         <div className="prep-questions">
-          <p className="muted">Try these first. A guess is fine: trying before you read helps what you read stick. Nothing here is scored or sent to anyone.</p>
+          <p className="muted">Try these first. A guess is fine. Nothing here is scored or sent to anyone.</p>
           {items.map((item, n) => {
             const r = results[item.id];
             return (

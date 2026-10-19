@@ -8,7 +8,7 @@ export const NEXT_STEP = {
   review_the_explanation: 'Worth another read of the explanation.',
   try_recalling_it: 'Next, try recalling it in your own words.',
   try_applying_it: 'Next, try using it in a new situation.',
-  review_later: 'A review later will help it stick.',
+  review_later: 'Review it again later.',
   nothing_needed: 'Nothing needed right now.',
   not_enough_evidence: 'Not enough answers yet to say.',
 };

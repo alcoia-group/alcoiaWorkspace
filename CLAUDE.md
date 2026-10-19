@@ -1,5 +1,10 @@
 # CLAUDE.md
 
+## Writing rule: follow `language.md`
+
+**Every time you write text a person will read, follow `language.md` in this repo's root.** That covers UI strings, page copy, emails, error and notice text, README and docs prose, commit messages and PR descriptions. It lists the patterns that make copy sound machine-written and how to avoid them. Accuracy, accessibility, legal and safety wording still come first: do not edit legal text or pricing figures to satisfy the guide, and do not touch code identifiers, API contracts, placeholders or tests for style. This rule does not apply to the browser extension repo.
+
+
 Repository context for agents. **Read fully before any task.** Update this file as parts are built;
 it describes what exists, not what is intended.
 
