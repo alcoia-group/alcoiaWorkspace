@@ -63,7 +63,7 @@ hand-rolls.
 in production and a hard boot failure if a production credential is missing:
 
 - `src/ai/index.js` → Groq
-- `src/email/index.js` → Postmark
+- `src/email/index.js` → Resend (used when `RESEND_API_KEY` is set), else Postmark
 - `src/storage/index.js` → Cloudflare R2 / S3-compatible
 - `src/billing/index.js` → Creem (§13)
 
@@ -100,7 +100,8 @@ cannot close that race.
 |---|---|
 | `alcoia.app` | Marketing |
 | `console.alcoia.app` | Admin console |
-| `api.alcoia.app` | This server |
+| `workspace.alcoia.app` | The workspace app (students and general users) |
+| `server.alcoia.app` | This server (production host; `api.alcoia.app` was the planned name) |
 
 `.app` is HSTS-preloaded, so HTTPS is enforced at the browser level.
 
@@ -162,8 +163,10 @@ opaque token here) — not because the code is realistically guessable.
   there is no automatic bridge. The code just expires, unconsumed. A "clearly say the extension
   wasn't found" page and a manual copy-the-code fallback are both landing-page UX, not an API gap.
 
-**CORS is scoped to exactly one route.** `POST /api/auth/magic-link/verify` is the only endpoint a
-browser page calls directly and cross-origin (the console's `/auth/verify` page reading the emailed
+**CORS is granted route by route, never as a wildcard.** (This paragraph first described one route.
+The console, the marketing site and the workspace now call many routes directly; `src/app.js` lists
+each grant and `CLAUDE.md` section 11 records why.) The first route was
+`POST /api/auth/magic-link/verify`, the endpoint a browser page calls directly and cross-origin (the console's `/auth/verify` page reading the emailed
 `?token=` and posting it here) -- `src/http/middleware/cors.js`, hand-rolled (no `cors` package;
 one exact allowed origin with no credentials doesn't need it), mounted ahead of the auth router in
 `src/app.js` so it also answers the OPTIONS preflight, which a bare `router.post()` never would.

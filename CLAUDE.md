@@ -11,23 +11,15 @@ session + class membership, the document is shown as a real web page, and the al
 it like on any article. Outcomes flow to the same `POST /api/assignments/:id/outcomes` and land in the
 console. Two entry points, one assignment: a direct link / invite (no LMS), or an LTI launch.
 
-**Why the name changed:** this is the interface every general user will use. Besides assigned readings it is meant to let users with a Reader or Student plan **upload their own documents**, and to show **reading analytics** (a Reader/Student plan feature). **Neither is built**; today it shows assigned documents, the assignment list, invites and the LTI landing. It is called the workspace, not the reader, so it is not confused with the Reader *plan*. Routes (`/a/:id`, `/assignments`, `/invite/accept`, `/lti/join`) were deliberately not renamed: the extension and sent invite links depend on them. The magic-link request sends `app: 'workspace'` (the server still accepts `'reader'` and `'assignments'`). The repository name is unchanged for now.
+**Why the name changed:** this is the interface every general user will use. Besides assigned readings it lets users with a Reader or Student plan **upload their own documents** (`/files`), practise in **Exam Mode** (`/exam`) and see **learner analytics** (`/analytics`); each is described in a section below. It is called the workspace, not the reader, so it is not confused with the Reader *plan*. Routes (`/a/:id`, `/assignments`, `/invite/accept`, `/lti/join`) were deliberately not renamed: the extension and sent invite links depend on them. The magic-link request sends `app: 'workspace'` (the server still accepts `'reader'` and `'assignments'`). The repository name is unchanged for now.
 
 Holds no business logic. The server decides entitlement, membership and reporting mode. Same product
 rules as the console: no leaderboards, no accuracy claims, receipts say "unaltered since issued".
 `ALCOIA-PLATFORM-SPEC.md` and `SERVER-ARCHITECTURE.md` (copied from the console) must stay in this root.
 
-**Where the workspace is headed (direction, not a commitment).** "Workspace" was chosen over "reader" because it is a place to work, not only a document viewer, so it has room to grow. **Supported today:** assigned readings, several documents and assignments per user (the assignment list), class invites and the LTI landing. **Possible later, none of it built:** notes, a user's own uploaded documents (Reader and Student plans only), reading analytics (Reader and Student plans), discussions, exercises and saved material. Each needs its own design and privacy review before it ships (anything stored per user is new account-linked data; see the server's CLAUDE.md, section 2 invariants and section 12). Keep this paragraph honest: move an item up only when it exists.
+**Where the workspace is headed (direction, not a commitment).** "Workspace" was chosen over "reader" because it is a place to work, not only a document viewer, so it has room to grow. **Supported today:** assigned readings, several documents and assignments per user (the assignment list), class invites and the LTI landing. **Built since: My files, Exam Mode, learner analytics. Possible later, none of it built:** notes, discussions, exercises and saved material. Each needs its own design and privacy review before it ships (anything stored per user is new account-linked data; see the server's CLAUDE.md, section 2 invariants and section 12). Keep this paragraph honest: move an item up only when it exists.
 
-**How the workspace behaves (decided, mostly unbuilt).** A reading assigned to you opens directly in the document view (`/a/:id`, built).
-Opening the workspace itself (its home) is meant to offer more, **reserved to people with the Reader or Student plan (a seat that
-gives the Reader plan counts):** uploading your own documents, and **reading analytics, always available there**. Free accounts
-can open assigned readings but not uploads or analytics. The server decides this, never the app (server invariant 8): it will
-return the capability in `GET /api/entitlements` `features[]`. **Nothing of this exists yet.** The pricing page already lists both, with
-the FAQ saying they are not available yet. **Privacy objection to settle in the audit, not assume away:** reading analytics about a person
-need a record of what that person read, which the server must not hold (server invariant 1). They have to be computed on the device from
-local history (the extension already keeps it locally) or from the bounded, assignment-scoped data the server already has; a new
-per-person reading-history table is not allowed without the owner changing that invariant.
+**How the workspace behaves.** A reading assigned to you opens directly in the document view (`/a/:id`). The rest of the workspace is reserved to people with the Reader or Student plan (a seat that gives the Reader plan counts): **My files** (uploading your own PDF, Word and PowerPoint files, `/files`), **Exam Mode** (`/exam`) and **learner analytics** (`/analytics`). Free accounts can open assigned readings. The server decides plan, consent and access on every call (server invariant 8); this app only shows the answer. Analytics are computed on request from the learner's own private learner memory (`knowledge_state` rows keyed to the account, switched on by default and clearable by the learner), not from a log of what was read; see the server's CLAUDE.md for the data rules and the open legal questions.
 
 ## Stack
 
@@ -113,17 +105,12 @@ says so in `teachingRecommendations`). This app never decides entitlement. Full 
 
 ## Known gaps (all need `alcoiaServer` work; none are fixable here without inventing a contract)
 
-1. **DOCX, PPTX and PDF render in the page, but need the server branches deployed.** `GET
-   /api/assignments/:id/document`, `.../document/asset` and `.../document/file` (server branches
-   `claude/document-content-docx`, `...-pptx`, `claude/pdf-and-status-fixes`, stacked on
-   `claude/reader-handoff-session`, unmerged). Old uploads keep a stale `unsupported` status until the server
-   corrects it on first read or `npm run documents:reconvert` is run there. Entrance animations are not built.
+1. **DOCX, PPTX and PDF render in the page** through `GET /api/assignments/:id/document`, `.../document/asset` and `.../document/file`, which are on the server's main branch. Old uploads keep a stale `unsupported` status until the server corrects it on first read or `npm run documents:reconvert` is run there. Entrance animations are not built.
 2. ~~Invite disclosure before joining~~ **Built:** `POST /api/invites/preview` (server) returns class name and reporting mode, and `/invite/accept?token=` (`InvitePage`, `src/lib/invites.js`) shows the matching notice before sign-in or join. It then calls accept with `acknowledged: true`. The token never goes in a URL log beyond the link itself; it is sent in the body. Sign-in from this page returns to it (`setReturnPath`/`takeReturnPath`). The extension's join screen does the same through the same preview.
 3. **LTI launch landing.** Built: the server's launch redirect carries a one-use reader code for an assignment, and the marketing site's `/lti/launch` page sends a student with no extension to `/lti/join` here (`LtiJoinPage`). The page shows the reporting-mode notice and, on agreeing, calls `POST /api/lti/disclosure/ack`, then opens the assignment (or the list when the launch named none). What was received travels in the URL fragment. Needs `LTI_READER_BASE_URL` pointed here and `READER_URL` set when building alcoiaWeb. Verified in a browser with the ack call mocked; **not** against a real LMS launch.
-4. **CORS.** Built in `alcoiaServer` branch `claude/reader-handoff-session` (`READER_ORIGIN`, dev :8082);
-   not live until merged, deployed and `READER_ORIGIN` is set in production.
-5. **Magic link host.** Built in the same server branch (`app: 'assignments'`); same merge/deploy caveat.
-6. LTI-joined seats have `seatId: null` in the extension (ack response omits it); not this repo.
+4. **CORS.** Granted by the server for `WORKSPACE_ORIGIN` (dev default :8082; fails closed in production if unset). Set it in production.
+5. **Magic link host.** The server sends `app: 'workspace'` links to this site (`'reader'` and `'assignments'` are still accepted).
+6. LTI-joined seats: the acknowledgement response now carries `seatId`; an older server leaves it null.
 
 ## Deploying (Cloudflare)
 
@@ -140,7 +127,7 @@ after that goes through sign-in. (Sessions from an emailed link are `console` ki
 
 ## Design
 
-See `SERVER-DESIGN.md` for the planned server, extension and reader work (design only, unbuilt).
+See `SERVER-DESIGN.md` for the planned server, extension and reader work (the original design; most of it is built now).
 
 ## Working agreement
 

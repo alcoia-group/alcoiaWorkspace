@@ -1,6 +1,6 @@
 # Assignments web app: server, extension and app design
 
-Status: **design only, nothing here is built.** Grounded in `alcoiaServer` (`lti.js`, `invites.js`,
+Status: **original design document; most of it has since been built (see README.md and CLAUDE.md for what exists).** Grounded in `alcoiaServer` (`lti.js`, `invites.js`,
 `documents.js`, `assignments.js`, `session.js`, `extract-docx.js`, `entitlements/resolve.js`) and the
 extension (`background.js`, `src/popup/assignments.js`). Items marked **DECIDE** need an owner answer
 before they are built.

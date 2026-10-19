@@ -1,22 +1,14 @@
 # alcoia workspace (`workspace.alcoia.app`)
 
-The workspace: where students, and later any general user, open readings. Today that is instructor-assigned readings. Planned and not built: personal uploads of a user's own documents (Reader and Student plans only) and reading analytics (also a Reader/Student plan feature). A student opens an assignment, the server checks who
+The workspace: where students, and later any general user, open readings. Today that is instructor-assigned readings, the user's own files (My files), Exam Mode and learner analytics (the last three for Reader and Student plans). A student opens an assignment, the server checks who
 they are and whether they belong to the class, and the document is shown as a real web page that
 looks like a file reader (Word pages, PowerPoint slides with their transitions, PDF pages). The alcoia
 browser extension runs on that page exactly as it runs on any article, so reading signals and
 retrieval-question outcomes flow back to the instructor's console.
 
-**Where the workspace is headed (direction, not a commitment).** "Workspace" was chosen over "reader" because it is a place to work, not only a document viewer, so it has room to grow. **Supported today:** assigned readings, several documents and assignments per user (the assignment list), class invites and the LTI landing. **Possible later, none of it built:** notes, a user's own uploaded documents (Reader and Student plans only), reading analytics (Reader and Student plans), discussions, exercises and saved material. Each needs its own design and privacy review before it ships (anything stored per user is new account-linked data; see the server's CLAUDE.md, section 2 invariants and section 12). Keep this paragraph honest: move an item up only when it exists.
+**Where the workspace is headed (direction, not a commitment).** "Workspace" was chosen over "reader" because it is a place to work, not only a document viewer, so it has room to grow. **Supported today:** assigned readings, several documents and assignments per user (the assignment list), class invites and the LTI landing. **Also built since this paragraph was first written:** My files, Exam Mode and learner analytics (Reader and Student plans). **Possible later, none of it built:** notes, discussions, exercises and saved material. Each needs its own design and privacy review before it ships (anything stored per user is new account-linked data; see the server's CLAUDE.md, section 2 invariants and section 12). Keep this paragraph honest: move an item up only when it exists.
 
-**How the workspace behaves (decided, mostly unbuilt).** A reading assigned to you opens directly in the document view (`/a/:id`, built).
-Opening the workspace itself (its home) is meant to offer more, **reserved to people with the Reader or Student plan (a seat that
-gives the Reader plan counts):** uploading your own documents, and **reading analytics, always available there**. Free accounts
-can open assigned readings but not uploads or analytics. The server decides this, never the app (server invariant 8): it will
-return the capability in `GET /api/entitlements` `features[]`. **Nothing of this exists yet.** The pricing page already lists both, with
-the FAQ saying they are not available yet. **Privacy objection to settle in the audit, not assume away:** reading analytics about a person
-need a record of what that person read, which the server must not hold (server invariant 1). They have to be computed on the device from
-local history (the extension already keeps it locally) or from the bounded, assignment-scoped data the server already has; a new
-per-person reading-history table is not allowed without the owner changing that invariant.
+**How the workspace behaves.** A reading assigned to you opens directly in the document view (`/a/:id`). The rest of the workspace is reserved to people with the Reader or Student plan (a seat that gives the Reader plan counts): **My files** (uploading your own PDF, Word and PowerPoint files, `/files`), **Exam Mode** (`/exam`) and **learner analytics** (`/analytics`). Free accounts can open assigned readings. The server decides plan, consent and access on every call (server invariant 8); this app only shows the answer. Analytics are computed on request from the learner's own private learner memory (`knowledge_state` rows keyed to the account, switched on by default and clearable by the learner), not from a log of what was read; see the server's CLAUDE.md for the data rules and the open legal questions.
 
 This file explains what the app is for, how it works, what it connects to, what is built, what is not,
 and the decisions behind it. `CLAUDE.md` is the shorter, agent-facing "what exists" file and
@@ -70,7 +62,7 @@ The LMS is the door students walk through; the console is where the data lives.
 
 ### 4.1 Sign-in and sessions
 
-- **Sign-in page** (`/sign-in`): email in, magic link out (`kind: 'console'`, `app: 'assignments'` so the
+- **Sign-in page** (`/sign-in`): email in, magic link out (`kind: 'console'`, `app: 'workspace'` so the
   emailed link opens this site). `/auth-verify` shows a confirm button and only verifies on click, so a
   mail client's link prescan cannot burn the single-use token.
 - **Extension handoff** (the no-click-through path): the popup calls
@@ -92,7 +84,7 @@ The LMS is the door students walk through; the console is where the data lives.
   for someone" is built as the **existing invite token**. Using it creates a seat after the
   reporting-mode disclosure. No new credential type: outcomes, the pseudonym and the disclosure all need
   a seat, so a seatless read-only code would produce a reader whose reading cannot be recorded and who
-  was never told the reporting mode. `/invite/accept` is currently a deliberate stub (see section 9).
+  was never told the reporting mode. `/invite/accept` is built: it previews the class and its reporting mode, then joins with `acknowledged: true`.
 
 ### 4.2 Showing each document type
 
@@ -173,8 +165,8 @@ your alcoia Console."
   and nonce, resolves the class and assignment, and checks the reporting-mode disclosure. If the student
   has not acknowledged it, the disclosure handoff runs; otherwise they go straight to the document. After
   the acknowledgement they land on `/a/<id>` here.
-- **Status**: the server's LTI plumbing is built and unit-tested. **The landing handoff to this app is not
-  built** (section 9), and nothing has been tested against a real Canvas or Moodle.
+- **Status**: the server's LTI plumbing is built and unit-tested, and the landing page here (`/lti/join`)
+  is built. Nothing has been tested against a real Canvas or Moodle.
 - Canvas first; Moodle supports LTI 1.3 as well and should work the same way, but nothing is claimed for
   any LMS until it is tested against one.
 - **Not built, deliberately**: an embedded class dashboard inside the LMS (iframe). Recommended only after
@@ -223,7 +215,13 @@ Server routes this app calls (all with the session as `Authorization: Bearer`):
 
 | Route | Purpose |
 |---|---|
-| `POST /api/auth/magic-link`, `/verify` | Sign in (`app: 'assignments'`) |
+| `POST /api/auth/magic-link`, `/verify` | Sign in (`app: 'workspace'`) |
+| `POST /api/invites/preview`, `/api/invites/accept` | The invite page |
+| `POST /api/lti/disclosure/ack` | The LTI landing page (`/lti/join`) |
+| `GET /api/entitlements`, `GET /api/account/learner-analytics` | Plan, and the analytics page |
+| `/api/personal-documents...` | My files and the viewers for a personal file |
+| `/api/exam/sessions...` | Exam Mode |
+| other `/api/assignments/:id/...` reads | Question bank, section marks, explain-it-back and similar; `src/lib/*.js` has each call |
 | `POST /api/reader/exchange` | Trade the handoff code for a `reader` session |
 | `POST /api/reader/keepalive` | Slide the reader session while the student is active |
 | `GET /api/assignments/mine` | The student's active assignments |
@@ -232,7 +230,8 @@ Server routes this app calls (all with the session as `Authorization: Bearer`):
 | `GET /api/assignments/:id/document/file` | The original PDF bytes |
 | `GET /api/documents/:id/download-url` | Short-lived signed download URL |
 
-CORS is granted to this app's origin (`READER_ORIGIN`) on exactly those routes and nowhere else.
+CORS is granted to this app's origin (`WORKSPACE_ORIGIN` on the server; old name `READER_ORIGIN`) on the
+routes it calls and nowhere else; the server's `src/app.js` is the list.
 
 ## 8. Look and feel
 
@@ -257,36 +256,35 @@ the popup change and outcome reporting from reader pages, Pilot gating on the se
 a real storage bucket, decks saved by PowerPoint itself (only python-pptx and hand-built files were used),
 or any LMS.
 
+*Update:* later work built the invite preview and accept page, the LTI landing (`/lti/join`), My files,
+Exam Mode and learner analytics; see `CLAUDE.md` for what was verified. `LTI_READER_BASE_URL` on the server
+still has to point at this app.
+
 **Not built yet:**
 
-1. **Invite preview** and showing the reporting-mode disclosure before a student joins by code.
-   `POST /api/invites/accept` returns only `{ classId, seatId, role }` and the class reads are staff-only,
-   so the student cannot be told the mode first. Needs a server read (token in, class name and
-   `reportingMode` out). Joining first and disclosing after would break the promise's own timing, so
-   `/invite/accept` stays a stub until this exists.
-2. **LTI landing handoff**: the launch redirect carries no session today, and `LTI_READER_BASE_URL` needs
-   to point at this app.
-3. **Console LMS onboarding**: a one-time screen on first class creation ("Do you use a learning
+1. **Console LMS onboarding**: a one-time screen on first class creation ("Do you use a learning
    management system?"). LMS path shows platform-specific setup steps (Canvas, Moodle, Blackboard);
    no-LMS path goes to the invite flow and explains students use this app. Both end with the
    "no grades written back" message. Console work, not built.
-4. PowerPoint entrance and emphasis animations.
-5. LTI-joined seats have `seatId: null` in the extension (the ack response omits it), so those students
-   cannot leave through the extension's flow. A known limitation to fix before scale.
+2. PowerPoint entrance and emphasis animations.
+3. The LTI acknowledgement response now carries `seatId`; an older server leaves it null.
 
 ## 10. Deploying
 
-- **This app (Cloudflare)**: build variable `VITE_API_BASE_URL=https://server.alcoia.app` (baked in at
-  build time). `public/_redirects` (`/* /index.html 200`) makes deep links like `/a/<id>` and
-  `/auth-verify` load the app; without it a direct visit or reload 404s.
-- **Server (Render)**: `READER_ORIGIN=https://workspace.alcoia.app` (fails closed in production if
-  unset), then `npm run documents:reconvert` once so old uploads stuck on "unsupported" are repaired.
+- **This app (Cloudflare)**: build variables `VITE_API_BASE_URL=https://server.alcoia.app`,
+  `VITE_CONSOLE_URL` (where the account-based-learning setting lives) and `VITE_MARKETING_URL`
+  (legal links, default `https://alcoia.app`), all baked in at build time. `wrangler.jsonc` sets
+  `assets.not_found_handling: single-page-application` so deep links like `/a/<id>` and `/auth-verify`
+  load the app. Do not add a `public/_redirects` file with `/* /index.html 200`: Workers assets rejects it
+  as a redirect loop and the deploy fails.
+- **Server (Render)**: `WORKSPACE_ORIGIN=https://workspace.alcoia.app` (old name `READER_ORIGIN` still read;
+  fails closed in production if unset), then `npm run documents:reconvert` once so old uploads stuck on "unsupported" are repaired.
   Placeholders, all approved as placeholders: `SESSION_TTL_READER_MS` (8 h), `SESSION_MAX_READER_MS`
   (7 d), `READER_HANDOFF_TTL_MS` (60 s), and the exchange rate limit.
-- **Extension**: its `READER_ORIGIN` constant (`https://workspace.alcoia.app`) must match the real domain.
+- **Extension**: its workspace-origin constant (named `READER_ORIGIN` in the code) (`https://workspace.alcoia.app`) must match the real domain.
 - Dev: `npm install`, `npm run dev` (port 8082; console 8080). `npm run lint`, `npm run build`.
 
-**Merge order (the repo owner merges; agents only push `claude/*` branches).** Branches are stacked:
+**Merge order (historical).** These stacked branches were the original rollout order and are merged or superseded; agents push only `claude/*` branches and the owner merges:
 
 - Server: `claude/reader-handoff-session`, `claude/document-content-docx`, `claude/document-content-pptx`,
   `claude/pdf-and-status-fixes`, `claude/pilot-gating`.
@@ -300,13 +298,15 @@ or any LMS.
 
 ```
 src/
-  App.jsx                 routes: /sign-in, /auth-verify, /invite/accept, /a/:id, /assignments
+  App.jsx                 routes: /sign-in, /auth-verify, /invite/accept, /lti/join, /a/:id, /assignments,
+                          /analytics, /analytics/subjects, /files, /f/:id, /exam
   components/
     AppLayout.jsx         top bar, session keep-alive
     ReaderGate.jsx        exchanges the handoff code, else falls back to sign-in
     Logo.jsx              the two transparent logo variants
     viewers/              DocxViewer, SlideViewer, PdfViewer, AssetImage
-  pages/                  AssignmentsPage, ReaderPage, SignInPage, VerifyPage, InvitePage
+  pages/                  AssignmentsPage, ReaderPage, SignInPage, VerifyPage, InvitePage, LtiJoinPage,
+                          AnalyticsPage, SubjectsPage, FilesPage, PersonalFilePage, ExamPage
   lib/
     api.js                fetch wrapper
     session.js            localStorage session
