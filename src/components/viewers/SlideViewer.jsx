@@ -1,7 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { resolveTransition } from '../../lib/transitions.js';
 import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
 import AssetImage from './AssetImage.jsx';
+import MarkToggle, { OptionalBadge } from '../MarkToggle.jsx';
+import { slideUnit } from '../../lib/sectionMarks.js';
+import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
+import { slideConfig } from '../../lib/proveSkip.js';
 
 // PowerPoint-style viewer for the server's slide model. Every slide is drawn
 // at the file's own aspect ratio from fractional geometry, with the file's
@@ -139,7 +143,7 @@ function Thumb({ slide, slideSize, asset, number, current, onSelect }) {
   );
 }
 
-export default function SlideViewer({ content, title, asset, onDownload }) {
+export default function SlideViewer({ content, title, asset, onDownload, marks }) {
   const { slides, slideSize } = content;
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(null);
@@ -151,6 +155,9 @@ export default function SlideViewer({ content, title, asset, onDownload }) {
   const pendingJob = useRef(null);
   const fs = useFullscreen();
   const controlsVisible = useIdleControls(fs.active);
+  const bankId = asset.assignmentId ?? asset.personalId;
+  const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
+  const skipConfig = useMemo(() => slideConfig(slides.length), [slides.length]);
 
   const go = useCallback((next) => {
     const current = indexRef.current;
@@ -218,9 +225,20 @@ export default function SlideViewer({ content, title, asset, onDownload }) {
   const touch = useRef(null);
   const onStageClick = (e) => {
     if (!fs.active) return;
+    if (window.getSelection()?.toString()) return; // selecting text is not a slide change
     const box = e.currentTarget.getBoundingClientRect();
     go(e.clientX - box.left < box.width / 3 ? index - 1 : index + 1);
   };
+
+  // The notes panel asks for a slide by its scope ("s:4").
+  useEffect(() => {
+    const onGoto = (e) => {
+      const [k, n] = String(e.detail?.scope ?? '').split(':');
+      if (k === 's' && Number(n) >= 1) go(Number(n) - 1);
+    };
+    window.addEventListener('alcoia:goto-scope', onGoto);
+    return () => window.removeEventListener('alcoia:goto-scope', onGoto);
+  }, [go]);
 
   const slide = slides[index];
   const note = resolveTransition(slide.transition).note;
@@ -230,7 +248,12 @@ export default function SlideViewer({ content, title, asset, onDownload }) {
       <div className="viewer-toolbar" role="toolbar" aria-label="Presentation controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Slide {index + 1} of {slides.length}</span>
+        <OptionalBadge marks={marks} unit={slideUnit(index + 1)} />
         <span className="viewer-controls">
+          <MarkToggle marks={marks} unit={slideUnit(index + 1)} />
+          {bankId && bankItems && (
+            <ProveSkip personal={Boolean(asset.personalId)} assignmentId={bankId} sessionToken={asset.sessionToken} items={bankItems} start={index + 1} config={skipConfig} onSkip={(slide) => go(slide - 1)} />
+          )}
           <button type="button" className="secondary" onClick={() => go(index - 1)} disabled={index === 0} aria-label="Previous slide">←</button>
           <button type="button" className="secondary" onClick={() => go(index + 1)} disabled={index === slides.length - 1} aria-label="Next slide">→</button>
           <button type="button" className="secondary" onClick={fs.toggle}>{fs.active ? 'Exit full screen' : 'Full screen'}</button>
@@ -261,7 +284,7 @@ export default function SlideViewer({ content, title, asset, onDownload }) {
                 <Slide slide={slides[leaving]} slideSize={slideSize} asset={asset} />
               </div>
             )}
-            <div className="slide-layer" ref={incomingRef} data-role="current" style={{ zIndex: onTop === 'outgoing' ? 1 : 2 }}>
+            <div className="slide-layer" ref={incomingRef} data-role="current" data-anno-scope={`s:${index + 1}`} style={{ zIndex: onTop === 'outgoing' ? 1 : 2 }}>
               <Slide slide={slide} slideSize={slideSize} asset={asset} />
             </div>
           </div>

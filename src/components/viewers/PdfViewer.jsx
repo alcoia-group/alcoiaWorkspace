@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import MarkToggle, { OptionalBadge } from '../MarkToggle.jsx';
+import { pageUnit } from '../../lib/sectionMarks.js';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
 import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import 'pdfjs-dist/web/pdf_viewer.css';
 import { fetchPdfBytes } from '../../lib/assignments.js';
 import { assetBase } from '../../lib/assets.js';
 import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
+import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
+import { pdfConfig } from '../../lib/proveSkip.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -86,6 +90,7 @@ function PdfPage({ pdf, number, scale, base, onNear }) {
       ref={ref}
       className="pdf-page"
       data-page={number}
+      data-anno-scope={`f:${number}`}
       aria-label={`Page ${number}`}
       style={{ width: base.w * scale, height: base.h * scale, '--scale-factor': scale, '--user-unit': 1, '--total-scale-factor': scale }}
     >
@@ -116,7 +121,7 @@ function PdfThumb({ pdf, number, base, current, onSelect }) {
   );
 }
 
-export default function PdfViewer({ content, title, asset, onDownload }) {
+export default function PdfViewer({ content, title, asset, onDownload, marks }) {
   const [pdf, setPdf] = useState(null);
   const [error, setError] = useState(false);
   const [base, setBase] = useState(null); // page 1 at scale 1
@@ -126,6 +131,9 @@ export default function PdfViewer({ content, title, asset, onDownload }) {
   const stageRef = useRef(null);
   const fs = useFullscreen();
   const controlsVisible = useIdleControls(fs.active);
+  const bankId = asset.assignmentId ?? asset.personalId;
+  const skipConfig = useMemo(() => pdfConfig(content.pageCount), [content.pageCount]);
+  const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
 
   useEffect(() => {
     let cancelled = false;
@@ -193,7 +201,12 @@ export default function PdfViewer({ content, title, asset, onDownload }) {
       <div className="viewer-toolbar" role="toolbar" aria-label="PDF controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Page {current} of {content.pageCount}</span>
+        <OptionalBadge marks={marks} unit={pageUnit(current)} />
         <span className="viewer-controls">
+          <MarkToggle marks={marks} unit={pageUnit(current)} />
+          {bankId && bankItems && (
+            <ProveSkip personal={Boolean(asset.personalId)} assignmentId={bankId} sessionToken={asset.sessionToken} items={bankItems} start={current} config={skipConfig} onSkip={scrollTo} />
+          )}
           <button type="button" className="secondary" onClick={() => setZoomIndex((z) => Math.max(0, z - 1))} disabled={zoomIndex === 0} aria-label="Zoom out">−</button>
           <span className="viewer-zoom">{Math.round(ZOOM_STEPS[zoomIndex] * 100)}%</span>
           <button type="button" className="secondary" onClick={() => setZoomIndex((z) => Math.min(ZOOM_STEPS.length - 1, z + 1))} disabled={zoomIndex === ZOOM_STEPS.length - 1} aria-label="Zoom in">+</button>

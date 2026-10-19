@@ -30,6 +30,10 @@ export function apiGet(path, opts) {
   return request(path, { ...opts, method: 'GET' });
 }
 
+export function apiPut(path, body, opts) {
+  return request(path, { ...opts, method: 'PUT', body });
+}
+
 export function apiPost(path, body, opts) {
   return request(path, { ...opts, method: 'POST', body });
 }
