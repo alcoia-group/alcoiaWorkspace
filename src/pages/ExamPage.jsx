@@ -21,6 +21,7 @@ const ERROR_COPY = {
   network: 'The request could not be completed. Check your connection and try again.',
   unavailable: 'Questions could not be prepared right now. Nothing was lost; try again in a moment.',
   no_material: 'The selected readings have no text that Exam Mode can ask about yet (for example a scanned PDF).',
+  nothing_needed: 'Nothing in these readings needs practice right now: what you have answered recently has held up. Come back later, or pick another reading.',
   bad_selection: 'Choose between one and six different readings.',
   no_access: 'That reading is not available to you.',
   session_gone: 'This session has ended or expired. Start a new one.',
@@ -59,6 +60,7 @@ function Summary({ s, onAgain }) {
         </>
       )}
       {s.followUps.length > 0 && <ul>{s.followUps.map((f) => <li key={f}>{f}</li>)}</ul>}
+      {s.stoppedEarly && <p className="muted">The session ended early because nothing further needed practice right now.</p>}
       <p><strong>Next:</strong> {s.nextAction}</p>
       <p className="muted">This describes this session only. It is not a grade, and it does not predict any result.</p>
       <button type="button" className="button" onClick={onAgain}>Choose a reading</button>
@@ -140,6 +142,13 @@ export default function ExamPage() {
   const advance = async () => {
     const r = await run(() => nextExam(exam.sessionId, token));
     if (!r) return;
+    if (r.summary) {
+      // The server ended the session early because no further question would add information.
+      setSummary({ ...r.summary, stoppedEarly: r.stoppedEarly });
+      setResult(null);
+      setPhase('summary');
+      return;
+    }
     setExam(r);
     setText('');
     setResult(null);
@@ -168,7 +177,7 @@ export default function ExamPage() {
           {assignments === null && <p className="muted">Loading your readings.</p>}
           {assignments === 'error' && <p className="alert alert-error">Your readings could not be loaded.</p>}
           {Array.isArray(assignments) && assignments.length === 0 && files.length === 0 && (
-            <div className="notice"><h2>No readings to practise yet</h2><p>When a reading is assigned to you it appears here. <Link to="/assignments">Back to assignments</Link></p></div>
+            <div className="notice"><h2>No readings to practise yet</h2><p>When a reading is assigned to you it appears here. <Link to="/assignments">Back to materials</Link></p></div>
           )}
           {Array.isArray(assignments) && (assignments.length > 0 || files.length > 0) && (
             <>

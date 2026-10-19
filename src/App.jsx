@@ -7,6 +7,7 @@ import AssignmentsPage from './pages/AssignmentsPage.jsx';
 import ReaderGate from './components/ReaderGate.jsx';
 import InvitePage from './pages/InvitePage.jsx';
 import LtiJoinPage from './pages/LtiJoinPage.jsx';
+import SubjectsPage from './pages/SubjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
 import ExamPage from './pages/ExamPage.jsx';
 import FilesPage from './pages/FilesPage.jsx';
@@ -29,6 +30,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/assignments" element={<AssignmentsPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/analytics/subjects" element={<SubjectsPage />} />
           <Route path="/files" element={<FilesPage />} />
           <Route path="/f/:id" element={<PersonalFilePage />} />
           <Route path="/exam" element={<ExamPage />} />

@@ -20,7 +20,7 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const weekLabel = (iso) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
 function AssignmentLabel({ item }) {
-  if (!item.accessible) return <span className="muted">An assignment you no longer have access to</span>;
+  if (!item.accessible) return <span className="muted">A piece of material you no longer have access to</span>;
   const a = item.assignment;
   return (
     <>
@@ -158,6 +158,168 @@ function Progress({ p }) {
   );
 }
 
+// Passages that came up again in a later reading. Counts from the learner's own answers only.
+function Revisited({ r }) {
+  if (!r || !r.passages) return null;
+  return (
+    <section className="an-section" aria-labelledby="an-revisited">
+      <h2 id="an-revisited">Passages you met again</h2>
+      <p>{plural(r.passages, 'passage', 'passages')} came up in more than one of your readings.</p>
+      {r.struggledBefore > 0 ? (
+        <ul className="an-list">
+          <li><span>You found it hard the first time</span><span className="an-count">{plural(r.struggledBefore, 'passage', 'passages')}</span></li>
+          <li><span>Answered correctly since</span><span className="an-count">{plural(r.wentWellSince, 'passage', 'passages')}</span></li>
+          <li><span>Still worth another look</span><span className="an-count">{plural(r.stillStruggling, 'passage', 'passages')}</span></li>
+        </ul>
+      ) : (
+        <p className="muted">You did not struggle with any of them the first time.</p>
+      )}
+    </section>
+  );
+}
+
+const STRUGGLE_LABEL = {
+  confusion: 'Feeling confused',
+  overload: 'Too much at once',
+  unclear: 'Not sure why',
+  confidentlyWrong: 'Sure of an answer that was wrong',
+  unsureWrong: 'Unsure and wrong',
+};
+const STRUGGLE_MAIN = {
+  confusion: 'confusion is what you most often report or show.',
+  overload: 'feeling overloaded is what you most often report or show.',
+  unclear: 'difficulty you could not name is what you most often report or show.',
+  confidentlyWrong: 'being sure of an answer that turned out wrong is the most common.',
+  unsureWrong: 'wrong answers you were unsure about are the most common.',
+};
+
+// How the learner tends to struggle: five running counts. Private to them; no score, no comparison.
+function StrugglePattern({ s }) {
+  if (!s || s.state !== 'ready') return null;
+  return (
+    <section className="an-section" aria-labelledby="an-struggle">
+      <h2 id="an-struggle">How you tend to struggle</h2>
+      <ul className="an-list">
+        {Object.keys(STRUGGLE_LABEL).map((k) => (
+          <li key={k}><span>{STRUGGLE_LABEL[k]}</span><span className="an-count">{s.counts[k]}</span></li>
+        ))}
+      </ul>
+      {s.main ? <p>So far, {STRUGGLE_MAIN[s.main]}</p> : <p className="muted">No single kind stands out yet.</p>}
+      <p className="muted">Only you can see this. It is a count, not a score, and your instructor never sees it.</p>
+    </section>
+  );
+}
+
+// Ideas that appear in more than one of the learner's readings.
+function Concepts({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <section className="an-section" aria-labelledby="an-concepts">
+      <h2 id="an-concepts">Ideas that come up in more than one reading</h2>
+      <ul className="an-list">
+        {items.map((c) => (
+          <li key={c.label}>
+            <span>{c.label}</span>
+            <span className="an-count">
+              {plural(c.readings, 'reading', 'readings')} · {plural(c.passages, 'passage', 'passages')}
+              {c.needAnotherLook > 0 ? ` · ${c.needAnotherLook} worth another look` : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="muted">Ideas are matched by the words used in each reading, so a related idea named differently may not appear.</p>
+    </section>
+  );
+}
+
+
+import SubjectRow from '../components/SubjectRow.jsx';
+import { LEVEL_LABEL, LEVEL_ORDER, LEVEL_TONE, countByLevel } from '../lib/subjects.js';
+
+const SUMMARY_TOP = 5;
+const DOC_TOP = 5;
+
+// A short summary of every idea the learner has met: how many are at each level and the few that most need a look. The
+// full list (any number of ideas) lives on its own page, so this page stays short at 5 subjects or 50.
+function Subjects({ items }) {
+  if (!items || items.length === 0) return null;
+  const counts = countByLevel(items);
+  const top = items.filter((s) => s.level === 'needs_help').slice(0, SUMMARY_TOP);
+  return (
+    <section className="an-section" aria-labelledby="an-subjects">
+      <h2 id="an-subjects">By subject</h2>
+      <p className="muted">{plural(items.length, 'idea', 'ideas')} met across your readings. Recognising an answer, explaining it, recalling it, using it somewhere new and remembering it later are kept apart because each shows something different.</p>
+      <ul className="an-chips" aria-label="Ideas by level">
+        {LEVEL_ORDER.filter((l) => counts[l] > 0).map((l) => (
+          <li key={l}><Link className={`an-chip an-${LEVEL_TONE[l]}`} to={`/analytics/subjects?level=${l}`}>{counts[l]} {LEVEL_LABEL[l].toLowerCase()}</Link></li>
+        ))}
+      </ul>
+      {top.length > 0 && (
+        <>
+          <h3 className="an-subhead">Worth another look</h3>
+          <div className="an-subjects">{top.map((s) => <SubjectRow key={s.key ?? s.label} s={s} />)}</div>
+        </>
+      )}
+      <p><Link className="row-link" to="/analytics/subjects">See all {plural(items.length, 'idea', 'ideas')}</Link></p>
+    </section>
+  );
+}
+
+// One reading at a time: what you have answered, what is waiting, and how its ideas stand.
+function Documents({ items }) {
+  const [all, setAll] = useState(false);
+  if (!items || items.length === 0) return null;
+  const visible = all ? items : items.slice(0, DOC_TOP);
+  return (
+    <section className="an-section" aria-labelledby="an-documents">
+      <h2 id="an-documents">By document</h2>
+      <ul className="an-subjects">
+        {visible.map((d, i) => (
+          <li key={i} className="an-subject">
+            <div className="an-subject-head">
+              {d.accessible ? <span><Link className="row-link" to={`/a/${d.assignment.assignmentId}`} reloadDocument>{d.assignment.name || d.assignment.className}</Link>{d.assignment.name && d.assignment.className && <span className="muted"> · {d.assignment.className}</span>}</span> : <span className="muted">A piece of material you no longer have access to</span>}
+              {d.daysSinceActivity !== null && <span className="muted">{d.daysSinceActivity === 0 ? 'last worked on today' : `last worked on ${plural(d.daysSinceActivity, 'day', 'days')} ago`}</span>}
+            </div>
+            <p>
+              {plural(d.passagesAnswered, 'passage', 'passages')} answered, {d.passagesCorrect} answered correctly with no misses
+              {d.passagesWorthAnotherLook > 0 ? `, ${d.passagesWorthAnotherLook} worth another look` : ''}
+              {d.reviewsWaiting > 0 ? `, ${plural(d.reviewsWaiting, 'review', 'reviews')} waiting` : ''}.
+            </p>
+            {d.accessible && d.concepts.length > 0 && (
+              <ul className="an-chips" aria-label="Ideas in this document">
+                {d.concepts.map((c) => <li key={c.label} className={`an-chip an-${LEVEL_TONE[c.level]}`}>{c.label}: {LEVEL_LABEL[c.level].toLowerCase()}</li>)}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+      {items.length > DOC_TOP && (
+        <p><button type="button" className="btn btn-secondary" onClick={() => setAll(!all)}>{all ? 'Show fewer' : `Show all ${items.length} documents`}</button></p>
+      )}
+    </section>
+  );
+}
+
+// The ideas in the user's own uploaded files, at the level their answers so far show. Files with no ideas found yet are left out.
+function PersonalFiles({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <section className="an-section" aria-labelledby="an-files">
+      <h2 id="an-files">Your own files</h2>
+      <ul className="an-subjects">
+        {items.map((f) => (
+          <li key={f.personalDocumentId} className="an-subject">
+            <div className="an-subject-head"><Link className="row-link" to={`/f/${f.personalDocumentId}`} reloadDocument>{f.name}</Link></div>
+            <ul className="an-chips" aria-label="Ideas in this file">
+              {f.concepts.map((c) => <li key={c.label} className={`an-chip an-${LEVEL_TONE[c.level] ?? 'muted'}`}>{c.label}: {(LEVEL_LABEL[c.level] ?? 'No answers yet').toLowerCase()}</li>)}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function Recent({ r }) {
   return (
     <section className="an-section" aria-labelledby="an-recent">
@@ -232,9 +394,15 @@ export default function AnalyticsPage() {
         <>
           <Overview o={data.overview} />
           <Review r={data.review} />
+          <Subjects items={data.subjects} />
+          <Documents items={data.documents} />
+          <PersonalFiles items={data.personalFiles} />
           <NeedsWork items={data.needsWork} />
           <ExplainBackSection items={data.explainBack ?? []} />
           <Progress p={data.progress} />
+          <Revisited r={data.revisited} />
+          <Concepts items={data.concepts} />
+          <StrugglePattern s={data.strugglePattern} />
           <Recent r={data.recent} />
           {data.truncated && <p className="muted">Showing your most recent passages only.</p>}
           <details className="an-how">

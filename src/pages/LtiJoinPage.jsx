@@ -90,7 +90,7 @@ export default function LtiJoinPage() {
           {error && <p className="alert alert-error">{error}</p>}
         </>
       ) : launch.kind === 'session' ? (
-        <p className="muted">Opening your assignments.</p>
+        <p className="muted">Opening your materials.</p>
       ) : (
         <p className="alert alert-error">This page needs a launch from your course. Open the reading from your course again.</p>
       )}

@@ -102,7 +102,7 @@ export default function InvitePage() {
         <>
           <p className="alert">You have joined <strong>{state.info.className}</strong>.</p>
           <p>
-            Your assignments are on the <Link to="/assignments">assignments page</Link>. To get alcoia’s
+            Your materials are on the <Link to="/assignments">materials page</Link>. To get alcoia’s
             help while you read, install the alcoia browser extension and sign in with the same email
             address.
           </p>

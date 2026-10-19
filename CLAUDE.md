@@ -195,3 +195,21 @@ One try per part: a miss closes the whole part on this device (`alcoia_workspace
 ## Warm-up, explain it back and prove-it-to-skip on slide decks and My files
 
 The server now builds question banks for PowerPoint (one passage per slide) and for personal files. `BeforeYouRead` and `ExplainBack` take a `personal` flag (`lib/questionBank.js` `bankBase`, `lib/explainBack.js`) and are mounted on `/f/:id` (`PersonalFilePage`); `ProveSkip` works on every personal file (`bankId = asset.assignmentId ?? asset.personalId`). On a personal file explain-it-back grades and discards (no class result, no memory). Verified: build and lint clean and a browser pass with the API mocked; not a real model or a real deck.
+## Wording, receipts notice and Exam Mode early stop
+Visible text says "Material(s)" instead of "Assignment(s)" (routes and API unchanged). The anonymous-class notice no longer promises a receipt exception, because the server refuses receipts for anonymous classes. Exam Mode handles two server responses added in Stage B: `422 nothing_needs_practice` on start (friendly message) and a `next` response that ends the session early with a summary (`stoppedEarly`). Verified by lint and build only; no test runner here.
+
+## Passages you met again
+`/analytics` shows `revisited` from the learner-analytics response (counts only: passages met again, hard the first time, correct since, still worth another look). Server decides plan and consent. Verified by lint and build only.
+
+## How you tend to struggle, and ideas across readings
+`/analytics` shows two more cards from the learner-analytics response: `strugglePattern` (five counts and, only when one kind clearly leads, a plain sentence; private to the learner, no score) and `concepts` (ideas that appear in more than one of the learner's readings, with passage counts and how many are worth another look). The server decides plan, consent and what is returned; empty results render nothing. Verified by lint and build only; the concept list stays empty until the server has built concept indexes.
+
+## Learner analytics: by subject and by document
+`/analytics` now shows "By subject" (each idea across all readings: encounters, understanding, recall, using it in new situations, remembering later, level and a next step) and "By document" (one reading at a time: passages answered, answered correctly with no misses, worth another look, reviews waiting, and its ideas by level). The server computes both (`subjects`, `documents` in `GET /api/account/learner-analytics`); this page only words them. "No answers yet" is never worded as a weakness; no score, ranking or comparison. Plan and consent are decided by the server as before. Checked in a real browser with the API mocked at 1100 and 375 px (no horizontal scroll); not against a deployed server.
+
+
+## By subject: summary, full page, strengths and needs
+`/analytics` shows only a summary of the learner's ideas (counts per level as links, the five that most need a look, and "See all N ideas"). The full list is `/analytics/subjects` (`SubjectsPage`): level filter chips (the level is kept in the URL, `?level=needs_help`), search by name, rows collapsed until opened (`SubjectRow`, a `<details>`), 20 at a time with "Show more". "By document" shows five and a "Show all" button. Each idea also carries `strongAt` and `needsWorkAt` from the server (kinds of evidence that came out positive or negative: understanding, recall, using it in new situations, remembering later). There is no "efficient" or speed reading: the server holds no reading-speed data, so the page never claims one. Wording lives in `src/lib/subjects.js`. **Verified** in headless Chromium with the API mocked: 18 ideas at 1100 and 375 px, filter, search, expand, no horizontal scroll. Not against a deployed server. No test runner exists here and none was added.
+
+## Your own files: ideas
+`/analytics` shows "Your own files" (`personalFiles` from the learner-analytics response): each uploaded file with the ideas the server found in it and the learner's level on each. The server builds the index asynchronously (`crossdoc:index`), so a new file has no ideas listed at first. Exam Mode on a file now feeds the learner's private concept memory (the server decides, and only with learner memory on). Verified by lint and build only.

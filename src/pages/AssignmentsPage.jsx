@@ -24,13 +24,13 @@ export default function AssignmentsPage() {
 
   return (
     <section className="page">
-      <h1 className="page-title">Assignments</h1>
-      {state.status === 'loading' && <p className="muted">Loading assignments.</p>}
+      <h1 className="page-title">Materials</h1>
+      {state.status === 'loading' && <p className="muted">Loading materials.</p>}
       {state.status === 'error' && (
-        <p className="alert alert-error">Assignments could not be loaded. Try again in a moment.</p>
+        <p className="alert alert-error">Materials could not be loaded. Try again in a moment.</p>
       )}
       {state.status === 'ready' && items.length === 0 && (
-        <p className="empty">You have no assignments right now. When your instructor adds one it will show up here.</p>
+        <p className="empty">You have no materials right now. When your instructor adds one it will show up here.</p>
       )}
       {items.length > 0 && (
         <table className="lms-table">

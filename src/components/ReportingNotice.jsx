@@ -25,8 +25,8 @@ export default function ReportingNotice({ className = 'this class', reportingMod
             individually, is visible to them.
           </p>
           <p>
-            The one exception: if you choose to submit a reading receipt for a specific assignment, your
-            instructor sees that one receipt. Nothing else, and never automatically.
+            Reading receipts are not used in this class: your instructor cannot see or receive one from
+            you.
           </p>
         </>
       )}
