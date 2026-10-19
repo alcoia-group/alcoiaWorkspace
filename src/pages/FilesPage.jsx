@@ -67,6 +67,7 @@ export default function FilesPage() {
     <section className="page">
       <h1 className="page-title">My files</h1>
       <p className="muted">Your own documents, private to your account. They stay until you delete them.</p>
+      <p className="muted">Alcoia works best on single-column documents; on a two-column layout it can be less sure which column you are reading.</p>
       {state.status === 'loading' && <p className="muted">Loading.</p>}
       {state.status === 'error' && <p className="alert alert-error">Your files could not be loaded.</p>}
       {state.status === 'ready' && (
