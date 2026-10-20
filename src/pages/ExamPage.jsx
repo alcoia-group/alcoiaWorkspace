@@ -21,7 +21,7 @@ const ERROR_COPY = {
   network: 'The request could not be completed. Check your connection and try again.',
   unavailable: 'Questions could not be prepared right now. Nothing was lost; try again in a moment.',
   no_material: 'The selected readings have no text that Exam Mode can ask about yet (for example a scanned PDF).',
-  nothing_needed: 'Nothing in these readings needs practice right now: what you have answered recently has held up. Come back later, or pick another reading.',
+  nothing_needed: 'Nothing in these readings needs practice right now. Come back later, or pick another reading.',
   bad_selection: 'Choose between one and six different readings.',
   no_access: 'That reading is not available to you.',
   session_gone: 'This session has ended or expired. Start a new one.',
@@ -33,7 +33,7 @@ function Upgrade() {
   return (
     <div className="notice">
       <h2>Exam Mode is part of the Reader and Student plans</h2>
-      <p>Practise a reading with questions that adapt as you answer, and see what to review. Nothing is shared with anyone.</p>
+      <p>Nothing is shared with anyone.</p>
       <p><a className="button" href={`${MARKETING_URL}/pricing`}>See plans</a></p>
     </div>
   );
@@ -62,7 +62,7 @@ function Summary({ s, onAgain }) {
       {s.followUps.length > 0 && <ul>{s.followUps.map((f) => <li key={f}>{f}</li>)}</ul>}
       {s.stoppedEarly && <p className="muted">The session ended early because nothing further needed practice right now.</p>}
       <p><strong>Next:</strong> {s.nextAction}</p>
-      <p className="muted">This describes this session only. It is not a grade, and it does not predict any result.</p>
+      <p className="muted">It is not a grade and does not predict any result.</p>
       <button type="button" className="button" onClick={onAgain}>Choose a reading</button>
     </section>
   );
@@ -168,7 +168,7 @@ export default function ExamPage() {
   return (
     <section className="page exam-page">
       <h1 className="page-title">Exam Mode</h1>
-      <p className="muted">Private practice on one or more of your readings. Questions come only from the readings you choose. You can stop whenever you like.</p>
+      <p className="muted">Private practice. You can stop whenever you like.</p>
       {upgrade && <Upgrade />}
       {problem && <p className="alert alert-error" role="alert">{ERROR_COPY[problem]}</p>}
 
@@ -177,11 +177,11 @@ export default function ExamPage() {
           {assignments === null && <p className="muted">Loading your readings.</p>}
           {assignments === 'error' && <p className="alert alert-error">Your readings could not be loaded.</p>}
           {Array.isArray(assignments) && assignments.length === 0 && files.length === 0 && (
-            <div className="notice"><h2>No readings to practise yet</h2><p>When a reading is assigned to you it appears here. <Link to="/assignments">Back to materials</Link></p></div>
+            <div className="notice"><h2>No readings to practise yet</h2><p><Link to="/assignments">Back to materials</Link></p></div>
           )}
           {Array.isArray(assignments) && (assignments.length > 0 || files.length > 0) && (
             <>
-              <p className="muted">Choose one or more readings (up to six). Questions are spread across the ones you pick.</p>
+              <p className="muted">Choose one or more readings (up to six).</p>
               <ul className="exam-list">
                 {assignments.map((a) => (
                   <li key={a.assignmentId}>

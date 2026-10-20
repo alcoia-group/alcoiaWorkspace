@@ -41,7 +41,7 @@ export default function ExplainBack({ assignmentId, sessionToken, personal = fal
       setError(
         err instanceof ApiError && err.status === 429
           ? 'You have checked this several times in the last hour. Try again later.'
-          : 'The check is not available right now. Your explanation is still here, and you can try again later.',
+          : 'The check is not available right now. Your explanation is still here.',
       );
     } finally {
       setBusy(false);
@@ -52,10 +52,10 @@ export default function ExplainBack({ assignmentId, sessionToken, personal = fal
     <section className="explain-back" aria-labelledby="eb-heading">
       <h2 id="eb-heading">Explain it back</h2>
       <p>
-        Last step. Without looking, write the main ideas of what you just read, in your own words.
+        Without looking, write the main ideas of what you just read, in your own words.
         {personal
-          ? ' What you write is checked and then discarded. This is your own file, so nothing about it is recorded or shared.'
-          : ' What you write is checked and then discarded. Your instructor never sees it, only how many students covered each idea. If account-based learning is on, which ideas you covered is kept privately for you (never your words), so you can see what to revisit in Learner analytics.'}
+          ? ' What you write is checked and then discarded. Nothing about this file is recorded or shared.'
+          : ' What you write is checked and then discarded. Your instructor never sees it, only how many students covered each idea. If account-based learning is on, which ideas you covered are kept privately for you, never your words.'}
       </p>
       {!feedback && (
         <form onSubmit={check}>

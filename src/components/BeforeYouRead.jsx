@@ -57,7 +57,7 @@ export default function BeforeYouRead({ assignmentId, content, sessionToken, per
       </div>
       {outline.length > 0 && (
         <details open>
-          <summary>What is in this reading</summary>
+          <summary>Outline</summary>
           <ol className="prep-outline">
             {outline.map((o, i) => (
               <li key={i} style={{ marginLeft: (o.level - 1) * 16 }}>{o.text} <span className="muted">{o.where}</span></li>
@@ -68,7 +68,7 @@ export default function BeforeYouRead({ assignmentId, content, sessionToken, per
       {items === null && <p className="muted">Looking for warm-up questions.</p>}
       {Array.isArray(items) && items.length > 0 && (
         <div className="prep-questions">
-          <p className="muted">Try these first. A guess is fine. Nothing here is scored or sent to anyone.</p>
+          <p className="muted">A guess is fine. Nothing here is scored or sent to anyone.</p>
           {items.map((item, n) => {
             const r = results[item.id];
             return (
@@ -85,7 +85,7 @@ export default function BeforeYouRead({ assignmentId, content, sessionToken, per
                 })}
                 {r && !r.error && !r.pending && (
                   <p className="prep-explain" role="status">
-                    {r.correct ? 'That matches the reading.' : 'Not quite. Keep it in mind as you read.'} {!r.correct && r.explanation}
+                    {r.correct ? 'That matches the reading.' : 'Not quite.'} {!r.correct && r.explanation}
                   </p>
                 )}
                 {r?.error && <p className="muted" role="status">That could not be checked right now.</p>}

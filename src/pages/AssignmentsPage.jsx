@@ -30,7 +30,7 @@ export default function AssignmentsPage() {
         <p className="alert alert-error">Materials could not be loaded. Try again in a moment.</p>
       )}
       {state.status === 'ready' && items.length === 0 && (
-        <p className="empty">You have no materials right now. When your instructor adds one it will show up here.</p>
+        <p className="empty">You have no materials right now.</p>
       )}
       {items.length > 0 && (
         <table className="lms-table">

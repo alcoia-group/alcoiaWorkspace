@@ -102,11 +102,11 @@ export default function ProveSkip({ assignmentId, sessionToken, items, start, co
               );
             })}
             {r && !r.pending && !r.error && !r.correct && <span className="prep-explain" role="status">{r.explanation}</span>}
-            {r?.error && <span className="muted" role="status">That could not be checked right now. Close this and try again later.</span>}
+            {r?.error && <span className="muted" role="status">That could not be checked right now.</span>}
           </fieldset>
         );
       })}
-      {done && !allRight && <span className="prep-explain" role="status">Not this time, so keep reading this part. You can still skip other parts.</span>}
+      {done && !allRight && <span className="prep-explain" role="status">Not this time. Keep reading this part.</span>}
     </div>
   );
 }

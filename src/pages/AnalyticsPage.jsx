@@ -33,16 +33,16 @@ function AssignmentLabel({ item }) {
 function Overview({ o }) {
   return (
     <section className="an-section" aria-labelledby="an-overview">
-      <h2 id="an-overview">Where your knowledge stands</h2>
-      <p className="muted">{plural(o.unitsTotal, 'passage', 'passages')} you have answered questions about.</p>
+      <h2 id="an-overview">Overview</h2>
+      <p className="muted">{plural(o.unitsTotal, 'passage', 'passages')} answered.</p>
       <div className="an-stack" role="img" aria-label={CATEGORIES.map((c) => `${c.label}: ${o[c.key]}`).join(', ')}>
         {CATEGORIES.map((c) => o[c.key] > 0 && <span key={c.key} className={`an-seg an-${c.tone}`} style={{ flexGrow: o[c.key] }} />)}
       </div>
       <ul className="an-legend">
         {CATEGORIES.map((c) => (
-          <li key={c.key}>
+          <li key={c.key} title={c.blurb}>
             <span className={`an-swatch an-${c.tone}`} aria-hidden="true" />
-            <div><strong>{c.label}</strong>: {o[c.key]}<div className="muted">{c.blurb}</div></div>
+            <div><strong>{c.label}</strong>: {o[c.key]}</div>
           </li>
         ))}
       </ul>
@@ -61,7 +61,6 @@ function Review({ r }) {
       </div>
       {r.byAssignment.length > 0 ? (
         <>
-          <p className="muted">Reviews come up as you read these documents with the alcoia extension.</p>
           <ul className="an-list">
             {r.byAssignment.map((a, i) => (
               <li key={i}><div><AssignmentLabel item={a} /></div><span className="an-count">{plural(a.dueNow, 'review', 'reviews')} waiting</span></li>
@@ -78,7 +77,7 @@ function NeedsWork({ items }) {
     <section className="an-section" aria-labelledby="an-work">
       <h2 id="an-work">Areas needing work</h2>
       {items.length === 0 ? (
-        <p className="muted">Nothing stands out right now. A single wrong answer is not treated as a weakness; this list only shows repeated difficulty.</p>
+        <p className="muted">Nothing stands out right now.</p>
       ) : (
         <>
           <p className="muted">Shown only where there is repeated evidence: several wrong answers on the same passage, or a review that has been waiting a long time.</p>
@@ -107,7 +106,7 @@ function ExplainBackSection({ items }) {
   return (
     <section className="an-section" aria-labelledby="an-explain">
       <h2 id="an-explain">Explain it back</h2>
-      <p className="muted">From your last explanation of each reading: how many of its key ideas it covered. Counts only; what you wrote is never kept.</p>
+      <p className="muted">Key ideas covered in your last explanation of each reading. What you wrote is never kept.</p>
       <ul className="an-list">
         {shown.map((e, i) => (
           <li key={i}>
@@ -132,7 +131,7 @@ function Progress({ p }) {
         {p.successRate === null ? 'No graded answers yet.' : <><strong>{Math.round(p.successRate * 100)}%</strong> of your graded answers were correct</>}
         {' '}<span className="muted">({plural(p.correct, 'correct answer', 'correct answers')}, {plural(p.incorrect, 'incorrect', 'incorrect')}{p.ungraded > 0 ? `, ${p.ungraded} not graded` : ''})</span>
       </p>
-      <h3>How far apart your reviews are</h3>
+      <h3>Review intervals</h3>
       {scheduled === 0 ? <p className="muted">Reviews are scheduled after a first correct answer.</p> : (
         <ul className="an-rows">
           {p.retentionStages.map((s) => (
@@ -144,7 +143,7 @@ function Progress({ p }) {
           ))}
         </ul>
       )}
-      <h3>New passages you first answered, by week</h3>
+      <h3>New passages by week</h3>
       <ul className="an-rows">
         {p.firstAnsweredByWeek.map((w) => (
           <li key={w.weekStart}>
@@ -205,7 +204,7 @@ function StrugglePattern({ s }) {
         ))}
       </ul>
       {s.main ? <p>So far, {STRUGGLE_MAIN[s.main]}</p> : <p className="muted">No single kind stands out yet.</p>}
-      <p className="muted">Only you can see this. It is a count, not a score, and your instructor never sees it.</p>
+      <p className="muted">Only you can see this. It is a count, not a score.</p>
     </section>
   );
 }
@@ -215,7 +214,7 @@ function Concepts({ items }) {
   if (!items || items.length === 0) return null;
   return (
     <section className="an-section" aria-labelledby="an-concepts">
-      <h2 id="an-concepts">Ideas that come up in more than one reading</h2>
+      <h2 id="an-concepts">Ideas across readings</h2>
       <ul className="an-list">
         {items.map((c) => (
           <li key={c.label}>
@@ -227,7 +226,7 @@ function Concepts({ items }) {
           </li>
         ))}
       </ul>
-      <p className="muted">Ideas are matched by the words used in each reading, so a related idea named differently may not appear.</p>
+      <p className="muted">Ideas are matched by the words used in each reading.</p>
     </section>
   );
 }
@@ -248,7 +247,7 @@ function Subjects({ items }) {
   return (
     <section className="an-section" aria-labelledby="an-subjects">
       <h2 id="an-subjects">By subject</h2>
-      <p className="muted">{plural(items.length, 'idea', 'ideas')} met across your readings. Recognising an answer, explaining it, recalling it, using it somewhere new and remembering it later are kept apart because each shows something different.</p>
+      <p className="muted">{plural(items.length, 'idea', 'ideas')} met across your readings.</p>
       <ul className="an-chips" aria-label="Ideas by level">
         {LEVEL_ORDER.filter((l) => counts[l] > 0).map((l) => (
           <li key={l}><Link className={`an-chip an-${LEVEL_TONE[l]}`} to={`/analytics/subjects?level=${l}`}>{counts[l]} {LEVEL_LABEL[l].toLowerCase()}</Link></li>
@@ -350,7 +349,6 @@ function Upgrade() {
   return (
     <div className="notice">
       <h2>Learner analytics is part of the Reader and Student plans</h2>
-      <p>It shows what you know well, what needs another look and what is due for review, from your own private learning memory.</p>
       <p><a className="button" href={`${MARKETING_URL}/pricing`}>See plans</a></p>
     </div>
   );
@@ -378,7 +376,7 @@ export default function AnalyticsPage() {
   return (
     <section className="page an-page">
       <h1 className="page-title">Learner analytics</h1>
-      <p className="muted">Private to you. Built from your own learning memory; no one else, including instructors, can see it.</p>
+      <p className="muted">Private to you. Instructors cannot see it.</p>
       {state.status === 'loading' && <p className="muted">Loading your analytics.</p>}
       {state.status === 'error' && <p className="alert alert-error">Your analytics could not be loaded. Try again in a moment.</p>}
       {result?.kind === 'upgrade' && <Upgrade />}
@@ -387,7 +385,7 @@ export default function AnalyticsPage() {
       {data?.state === 'empty' && (
         <div className="notice">
           <h2>Your analytics will appear as you learn</h2>
-          <p>Once you answer questions about your reading, this page shows what you know well, what needs another look and what is due for review.</p>
+          <p>Answer questions about your reading and your analytics appear here.</p>
         </div>
       )}
       {data?.state === 'ready' && (
@@ -407,8 +405,8 @@ export default function AnalyticsPage() {
           {data.truncated && <p className="muted">Showing your most recent passages only.</p>}
           <details className="an-how">
             <summary>How these are worked out</summary>
-            <p>Every figure is counted from the answers and review schedule alcoia keeps for you. It does not measure time spent, reading speed or attention. It is never compared with anyone else.</p>
-            <p>A passage is &ldquo;not yet established&rdquo; until you answer it correctly once. After that it is reviewed after 1, 3, 7, 14 and 30 days as you recall it; a miss moves it back a step. &ldquo;Well retained&rdquo; means three or more successful recalls. These thresholds are first versions and may change.</p>
+            <p>Every figure is counted from the answers and review schedule alcoia keeps for you. Time spent, reading speed and attention are not measured, and nothing is compared with anyone else.</p>
+            <p>A passage is &ldquo;not yet established&rdquo; until you answer it correctly once. After that it is reviewed after 1, 3, 7, 14 and 30 days as you recall it; a miss moves it back a step. &ldquo;Well retained&rdquo; means three or more successful recalls.</p>
           </details>
         </>
       )}
