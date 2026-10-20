@@ -407,7 +407,7 @@ export default function AnalyticsPage() {
           {data.truncated && <p className="muted">Showing your most recent passages only.</p>}
           <details className="an-how">
             <summary>How these are worked out</summary>
-            <p>Every figure is counted from the answers and review schedule alcoia keeps for you. It does not measure time spent, reading speed or attention, and it is never compared with anyone else.</p>
+            <p>Every figure is counted from the answers and review schedule alcoia keeps for you. It does not measure time spent, reading speed or attention. It is never compared with anyone else.</p>
             <p>A passage is &ldquo;not yet established&rdquo; until you answer it correctly once. After that it is reviewed after 1, 3, 7, 14 and 30 days as you recall it; a miss moves it back a step. &ldquo;Well retained&rdquo; means three or more successful recalls. These thresholds are first versions and may change.</p>
           </details>
         </>

@@ -21,8 +21,8 @@ export default function ReportingNotice({ className = 'this class', reportingMod
         <>
           <p>
             In <strong>{className}</strong>, your instructor sees <strong>aggregate results only</strong>,
-            things like “most of the class found section 2 hard.” Nothing about your own reading,
-            individually, is visible to them.
+            things like “most of the class found section 2 hard.” They cannot see anything about your
+            own reading individually.
           </p>
           <p>
             Reading receipts are not used in this class: your instructor cannot see or receive one from
