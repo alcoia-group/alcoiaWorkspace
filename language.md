@@ -318,3 +318,12 @@ These sources discuss recurring patterns in AI-generated writing and comparisons
 - A corpus-driven analysis of AI and academic discourse
 - A survey of linguistic characteristics of AI-generated text
 - AI Writing Tells reference
+
+## 10. Owner rulings (added October 2026)
+
+These come straight from the owner after reviewing the first pass. They override anything above that is softer.
+
+- **Never talk about the writing or about our own candor.** Delete any sentence whose job is to announce how or why we are saying something: "We're saying it here because…", "We state this at the same size as…", "We'd rather say that plainly", "To be honest", "The honest answer is", "In plain language", "True, and we'll say it plainly", "This isn't a promise, it's a fact". Rewording these does not fix them. Cut the sentence and keep only the fact.
+- **One sentence is enough.** If the first sentence already says it, do not add a second that restates it ("Dyslexia mode is free on every plan." stops there).
+- **Name, don't describe.** In feature lists, pricing rows, nav items, buttons and labels, write the name of the thing ("Teaching Intent"), not a description of it. If a name is not self-explanatory, add a tooltip or a small link to the page that explains it. Do not put the explanation in the list.
+- **Do not justify.** No "because", "so that", "since" tails that explain why a plain statement is true or why we are telling the reader.
