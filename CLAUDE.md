@@ -205,3 +205,6 @@ Visible text says "Material(s)" instead of "Assignment(s)" (routes and API uncha
 
 ## Your own files: ideas
 `/analytics` shows "Your own files" (`personalFiles` from the learner-analytics response): each uploaded file with the ideas the server found in it and the learner's level on each. The server builds the index asynchronously (`crossdoc:index`), so a new file has no ideas listed at first. Exam Mode on a file now feeds the learner's private concept memory (the server decides, and only with learner memory on). Verified by lint and build only.
+
+## Connections
+`components/Connections.jsx`, `lib/connections.js`, shown under the viewer on `/a/:id` (assigned readings only). It calls `GET /api/assignments/:id/cross-document-connections` and lists the other readings the server says share ideas with this one ("Also in <title>", a full-page link to `/a/<id>`, up to three shared ideas). Any non-200 (a free account gets 403), an unindexed reading or an empty list renders nothing. The server decides plan and access. Verified in a real browser with the API mocked (connection shown with its link, 403 and empty show nothing); not against a server with a real index, which needs `npm run crossdoc:index` there.

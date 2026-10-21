@@ -8,6 +8,7 @@ import SlideViewer from '../components/viewers/SlideViewer.jsx';
 import BeforeYouRead from '../components/BeforeYouRead.jsx';
 import Annotator from '../components/Annotator.jsx';
 import ExplainBack from '../components/ExplainBack.jsx';
+import Connections from '../components/Connections.jsx';
 import { fetchSectionMarks, saveSectionMarks } from '../lib/sectionMarks.js';
 // pdf.js is large; only load it for a PDF.
 const PdfViewer = lazy(() => import('../components/viewers/PdfViewer.jsx'));
@@ -118,6 +119,7 @@ export default function ReaderPage() {
           />
         </Suspense>
         </Annotator>
+        <Connections assignmentId={assignmentId} sessionToken={session.sessionToken} />
         <ExplainBack assignmentId={assignmentId} sessionToken={session.sessionToken} />
         {downloadError && <p className="alert alert-error">The download link could not be created.</p>}
         {markError && <p className="alert alert-error">That change could not be saved. Try again.</p>}
