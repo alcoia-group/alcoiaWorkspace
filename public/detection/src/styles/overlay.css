@@ -1,0 +1,900 @@
+/* ── alcoia — in-page overlay styles ──────────────────────────────────────────
+ *
+ * Everything the reader sees on top of a page they are reading: the summary
+ * card, the retrieval question, the word bubble, the page-summary panel, the
+ * reading receipt, the calibration overlay.
+ *
+ * Loaded by content.js alongside fonts.css, which defines --alc-serif
+ * (Source Serif 4) and --alc-ui (Plus Jakarta Sans). If fonts.css is blocked
+ * by a page CSP the fallbacks in those stacks still resolve, so nothing here
+ * depends on the download landing.
+ *
+ * Typography rule for this file: prose the reader is meant to *read* is set
+ * in the serif; captions, key caps, buttons and status micro-labels are the
+ * UI sans. Italics mark quotation and evidence, never decoration — the
+ * previous revision set nearly every label in italic serif at 9–11px, which
+ * is where the old UI stopped being readable.
+ *
+ * Direction: warm paper, matte. Off-white ground, charcoal ink — never pure
+ * black on never pure white — dusty lilac as the one brand colour, and muted
+ * sage reserved for moments where the system itself did something.
+ *
+ * Two rules that are easy to break and expensive to break:
+ *
+ *   1. Sage means "generated" or "acted on here". It is not a second accent.
+ *      Its meaning comes from its scarcity; spend it on the evidence rule, the
+ *      paragraph highlight and a correct answer, and nowhere else.
+ *   2. No glows, no gradients, no shadows on buttons. Elevation is a hairline.
+ *      A card floating over somebody else's page is the one place that needs
+ *      real separation, so it gets a warm, tight, nearly invisible shadow —
+ *      not because it should look raised, but because without it the card can
+ *      become unreadable against arbitrary page content.
+ *
+ * Palette note: these variables are declared on :root of the *host page*, so
+ * they are namespaced --alc-*. Never introduce a bare --bg here.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --alc-paper:     #F9F7F2;
+  --alc-surface:   rgba(252,251,248,0.98);
+  --alc-sunk:      #F2EFE8;
+  --alc-border:    rgba(51,51,51,0.12);
+  --alc-border-2:  rgba(126,96,174,0.34);
+  --alc-text:      #333333;
+  --alc-muted:     #6B6862;
+  --alc-faint:     #9A968E;
+  /* Lilac: the brand. The first value shipped (#B8A9C9) was so desaturated it
+     read as light grey against warm paper, and it could not carry white type.
+     Deepened until a white label on it clears AA (5.0:1) and it reads as a
+     colour rather than an absence of one. --accent-2 is for type on paper. */
+  --alc-accent:    #7E60AE;
+  --alc-accent-2:  #5F4589;
+  --alc-accent-sf: #EFE9F6;
+  /* Sage: the system speaking. See rule 1 above. */
+  --alc-sage:      #A3B1A3;
+  --alc-sage-2:    #6F8070;
+  --alc-sage-sf:   #EAEFEA;
+  --alc-warn:      #9A6B2F;
+  --alc-wrong:     #B4795F;
+  /* Tightened from 14px/10px (item 15a-2) — the card's most-designed surface
+     reads as considered at a tighter radius; a softer one drifted toward
+     the generic rounded-card look this pass moves away from. 8px is the
+     ceiling on the card itself; --alc-radius-sm follows proportionally. */
+  --alc-radius:    8px;
+  --alc-radius-sm: 6px;
+  /* Three layers, not one flat rgba(0,0,0,.1): a hairline that keeps the
+     card legible against arbitrary page backgrounds (unchanged reason —
+     see this file's header), a close, slightly firmer contact shadow so
+     the card reads as sitting just above the page rather than glued to
+     it, and a soft, wide ambient falloff that gives it real depth without
+     going dramatic. Still quiet — "high trust, not high energy" — just no
+     longer the same weight as a flat default. */
+  --alc-shadow:
+    0 0 0 1px var(--alc-border),
+    0 2px 5px rgba(51,51,51,0.07),
+    0 16px 36px -16px rgba(51,51,51,0.24);
+}
+
+/* ── Paragraph highlight — the passage a card is talking about ───────────── */
+.sra-para-highlight {
+  outline: 2px solid rgba(111,128,112,0.45) !important;
+  outline-offset: 5px !important;
+  border-radius: 4px !important;
+  background: rgba(163,177,163,0.13) !important;
+  transition: outline 0.35s ease, background 0.35s ease !important;
+}
+
+@keyframes sra-nudge-pulse {
+  0%   { box-shadow: 0 0 0 0    rgba(126,96,174,0.38); }
+  60%  { box-shadow: 0 0 0 12px rgba(126,96,174,0);    }
+  100% { box-shadow: 0 0 0 0    rgba(126,96,174,0);    }
+}
+.sra-nudge-highlight,
+.sra-nudge { animation: sra-nudge-pulse 1.4s ease-out 2 !important; }
+
+/* ── The card ────────────────────────────────────────────────────────────── */
+.sra-popup {
+  position: fixed !important;     /* always in the viewport; scroll irrelevant */
+  box-sizing: border-box;
+  max-width: 400px;
+  min-width: 280px;
+  background: var(--alc-surface);
+  color: var(--alc-text);
+  font-family: var(--alc-serif);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: 0;
+  border-radius: var(--alc-radius);
+  padding: 15px 17px 14px;
+  box-shadow: var(--alc-shadow);
+  z-index: 2147483647;
+  opacity: 0;
+  transform: translateY(5px) scale(0.985);
+  transition: opacity 190ms ease, transform 190ms cubic-bezier(.2,.9,.3,1);
+}
+.sra-popup.show { opacity: 1; transform: none; }
+.sra-popup *, .sra-popup *::before, .sra-popup *::after { box-sizing: border-box; }
+
+/* ── Evidence badge ──────────────────────────────────────────────────────
+   This is the interruption's justification — "You slowed down a lot here".
+   It reads as a caption, not as a heading, and it is never optional. */
+.sra-state-badge {
+  display: block;
+  font-family: var(--alc-ui);
+  font-size: 10.5px;
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  color: var(--alc-sage-2);
+  margin: 0 0 9px;
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--alc-border);
+}
+.sra-state-struggling .sra-state-badge { color: var(--alc-warn); }
+.sra-state-drifting   .sra-state-badge { color: #7E6E5A; }
+.sra-state-away       .sra-state-badge { color: #6B6862; }
+.sra-state-skimming   .sra-state-badge { color: #5B7A99; }
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+.sra-popup-body {
+  /* Tall enough that a four-option question fits without scrolling. At 230px
+     the fourth option sat below the fold and the card looked like it had
+     three answers. */
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(126,96,174,0.3) transparent;
+}
+.sra-popup-body::-webkit-scrollbar { width: 5px; }
+.sra-popup-body::-webkit-scrollbar-thumb {
+  background: rgba(126,96,174,0.28);
+  border-radius: 3px;
+}
+.sra-popup-body p,
+.sra-popup-body div { margin: 0 0 6px; }
+.sra-popup-body p:last-child,
+.sra-popup-body div:last-child { margin-bottom: 0; }
+.sra-popup-body strong { font-weight: 700; color: var(--alc-accent-2); }
+
+.sra-popup-divider {
+  height: 1px;
+  background: var(--alc-border);
+  margin: 12px 0 10px;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.sra-actions { display: flex; gap: 7px; }
+.sra-btn {
+  flex: 1;
+  padding: 8px 13px;
+  border-radius: var(--alc-radius-sm);
+  border: 1px solid transparent;
+  font-family: var(--alc-ui);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+.sra-btn:hover:not(:disabled) { opacity: 0.92; }
+.sra-btn:focus-visible { outline: 2px solid var(--alc-accent); outline-offset: 2px; }
+.sra-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* White on lilac clears AA at the deepened value (5.0:1). At the original
+   pale #B8A9C9 it did not, which is part of why that value had to go. */
+.sra-btn-primary { background: var(--alc-accent); color: #FFFFFF; }
+.sra-btn-primary:hover:not(:disabled) { background: #6E4F9C; }
+.sra-btn-secondary {
+  background: transparent;
+  color: var(--alc-accent-2);
+  border-color: var(--alc-border-2);
+}
+.sra-btn-secondary:hover:not(:disabled) { background: var(--alc-accent-sf); }
+
+/* ── Self-report (item 13a) ──────────────────────────────────────────────
+   The "alcoia Evidence Base" research artifact: confusion and overload
+   need opposite responses but "behavioral separation is hard", so the
+   self-report loop is "not optional". Three affordances share this
+   styling family — the inline block below sits INSIDE a question card
+   (active surfacing, additive to the question, never a replacement for
+   it), the standalone card (Alt+C / the persistent trigger) reuses the
+   ordinary .sra-btn-secondary buttons directly. */
+.sra-self-report-inline {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--alc-border);
+}
+.sra-self-report-prompt {
+  font-family: var(--alc-ui);
+  font-size: 11px;
+  color: var(--alc-muted);
+  margin: 0 0 6px;
+}
+.sra-self-report-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.sra-self-report-btn {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--alc-border-2);
+  background: transparent;
+  color: var(--alc-accent-2);
+  font-family: var(--alc-ui);
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+.sra-self-report-btn:hover:not(:disabled) { background: var(--alc-accent-sf); }
+.sra-self-report-btn:focus-visible { outline: 2px solid var(--alc-accent); outline-offset: 2px; }
+.sra-self-report-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* Affordance 2: a persistent, always-clickable trigger — unlike every
+   other element in this file, it is not conditional on any detected
+   state or open card. Deliberately unobtrusive: a small paper-toned
+   circle, hairline border only, no glow or shadow beyond the same
+   near-invisible one every popup already gets, so it reads as "always
+   there if you need it" rather than as its own competing interruption. */
+#sra-self-report-trigger {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483645; /* one below .sra-popup, so an open card is never hidden behind it */
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--alc-border-2);
+  background: var(--alc-surface);
+  color: var(--alc-accent-2);
+  font-family: var(--alc-ui);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--alc-shadow);
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+#sra-self-report-trigger:hover { opacity: 1; }
+#sra-self-report-trigger:focus-visible { outline: 2px solid var(--alc-accent); outline-offset: 2px; opacity: 1; }
+
+/* ── Close / pin ─────────────────────────────────────────────────────────── */
+.sra-controls { position: absolute; top: 8px; right: 8px; display: flex; gap: 1px; }
+.sra-ctrl-btn {
+  width: 25px; height: 25px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--alc-faint);
+  font-family: var(--alc-ui);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+.sra-ctrl-btn:hover  { background: var(--alc-accent-sf); color: var(--alc-accent); }
+.sra-ctrl-btn.active { color: var(--alc-accent); background: var(--alc-accent-sf); }
+
+.sra-error { color: var(--alc-wrong); font-size: 13px; }
+
+/* The question card's own badge. Sage, because asking is the system acting —
+   and deliberately no icon: a sparkle here would say "generated", which is the
+   opposite of what a question about a real sentence is claiming. */
+.sra-q-badge { color: var(--alc-sage-2); }
+
+/* ── Retrieval question card (P3) — the primary intervention ──────────────
+   Lives on .sra-popup, so it inherits the card's type. These rules were
+   previously in src/content/overlay.css, which nothing loaded: the question
+   card and the receipt both rendered unstyled. They are here now. */
+.sra-q-evidence {
+  font-family: var(--alc-serif);
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--alc-muted);
+  margin: 0 0 9px;
+}
+.sra-q-text {
+  /* Explicit, not just inherited from .sra-popup — this is the one line in
+     the card that most needs to read as "quoting the reading", so it
+     shouldn't depend on the card's own default holding. */
+  font-family: var(--alc-serif);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+.sra-q-options { display: flex; flex-direction: column; gap: 6px; }
+/* Item 15a-2: answer/button text is Inter (var(--alc-ui)), not the reading
+   serif — these are controls the reader operates, not prose they read; the
+   question above stays Literata because it quotes the passage, but a
+   clickable option is UI, and now reads as one at a glance. */
+.sra-q-option {
+  text-align: left;
+  font-family: var(--alc-ui);
+  font-weight: 550;
+  font-size: 13.5px;
+  line-height: 1.5;
+  padding: 9px 12px;
+  border-radius: var(--alc-radius-sm);
+  border: 1px solid var(--alc-border);
+  background: rgba(255,255,255,0.55);
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.13s, border-color 0.13s;
+}
+.sra-q-option:hover:not(:disabled) {
+  background: var(--alc-accent-sf);
+  border-color: var(--alc-border-2);
+}
+.sra-q-option:focus-visible { outline: 2px solid var(--alc-accent); outline-offset: 1px; }
+.sra-q-option:disabled { cursor: default; opacity: 0.7; }
+.sra-q-option.sra-q-correct {
+  background: var(--alc-sage-sf);
+  border-color: rgba(111,128,112,0.55);
+  opacity: 1;
+}
+.sra-q-option.sra-q-wrong {
+  background: rgba(180,121,95,0.10);
+  border-color: rgba(180,121,95,0.45);
+  opacity: 1;
+}
+/* A tentative pick, before the confidence step commits it — distinct from
+   sra-q-correct/sra-q-wrong, which only exist after grading. */
+.sra-q-option.sra-q-selected {
+  border-color: var(--alc-accent);
+  background: var(--alc-accent-sf);
+}
+/* Commit-time confidence: appears once an option is picked, replaced by the
+   result on commit. Two rating buttons plus a skip — rating is optional and
+   must read as no more effortful than skipping it. */
+.sra-q-confidence { margin-top: 12px; }
+.sra-q-confidence-label {
+  font-family: var(--alc-serif);
+  font-size: 13px;
+  color: var(--alc-muted);
+  margin: 0 0 7px;
+}
+.sra-q-confidence-options { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+/* Item 15a-2: "Not sure" and "Pretty sure" used to be visually identical —
+   the same neutral button twice. They mean different things, so they carry
+   different weight now. "Pretty sure" gets the brand lilac: a reader
+   committing to confidence is doing something more deliberate, and the
+   accent marks that. "Not sure" stays deliberately plain paper/border — not
+   sage (sage is reserved for what the system itself produced: the evidence
+   badge, the quoted span, a correct answer — never a reader's own choice),
+   and not a "lesser" or warning colour either, since low confidence isn't a
+   wrong answer. "Rather not say" (.sra-q-conf-skip) already recedes further
+   still, as understated underlined text — that three-tier weight (skip <
+   not sure < pretty sure) is the hierarchy, not three equal buttons. */
+.sra-q-conf-btn {
+  font-family: var(--alc-ui);
+  font-size: 12.5px;
+  font-weight: 550;
+  padding: 6px 12px;
+  border-radius: var(--alc-radius-sm);
+  border: 1px solid var(--alc-border);
+  background: rgba(255,255,255,0.55);
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.13s, border-color 0.13s, color 0.13s;
+}
+.sra-q-conf-btn:hover { background: var(--alc-accent-sf); border-color: var(--alc-border-2); }
+.sra-q-conf-btn[data-conf="high"] {
+  border-color: var(--alc-border-2);
+  color: var(--alc-accent-2);
+}
+.sra-q-conf-btn[data-conf="high"]:hover { background: var(--alc-accent-sf); }
+.sra-q-conf-skip {
+  font-family: var(--alc-ui);
+  font-size: 12px;
+  color: var(--alc-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 6px 4px;
+}
+.sra-q-conf-skip:hover { color: inherit; }
+
+/* Item 43: free_recall/scenario/adversarial's free-text input, alongside
+   the same confidence control above — same paper/border language as
+   .sra-q-option so it reads as "the answer area" rather than a foreign
+   control dropped into the card. */
+.sra-q-freetext { display: flex; flex-direction: column; gap: 5px; }
+.sra-q-answer-input {
+  font-family: var(--alc-serif);
+  font-size: 13.5px;
+  line-height: 1.55;
+  padding: 9px 12px;
+  border-radius: var(--alc-radius-sm);
+  border: 1px solid var(--alc-border);
+  background: rgba(255,255,255,0.55);
+  color: inherit;
+  resize: vertical;
+  min-height: 64px;
+}
+.sra-q-answer-input:focus-visible { outline: 2px solid var(--alc-accent); outline-offset: 1px; }
+.sra-q-answer-input:disabled { opacity: 0.7; resize: none; }
+.sra-q-answer-count {
+  align-self: flex-end;
+  font-family: var(--alc-ui);
+  font-size: 11px;
+  color: var(--alc-faint);
+}
+
+/* Snooze (item 18): a quiet text control on the card itself — the moment a
+   reader most wants to pause reminders is the moment one has just appeared.
+   Deliberately styled like sra-q-conf-skip's "Rather not say", not like a
+   primary action: it is available, not promoted. */
+.sra-q-snooze-toggle {
+  flex: none;
+  font-family: var(--alc-ui);
+  font-size: 11.5px;
+  color: var(--alc-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 8px 4px;
+}
+.sra-q-snooze-toggle:hover { color: inherit; }
+.sra-q-snooze-options {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin-top: 10px;
+}
+.sra-q-snooze-label { font-family: var(--alc-serif); font-size: 12px; color: var(--alc-muted); }
+.sra-q-snooze-options button {
+  font-family: var(--alc-ui);
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: var(--alc-radius-sm);
+  border: 1px solid var(--alc-border);
+  background: rgba(255,255,255,0.55);
+  color: inherit;
+  cursor: pointer;
+}
+.sra-q-snooze-options button:hover { background: var(--alc-accent-sf); border-color: var(--alc-border-2); }
+
+.sra-q-result { margin-top: 12px; font-size: 13.5px; line-height: 1.65; }
+/* A correct answer is a moment the system itself produced — sage, the same
+   as the evidence badge and the quoted span, and nothing else in this card
+   uses it for anything but confirmation. It is bare on purpose: no
+   explanation ships alongside it, so there is nothing here to style beyond
+   the checkmark and the one line of text. */
+.sra-q-result-correct { color: var(--alc-sage-2); }
+/* Item 43: an inconclusive model grade (scenario can only ever land here or
+   on sra-q-result-correct, never sra-q-result-wrong — see question-card.js)
+   and adversarial's fixed acknowledgement both read as neutral asides, not
+   as a correction — same muted tone as sra-q-span. sra-q-result-wrong itself
+   carries no distinct color either (plain text, same as this) — this system
+   never uses alarming styling for a wrong or inconclusive answer, at any
+   level. */
+.sra-q-result-unknown, .sra-q-result-responded { color: var(--alc-muted); }
+.sra-q-check { margin-right: 5px; font-weight: 700; }
+.sra-q-span {
+  margin-top: 9px;
+  padding-left: 11px;
+  border-left: 2px solid var(--alc-sage);
+  color: var(--alc-muted);
+  font-style: italic;
+}
+.sra-q-explain { margin-top: 10px; font-size: 13.5px; line-height: 1.7; }
+
+/* Item 19: the 2-4 load-bearing terms keyword-highlight.js picks out of a
+   post-failure explanation. Sage, not the brand lilac — this is the system
+   marking its own emphasis, the same rule as the evidence badge and the
+   correct-answer check. Plain <span>, deliberately not <mark>: dyslexia
+   mode's font override (dyslexia-utils.js) targets span among other
+   elements but not mark, and this needs to inherit that styling rather
+   than sit outside it. */
+/* ── Selection-explain tooltip (item DC-2) ──────────────────────────────
+   Deliberately smaller and quieter than .sra-popup: this is an offer, not
+   an intervention — it never carries evidence, a badge, or a close button,
+   just the one action. Same warm-paper surface and hairline-plus-soft-
+   shadow language as the popup card it opens, at a tighter radius (8px,
+   this pass's own ceiling — see the 15a-2 card-treatment rationale above
+   .sra-popup) since it is the smallest, least card-like surface here. */
+.sra-select-tooltip {
+  position: fixed;
+  z-index: 2147483646; /* one below .sra-popup, so an opened explanation card is never hidden behind it */
+  background: var(--alc-surface);
+  border: 1px solid var(--alc-border-2);
+  border-radius: 8px;
+  box-shadow: var(--alc-shadow);
+  padding: 4px;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+.sra-select-tooltip.show { opacity: 1; transform: none; }
+.sra-select-tooltip-btn {
+  font-family: var(--alc-ui);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 11px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--alc-accent-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sra-select-tooltip-btn:hover { background: var(--alc-accent-sf); }
+.sra-select-tooltip-btn:focus-visible { outline: 2px solid var(--alc-accent); outline-offset: 1px; }
+
+.sra-term {
+  background: var(--alc-sage-sf);
+  color: var(--alc-sage-2);
+  border-radius: 3px;
+  padding: 0 2px;
+  font-weight: 600;
+}
+
+/* ── Word-lookup bubble (Ctrl+hover) ─────────────────────────────────────── */
+.sra-word-bubble {
+  position: fixed;
+  z-index: 2147483646;
+  max-width: 270px;
+  background: rgba(24,28,26,0.95);
+  color: #EFEDE6;
+  font-family: var(--alc-serif);
+  font-size: 12.5px;
+  line-height: 1.6;
+  border-radius: 10px;
+  padding: 10px 13px;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.30);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.09);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 170ms ease, transform 170ms ease;
+}
+.sra-word-bubble.show { opacity: 1; transform: none; }
+.sra-word-bubble strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13.5px;
+  color: #C3ABE8;
+}
+.sra-word-loading {
+  font-family: var(--alc-ui);
+  font-size: 11px;
+  color: #9a9d97;
+}
+
+/* ── Reading receipt (P4) ────────────────────────────────────────────────── */
+.sra-receipt-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(16,20,18,0.46);
+  backdrop-filter: blur(3px);
+  z-index: 2147483647;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.sra-receipt {
+  box-sizing: border-box;
+  background: var(--alc-paper);
+  color: var(--alc-text);
+  border-radius: 16px;
+  padding: 26px 30px;
+  max-width: 560px; width: 94vw; max-height: 84vh;
+  overflow-y: auto;
+  box-shadow: 0 18px 56px rgba(16,20,18,0.30);
+  font-family: var(--alc-serif);
+  font-size: 14px;
+  line-height: 1.68;
+  position: relative;
+}
+.sra-receipt *, .sra-receipt *::before, .sra-receipt *::after { box-sizing: border-box; }
+.sra-receipt h2 { margin: 0 0 3px; font-size: 19px; font-weight: 700; }
+.sra-receipt h3 {
+  margin: 22px 0 8px;
+  font-family: var(--alc-ui);
+  font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--alc-faint);
+}
+.sra-r-sub { margin: 0 0 4px; color: var(--alc-muted); font-size: 12.5px; }
+.sra-r-close {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none;
+  font-family: var(--alc-ui); font-size: 15px;
+  color: var(--alc-faint); cursor: pointer;
+}
+.sra-r-close:hover { color: var(--alc-text); }
+.sra-r-row {
+  display: flex; justify-content: space-between; gap: 16px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--alc-border);
+}
+.sra-r-row > :last-child { font-variant-numeric: tabular-nums; }
+.sra-r-warn {
+  margin: 15px 0;
+  padding: 11px 14px;
+  border-radius: var(--alc-radius-sm);
+  background: rgba(154,107,47,0.08);
+  border: 1px solid rgba(154,107,47,0.26);
+  font-size: 12.5px; line-height: 1.6;
+}
+.sra-r-raw { margin: 18px 0 6px; font-size: 12px; }
+.sra-r-raw summary {
+  cursor: pointer;
+  font-family: var(--alc-ui);
+  color: var(--alc-muted);
+}
+.sra-r-raw pre {
+  max-height: 220px; overflow: auto;
+  background: rgba(24,28,26,0.045);
+  padding: 11px;
+  border-radius: 8px;
+  font-family: var(--alc-mono);
+  font-size: 11px; line-height: 1.55;
+  white-space: pre-wrap; word-break: break-word;
+}
+/* The signature caveat travels with the artifact. It must stay legible —
+   never shrink it below this. */
+.sra-r-caveat {
+  margin: 15px 0 0;
+  font-size: 12.5px; line-height: 1.6;
+  color: var(--alc-muted);
+  font-style: italic;
+}
+.sra-r-actions { display: flex; gap: 8px; margin-top: 18px; }
+.sra-r-status {
+  margin-top: 10px;
+  font-family: var(--alc-ui);
+  font-size: 11.5px;
+  color: var(--alc-muted);
+  min-height: 1.3em;
+}
+
+/* ── Toasts (positioned inline by ui-controller.js) ──────────────────────── */
+.sra-toast {
+  font-family: var(--alc-ui);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+#sra-continuity-toast button:hover { opacity: 0.8; }
+
+/* ── Camera calibration overlay ──────────────────────────────────────────
+   Reachable only when the reader turns the camera on themselves. */
+.sra-cal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(20,28,22,0.86);
+  backdrop-filter: blur(3px);
+  z-index: 2147483646;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.sra-cal-overlay.visible { opacity: 1; }
+.sra-cal-panel {
+  box-sizing: border-box;
+  background: var(--alc-paper);
+  border: 1px solid var(--alc-border);
+  border-radius: 16px;
+  padding: 24px;
+  width: 340px;
+  display: flex; flex-direction: column; gap: 14px;
+  font-family: var(--alc-serif);
+  color: var(--alc-text);
+  box-shadow: 0 18px 56px rgba(0,0,0,0.35);
+}
+.sra-cal-top   { display: flex; align-items: center; gap: 10px; }
+.sra-cal-steps { display: flex; gap: 5px; }
+.sra-cal-step  {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(126,96,174,0.18);
+  transition: background 0.2s;
+}
+.sra-cal-step.active { background: var(--alc-accent); }
+.sra-cal-progress {
+  flex: 1; height: 3px;
+  background: rgba(126,96,174,0.15);
+  border-radius: 2px; overflow: hidden;
+}
+.sra-cal-fill {
+  height: 100%;
+  background: var(--alc-accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.sra-cal-retry {
+  font-family: var(--alc-ui);
+  font-size: 11px;
+  color: var(--alc-accent);
+  background: none;
+  border: 1px solid var(--alc-border-2);
+  border-radius: 7px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.sra-cal-target-area {
+  position: relative;
+  height: 160px;
+  background: rgba(126,96,174,0.03);
+  border-radius: 10px;
+  border: 1px solid rgba(126,96,174,0.1);
+  overflow: hidden;
+}
+.sra-cal-target {
+  position: absolute;
+  width: 16px; height: 16px;
+  background: var(--alc-accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 4px rgba(126,96,174,0.2);
+  transition: left 0.4s cubic-bezier(.4,0,.2,1), top 0.4s cubic-bezier(.4,0,.2,1);
+}
+.sra-cal-hint {
+  font-family: var(--alc-ui);
+  font-size: 11px;
+  color: var(--alc-muted);
+  text-align: center;
+}
+.sra-calibration .sra-cal-point {
+  position: absolute;
+  width: 18px; height: 18px;
+  background: var(--alc-accent);
+  border-radius: 50%;
+  transform: translate(-50%,-50%);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+}
+
+.sra-pptx-overlay { pointer-events: none; }
+
+/* ── Touch and small screens ─────────────────────────────────────────────
+   Safari on iPhone and iPad runs this same content script, so every surface
+   here has to survive a 390px viewport and a finger. Two rules:
+
+   - A card on a narrow viewport becomes a bottom sheet. `placePopup()` in
+     ui-controller.js adds `.sra-sheet` and pins it; this supplies the shape.
+     Dodging text on a phone is not possible — there is no margin to dodge
+     into — so the card takes a predictable position instead of a clever one.
+   - Anything tappable gets 44px, the smallest target Apple's own guidance
+     considers reliable. The desktop sizes here are 25–34px, which is a
+     mis-tap on every attempt.
+   ───────────────────────────────────────────────────────────────────────── */
+.sra-popup.sra-sheet {
+  max-width: none;
+  min-width: 0;
+  border-radius: 16px;
+  padding: 16px 16px 14px;
+  max-height: 62vh;
+  overflow-y: auto;
+  box-shadow: 0 -2px 12px rgba(60,48,32,0.10), 0 16px 40px rgba(60,48,32,0.28);
+}
+.sra-popup.sra-sheet .sra-popup-body { max-height: 40vh; }
+
+@media (pointer: coarse) {
+  .sra-btn,
+  .sra-q-option,
+  .sra-r-actions .sra-btn { min-height: 44px; }
+  .sra-ctrl-btn { width: 40px; height: 40px; font-size: 15px; }
+  .sra-controls { top: 6px; right: 6px; }
+  /* Hover styling latches on touch — it sticks after a tap and reads as a
+     selected state that was never selected. */
+  .sra-q-option:hover:not(:disabled) { background: rgba(255,255,255,0.55); border-color: var(--alc-border); }
+  .sra-btn:hover:not(:disabled) { opacity: 1; }
+}
+
+@media (max-width: 560px) {
+  .sra-receipt { padding: 20px 18px; border-radius: 14px; max-height: 88vh; }
+  .sra-receipt h2 { font-size: 17px; }
+  .sra-r-actions { flex-wrap: wrap; }
+  .sra-r-actions .sra-btn { flex: 1 1 44%; }
+  .sra-receipt-backdrop { padding: 12px; align-items: flex-end; }
+  .sra-cal-panel { width: 100%; max-width: 420px; }
+  /* No hover, so the word bubble is unreachable; nothing should reserve
+     space for it. */
+  .sra-word-bubble { display: none !important; }
+}
+
+/* ── Predict-then-reveal occlusion (pretesting effect) ───────────────────────
+ * Inline in the article's own text, not a floating card — see pretest.js's
+ * own header. The real sentence stays in the DOM under the blur the whole
+ * time; revealing is a class swap, never a re-fetch or a rebuild. Sage
+ * because this is a moment the system itself produced, same as the evidence
+ * rule and a correct answer elsewhere in this file. */
+.sra-pretest-hidden {
+  filter: blur(6px);
+  user-select: none;
+  border-radius: 3px;
+  background: var(--alc-sage-sf);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.sra-pretest-revealed {
+  filter: none;
+  background: transparent;
+  transition: filter 0.25s ease;
+}
+.sra-pretest-prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  font-family: var(--alc-ui);
+  font-size: 0.85em;
+  vertical-align: middle;
+}
+.sra-pretest-label { color: var(--alc-sage-2); }
+.sra-pretest-guess {
+  font-family: var(--alc-ui);
+  font-size: inherit;
+  width: 12em;
+  padding: 2px 6px;
+  border: 1px solid var(--alc-border-2);
+  border-radius: 6px;
+  background: var(--alc-surface);
+  color: var(--alc-text);
+}
+.sra-pretest-reveal-btn {
+  font-family: var(--alc-ui);
+  border: 1px solid var(--alc-border-2);
+  border-radius: 6px;
+  background: var(--alc-sage-sf);
+  color: var(--alc-sage-2);
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.sra-pretest-reveal-btn:hover { background: var(--alc-sage); color: #FFFFFF; }
+.sra-pretest-reveal-btn:focus-visible { outline: 2px solid var(--alc-accent); outline-offset: 2px; }
+.sra-pretest-feedback {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--alc-ui);
+  font-size: 0.85em;
+  color: var(--alc-muted);
+}
+.sra-pretest-guess-echo,
+.sra-pretest-actual-echo { display: block; }
+.sra-pretest-actual-echo { color: var(--alc-sage-2); }
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .sra-popup,
+  .sra-word-bubble,
+  .sra-cal-overlay,
+  .sra-cal-target,
+  .sra-cal-fill,
+  .sra-pretest-revealed { transition-duration: 1ms !important; }
+  .sra-nudge-highlight,
+  .sra-nudge { animation: none !important; }
+}
+
+/* ── Dark mode, mirrored for Shadow DOM ─────────────────────────────────────
+ * ui-controller.js's applyDarkMode() swaps the --alc-* custom properties on
+ * the real document :root, which is enough on its own for anything below
+ * that already reads a token via var(--alc-*) — custom properties inherit
+ * through a shadow boundary the same as anywhere else. The rules below are
+ * the ones that never went through a token in the first place (bespoke
+ * dark-mode values, not simply "the accent colour") and used to be applied
+ * as direct #id/.class overrides from a <style> in document.head — which
+ * only ever reached the light DOM. Now that every element these select
+ * lives inside a shadow root, a light-DOM override can no longer reach any
+ * of them at all, so the same rules are mirrored here, gated on the host
+ * element's own data-sra-dark attribute via :host() rather than a
+ * document-level selector: :host-context() would do the equivalent lookup
+ * in one rule, but Firefox has never implemented it, and this is the one
+ * piece of Shadow DOM CSS in this file that has to work on both targets.
+ * shadow-host.js's setDarkMode()/createShadowHost() are what keep
+ * data-sra-dark in sync on every host element, including ones created
+ * after the reader toggles the setting mid-session. Values are copied
+ * verbatim from applyDarkMode()'s own block — this is not a redesign. */
+:host([data-sra-dark]) .sra-btn-primary { color: #10221B !important; }
+:host([data-sra-dark]) .sra-q-option    { background: rgba(255,255,255,0.045) !important; }
+:host([data-sra-dark]) .sra-word-bubble { background: rgba(14,17,15,0.96) !important; }
+:host([data-sra-dark]) #sra-reading-map { background: rgba(18,22,20,0.97) !important; border-color: rgba(126,96,174,0.12) !important; }
+:host([data-sra-dark]) .sra-map-header  { color: #6B6862 !important; border-color: rgba(126,96,174,0.1) !important; }
+:host([data-sra-dark]) .sra-map-heading { color: #b8b8b2 !important; }
+:host([data-sra-dark]) .sra-map-heading:hover   { background: rgba(126,96,174,0.07) !important; }
+:host([data-sra-dark]) .sra-map-heading.current { color: #C3ABE8 !important; border-left-color: #C3ABE8 !important; }
+:host([data-sra-dark]) .sra-map-event       { color: #888 !important; }
+:host([data-sra-dark]) .sra-map-events-label{ color: #555 !important; }
+:host([data-sra-dark]) .sra-map-divider     { background: rgba(126,96,174,0.1) !important; }
+:host([data-sra-dark]) .sra-map-progress-bar{ background: rgba(126,96,174,0.12) !important; }
+:host([data-sra-dark]) #sra-color-picker { background: #1e2422 !important; border-color: rgba(255,255,255,0.08) !important; }

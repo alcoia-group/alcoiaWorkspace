@@ -1,0 +1,164 @@
+/* Vendored from the alcoia browser extension (alcoia/src/shared/config.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* config.js — the one place the backend origin is defined.
+ *
+ * Loaded as a plain classic script (not an ES module) into all three
+ * contexts that used to hardcode this separately: the content script
+ * (manifests/base.json content_scripts.js, listed before content.js),
+ * the background service worker (background.js, via importScripts on
+ * Chrome; manifests/firefox.json's background.scripts array on Firefox),
+ * and the popup (popup.html, before popup.js). Every context shares a
+ * `self` — window in the popup and content script, WorkerGlobalScope in
+ * the Chrome service worker — so attaching to `self` reaches all three
+ * without needing a module system any of them actually has.
+ *
+ * BACKEND_ORIGIN is the real production origin: https://server.alcoia.app.
+ *
+ * A developer running a local backend does not need to edit this file or
+ * the manifest: open the popup's Settings and set "Backend URL" (stored as
+ * sra_backend_url), which overrides this default at runtime. See
+ * README.md's "Running the Backend Server" section.
+ *
+ * Item S3 (magic-link sign-in) is the one exception to "no edit needed" —
+ * WEB_APP_ORIGIN below feeds a runtime origin check in background.js, but
+ * it also has to exactly match a SEPARATE, static value in
+ * manifests/base.json's `externally_connectable.matches` (JSON, cannot
+ * import this file, cannot be overridden at runtime the way Backend URL
+ * can) — see build.mjs's own comment on that manifest entry for the full
+ * reasoning. A developer testing sign-in locally against a differently-
+ * ported alcoiaWeb needs to edit BOTH this constant AND that manifest
+ * entry, by hand, together.
+ */
+(function (root) {
+  const BACKEND_ORIGIN = (root.__ALCOIA_PLATFORM__ && root.__ALCOIA_PLATFORM__.backendOrigin) || 'https://server.alcoia.app';
+
+  // The marketing site origin. Must match manifests/base.json's
+  // externally_connectable.matches entry — see build.mjs for details.
+  const WEB_APP_ORIGIN = 'https://alcoia.app';
+
+  root.ALCOIA_CONFIG = Object.freeze({
+    BACKEND_ORIGIN: BACKEND_ORIGIN,
+    SUMMARIZE_URL: BACKEND_ORIGIN + '/api/summarize',
+    // Issues the opaque per-install token every AI call must carry. See
+    // src/shared/install-token.js and CLAUDE.md's Access control section.
+    TOKEN_URL: BACKEND_ORIGIN + '/api/token',
+    // Item S3 — see src/shared/session.js and background.js's
+    // onMessageExternal listener.
+    WEB_APP_ORIGIN: WEB_APP_ORIGIN,
+    // ASSUMED path — SERVER-ARCHITECTURE.md §4 does not name the
+    // magic-link REQUEST endpoint, only the exchange one below. Modelled on
+    // the existing /api/token, /api/summarize naming. Confirm against the
+    // real alcoiaServer route before relying on it in production.
+    MAGIC_LINK_REQUEST_URL: BACKEND_ORIGIN + '/api/auth/magic-link',
+    // Named explicitly in SERVER-ARCHITECTURE.md §4: "POST
+    // /api/auth/extension-session/exchange is the only thing that turns a
+    // code into an actual extension session."
+    EXTENSION_SESSION_EXCHANGE_URL: BACKEND_ORIGIN + '/api/auth/extension-session/exchange',
+    // Mirrors src/shared/session.js's own STORAGE_KEY export — duplicated
+    // here (not imported; see that file's header) so background.js, which
+    // cannot import an ES module, still reads the same literal every other
+    // context does. If you change one, change both.
+    SESSION_STORAGE_KEY: 'sra_session',
+    // Item E1 — src/shared/entitlements.js. Named explicitly in
+    // SERVER-ARCHITECTURE.md §4: "GET /api/entitlements returns
+    // { tier, features[], expires }."
+    ENTITLEMENTS_URL: BACKEND_ORIGIN + '/api/entitlements',
+    // Item E3 — src/shared/billing.js. Both confirmed by reading
+    // alcoiaServer's src/http/routes/billing.js directly, not assumed:
+    // POST here with { plan: 'reader' | 'student' } -> { checkout_url };
+    // GET the portal one -> { portal_url }.
+    BILLING_CHECKOUT_URL: BACKEND_ORIGIN + '/api/billing/checkout',
+    BILLING_PORTAL_URL: BACKEND_ORIGIN + '/api/billing/portal',
+    // Item S6 — src/shared/invites.js. Both confirmed by reading
+    // alcoiaServer's src/http/routes/invites.js and seats.js directly:
+    // POST invites/accept with { token } -> { classId, seatId, role };
+    // POST seats/:id/release -> { released: true }. SEATS_URL is a base —
+    // invites.js appends "/:id/release" itself.
+    // Account-based learning (private learner memory): GET the state, POST
+    // {base}/enable ({ confirm: true, scopeVersion } where scopeVersion is
+    // echoed from the server's own GET answer) and {base}/disable, GET
+    // {base}/export, DELETE the base to delete the stored memory. The server
+    // is the only authority on consent; src/shared/learning-memory.js keeps
+    // no consent state of its own.
+    LEARNING_MEMORY_URL: BACKEND_ORIGIN + '/api/account/learning-memory',
+    // GET -> { documents: [{ kind, id, title, url_path, concepts: [{ label, description }] }] }. The account's own
+    // workspace documents and their ideas, for matching against the page on this device. Capability-gated by the server.
+    DOCUMENT_CONCEPTS_URL: BACKEND_ORIGIN + '/api/account/document-concepts',
+    INVITE_ACCEPT_URL: BACKEND_ORIGIN + '/api/invites/accept',
+    INVITE_PREVIEW_URL: BACKEND_ORIGIN + '/api/invites/preview',
+    SEATS_URL: BACKEND_ORIGIN + '/api/seats',
+    // LTI launch (item S6/E4 follow-up) — src/shared/invites.js's
+    // acknowledgeLtiDisclosure(). Confirmed by reading alcoiaServer's
+    // src/http/routes/lti.js directly: POST here with
+    // { acknowledged: true, ackCode } -> { sessionToken, kind: 'lti',
+    // classId, assignmentId, redirectTo }. No Authorization header — there
+    // is no session yet at this point in the flow; a successful ack is
+    // what MINTS one.
+    LTI_DISCLOSURE_ACK_URL: BACKEND_ORIGIN + '/api/lti/disclosure/ack',
+    // The page that receives the launch exchange and messages this
+    // extension is the marketing site's /lti/launch (alcoiaWeb), so the
+    // sender origin to trust is that site's, the same origin as
+    // WEB_APP_ORIGIN. (It used to be a `.invalid` placeholder, which no real
+    // launch page could ever match.) Chrome's own externally_connectable
+    // list in manifest.json still decides who may message at all.
+    LTI_READER_ORIGIN: WEB_APP_ORIGIN,
+    // Assignments entry point (S6/E4 follow-up) — src/shared/assignments.js
+    // and src/content/host.js's outcome reporting. Both confirmed by
+    // reading alcoiaServer's src/http/routes/assignments.js, documents.js
+    // and outcomes.js directly:
+    //   GET  /api/assignments/mine (NEW — no student-facing assignment
+    //     listing existed anywhere before this item, confirmed by
+    //     exhaustively grepping every registered route first) ->
+    //     { assignments: [{ assignmentId, classId, className, closesAt,
+    //     documents: [{ documentId, format, status }] }] }
+    //   GET  /api/documents/:id/download-url -> { url, expiresInSeconds }
+    //   POST /api/assignments/:id/outcomes { paragraph_index, struggled,
+    //     question_id, correct, confidence, reached } -> { recorded: true }
+    // DOCUMENTS_URL is a base — assignments.js appends "/:id/download-url"
+    // itself; ASSIGNMENTS_URL is a base — host.js appends
+    // "/:id/outcomes" itself.
+    ASSIGNMENTS_MINE_URL: BACKEND_ORIGIN + '/api/assignments/mine',
+    ASSIGNMENTS_URL: BACKEND_ORIGIN + '/api/assignments',
+    // Question levels the server can deliver (alcoiaServer: level-aware POST /api/questions, and POST
+    // /api/check-answer for the free-text levels). A server that does not know a level answers with recognition
+    // questions and says so (levelHonoured: false), which host.js records rather than hides, so an older server is safe.
+    QUESTION_LEVELS_SUPPORTED: ['recognition', 'free_recall', 'scenario', 'adversarial'],
+    // The learner's own adaptive profile, portable across devices (GET the derived adaptation, POST count deltas).
+    LEARNER_POLICY_PROFILE_URL: BACKEND_ORIGIN + '/api/learner-memory/policy-profile',
+    LEARNER_POLICY_EVENTS_URL: BACKEND_ORIGIN + '/api/learner-memory/policy-events',
+    // Evidence pool: anonymous daily counters. The server says whether it is on; nothing is sent while it is off.
+    POOL_STATUS_URL: BACKEND_ORIGIN + '/api/pool/status',
+    POOL_COUNTERS_URL: BACKEND_ORIGIN + '/api/pool/counters',
+    // The workspace app (workspace.alcoia.app, repo alcoiaAssignments). The
+    // popup asks the server for a one-time handoff code
+    // (POST ASSIGNMENTS_URL/:id/reader-handoff -> { code, expiresAt }) and
+    // opens READER_ORIGIN/a/<id>#c=<code>. The code travels in the URL
+    // FRAGMENT so it never reaches a server log or a Referer header. The
+    // content script also uses this origin to recognise a reader page.
+    READER_ORIGIN: (root.__ALCOIA_PLATFORM__ && root.__ALCOIA_PLATFORM__.readerOrigin) || 'https://workspace.alcoia.app',
+    DOCUMENTS_URL: BACKEND_ORIGIN + '/api/documents',
+    // Item DC-1a — src/shared/kinematics.js and host.js's submitKinematics.
+    // Confirmed by reading alcoiaServer's src/http/routes/scroll-sessions.js
+    // directly: POST here with { assignmentId, kinematics, collectionLabel? }
+    // -> { recorded: true }. Not nested under ASSIGNMENTS_URL like outcomes —
+    // this is a flat route with assignmentId as a body field, not a path param.
+    KINEMATICS_URL: BACKEND_ORIGIN + '/api/sessions/kinematics',
+    // Intelligence-architecture audit, step 7 (built) / step 10 (this
+    // value's own shape — context-scoped Knowledge State). src/shared/
+    // retention.js's getDue(). Confirmed by reading alcoiaServer's
+    // src/http/routes/knowledge-state.js directly: GET
+    // ASSIGNMENTS_URL + "/:assignmentId/knowledge-state/due"
+    // (Authorization: Bearer, participant-checked, scoped to the caller's
+    // own account AND this one assignment) -> { candidates: [{
+    // knowledgeUnitId, retentionStage, nextRetrievalAt }] }.
+    //
+    // STEP 10 CORRECTION: was a flat KNOWLEDGE_STATE_DUE_URL constant, on
+    // the reasoning that "Knowledge State has no assignment_id column, so
+    // there is nothing to nest this under" — true when this was written,
+    // no longer true. Knowledge State is now scoped by
+    // (account_id, assignment_id, knowledge_unit_id), and the due-list
+    // route moved under ASSIGNMENTS_URL to match, exactly like outcomes'
+    // own "/:id/outcomes" append shown above. No separate constant here
+    // any more — host.js builds the per-assignment URL itself, the same
+    // way it already builds interventionsUrl.
+  });
+})(typeof self !== 'undefined' ? self : this);

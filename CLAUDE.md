@@ -12,8 +12,9 @@ it describes what exists, not what is intended.
 
 `workspace.alcoia.app` (**the workspace**, formerly `assignments.alcoia.app` / "alcoia assignments", then briefly `reader.alcoia.app`): the web app general users, students first, use. It replaces the extension's built-in PDF viewer
 for instructor-assigned readings. Planned shape: a student opens `/a/<assignmentId>`, the server checks
-session + class membership, the document is shown as a real web page, and the alcoia extension runs on
-it like on any article. Outcomes flow to the same `POST /api/assignments/:id/outcomes` and land in the
+session + class membership, the document is shown as a real web page, and the workspace runs the alcoia
+extension's own detection code on it (see "Reading detection without the extension" below), so no install is
+needed; with the extension installed, the extension steps back on these pages. Outcomes flow to the same `POST /api/assignments/:id/outcomes` and land in the
 console. Two entry points, one assignment: a direct link / invite (no LMS), or an LTI launch.
 
 **Why the name changed:** this is the interface every general user will use. Besides assigned readings it lets users with a Reader or Student plan **upload their own documents** (`/files`), practise in **Exam Mode** (`/exam`) and see **learner analytics** (`/analytics`); each is described in a section below. It is called the workspace, not the reader, so it is not confused with the Reader *plan*. Routes (`/a/:id`, `/assignments`, `/invite/accept`, `/lti/join`) were deliberately not renamed: the extension and sent invite links depend on them. The magic-link request sends `app: 'workspace'` (the server still accepts `'reader'` and `'assignments'`). The repository name is unchanged for now.
@@ -153,7 +154,7 @@ Commits/pushes only when the owner directs it in that session.
 
 ## My files and personal-file Exam Mode
 
-`/files` (`FilesPage`, `src/lib/personalDocuments.js`): the user's own PDF, Word and PowerPoint files. Upload by picker or drag-and-drop (raw bytes with progress, `apiUploadWithProgress`), usage bar against the quota the server reports (250 MB to start), delete with an inline confirm. `/f/:id` (`PersonalFilePage`) shows a file with the same viewers as an assigned reading; the viewers take `asset={{ personalId }}` instead of `assignmentId` (`assetBase()` in `lib/assets.js` builds `/api/personal-documents/<id>` or `/api/assignments/<id>`). Exam Mode lists accepted files beside assigned readings and sends `personalDocumentIds` (up to six sources in all). **The server decides everything** (plan: `canUpload` / 403 `capability_required` on upload only, quota 413, ownership 404, per-file ceiling 413 `file_too_large`); a free user sees the plan notice and can still open and delete files. Practice on a personal file is not added to learning memory (memory is keyed by assignment). Personal-file pages are ordinary pages to the alcoia extension (it only treats `/a/<id>` as a class reading, so no outcomes are reported). **Verified:** build and lint clean; My files page in a real browser with the API mocked (list, usage, delete confirm, no horizontal scroll at 375 px). **Not verified:** uploads or the viewers against a real server, Exam Mode with a file, the extension on `/f/:id`.
+`/files` (`FilesPage`, `src/lib/personalDocuments.js`): the user's own PDF, Word and PowerPoint files. Upload by picker or drag-and-drop (raw bytes with progress, `apiUploadWithProgress`), usage bar against the quota the server reports (250 MB to start), delete with an inline confirm. `/f/:id` (`PersonalFilePage`) shows a file with the same viewers as an assigned reading; the viewers take `asset={{ personalId }}` instead of `assignmentId` (`assetBase()` in `lib/assets.js` builds `/api/personal-documents/<id>` or `/api/assignments/<id>`). Exam Mode lists accepted files beside assigned readings and sends `personalDocumentIds` (up to six sources in all). **The server decides everything** (plan: `canUpload` / 403 `capability_required` on upload only, quota 413, ownership 404, per-file ceiling 413 `file_too_large`); a free user sees the plan notice and can still open and delete files. Practice on a personal file is not added to learning memory (memory is keyed by assignment). Personal-file pages run the workspace's own detection without an assignment (questions and explanations, no class reporting; see below). **Verified:** build and lint clean; My files page in a real browser with the API mocked (list, usage, delete confirm, no horizontal scroll at 375 px). **Not verified:** uploads or the viewers against a real server, Exam Mode with a file, the extension on `/f/:id`.
 
 ## Before you read (map and warm-up)
 
@@ -201,10 +202,54 @@ Visible text says "Material(s)" instead of "Assignment(s)" (routes and API uncha
 
 
 ## By subject: summary, full page, strengths and needs
-`/analytics` shows only a summary of the learner's ideas (counts per level as links, the five that most need a look, and "See all N ideas"). The full list is `/analytics/subjects` (`SubjectsPage`): level filter chips (the level is kept in the URL, `?level=needs_help`), search by name, rows collapsed until opened (`SubjectRow`, a `<details>`), 20 at a time with "Show more". "By document" shows five and a "Show all" button. Each idea also carries `strongAt` and `needsWorkAt` from the server (kinds of evidence that came out positive or negative: understanding, recall, using it in new situations, remembering later). There is no "efficient" or speed reading: the server holds no reading-speed data, so the page never claims one. Wording lives in `src/lib/subjects.js`. **Verified** in headless Chromium with the API mocked: 18 ideas at 1100 and 375 px, filter, search, expand, no horizontal scroll. Not against a deployed server. No test runner exists here and none was added.
+`/analytics` shows only a summary of the learner's ideas (counts per level as links, the five that most need a look, and "See all N ideas"). The full list is `/analytics/subjects` (`SubjectsPage`): level filter chips (the level is kept in the URL, `?level=needs_help`), search by name, rows collapsed until opened (`SubjectRow`, a `<details>`), 20 at a time with "Show more". "By document" shows five and a "Show all" button. Each idea also carries `strongAt` and `needsWorkAt` from the server (kinds of evidence that came out positive or negative: understanding, recall, using it in new situations, remembering later). There is no "efficient" or speed reading per idea: the server keeps only the reader's usual overall reading speed (for detection), so the page never claims one. Wording lives in `src/lib/subjects.js`. **Verified** in headless Chromium with the API mocked: 18 ideas at 1100 and 375 px, filter, search, expand, no horizontal scroll. Not against a deployed server. No test runner exists here and none was added.
 
 ## Your own files: ideas
 `/analytics` shows "Your own files" (`personalFiles` from the learner-analytics response): each uploaded file with the ideas the server found in it and the learner's level on each. The server builds the index asynchronously (`crossdoc:index`), so a new file has no ideas listed at first. Exam Mode on a file now feeds the learner's private concept memory (the server decides, and only with learner memory on). Verified by lint and build only.
 
 ## Connections
 `components/Connections.jsx`, `lib/connections.js`, shown under the viewer on `/a/:id` (assigned readings only). It calls `GET /api/assignments/:id/cross-document-connections` and lists the other readings the server says share ideas with this one ("Also in <title>", a full-page link to `/a/<id>`, up to three shared ideas). Any non-200 (a free account gets 403), an unindexed reading or an empty list renders nothing. The server decides plan and access. Verified in a real browser with the API mocked (connection shown with its link, 403 and empty show nothing); not against a server with a real index, which needs `npm run crossdoc:index` there.
+
+
+## Reading detection without the extension (October 2026)
+
+The workspace runs the alcoia extension's own detection code on `/a/:id` (assigned readings) and `/f/:id` (the
+user's own files), so a student needs no install. The extension stays for reading elsewhere. Same email, same
+account, same learner data and settings everywhere. **The owner holds copyright in both this repository and the
+extension (alcoia-group/alcoia); the vendored files are copied, not licensed in.**
+
+- **Vendored, not rewritten.** `scripts/sync-detection.mjs` copies `../alcoia/alcoia/src` (`content/` except
+  `content.js`, `shared/`, `styles/`, `libs/fonts/`, `libs/wordfreq/common-words.js`) into `public/detection/src/`
+  with each `.js` file headed by its source path and commit; `public/detection/SOURCE.txt` records the commit. Only
+  `shared/config.js` changes: the server and workspace origins are read from `self.__ALCOIA_PLATFORM__`. Do not edit
+  `public/detection` by hand; change the extension and run `node scripts/sync-detection.mjs` again. Served as static
+  files (about 1.6 MB, loaded only on reading pages), so the extension's own loader (`import()` of
+  `src/content/host.js` and so on) works unchanged; oxlint ignores the folder (`.oxlintrc.json`).
+- **Platform adapter** (`src/detection/platform.js`): the `chrome` surface the modules use, on a web page.
+  `chrome.storage.local` is localStorage under `alcoia_detection_` (the key `sra_session` is virtual and reads the
+  workspace session); `runtime.getURL` points at `/detection/`; `runtime.sendMessage` does the background script's
+  jobs with a direct `fetch`: `apiPost`/`summarize` send the session as `Authorization: Bearer` (the server accepts a
+  session on `/api/questions`, `/api/summarize`, `/api/check-answer`), `proxyFetch` passes requests through (the
+  install-token request is answered locally with a placeholder; the anonymous pool status answers "off", since pool
+  counters are tied to an install, not an account).
+- **Boot** (`src/detection/boot.js`, `src/detection/Detection.jsx`, mounted next to the viewer): mirrors only the
+  detection part of the extension's `content.js`: overlay styles, ui controller, host, orchestrator, settings,
+  Escape and Alt+C. Not here: colour highlights (the workspace has its own marks), receipts, the reading map, test
+  shortcuts. PDFs are read through the extension's `reader-blocks.js` (pdf.js text layer). With an assignment:
+  outcomes, interventions, review due-list, learner estimates, teaching focus, exposure and kinematics are reported
+  for it, as the extension does on `/a/<id>`. Without (personal file): questions, explanations and the policy profile
+  only.
+- **Settings follow the account.** On each reading page load the extension's `shared/account-sync.js` pulls
+  `GET /api/account/settings` and `GET /api/account/reading-baseline` into the adapter's storage and sends local
+  changes back. `/settings` (`SettingsPage`, `src/lib/settings.js`) edits the same eleven settings on the account
+  (three of them, explain on highlight, colour highlights and document links, only apply in the extension) and has
+  the account-based learning card (`/api/account/learning-memory`, on/off; deleting memory stays in the console).
+- **One detector per page.** `index.html` carries `<meta name="alcoia-detection" content="workspace">`; on the
+  workspace origin the extension's content script then does nothing.
+- **Verified:** lint (one pre-existing warning) and build clean; headless Chromium against a production build with
+  the API mocked: on `/a/:id` reading with a scroll-back made a real question card appear (the extension's own card
+  and styles), `/api/questions` went out with `Authorization: Bearer` and no install token, an intervention and
+  struggle outcomes were posted for the assignment; on `/f/:id` a card appeared and nothing was reported against a
+  class; `/settings` saved a change with one `PUT` and has no horizontal scroll at 1280 px. **Not verified:** a real
+  server or model, `vite dev` (only the built app), the extension and workspace loaded together in a real browser
+  (the step-back is unit-tested in the extension), Safari and Firefox, touch devices.

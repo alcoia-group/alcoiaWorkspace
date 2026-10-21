@@ -1,0 +1,1977 @@
+/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* host.js — the orchestrator's host, extracted from content.js (item 30a)
+ *
+ * orchestrator.js depends on a `host` object with callbacks
+ * (onIntervention, onParagraphRead, onQuizOfferEligible, onStruggle,
+ * setCogState, setCurrentParagraph, setPrevParagraphText, getCurrentParagraph,
+ * findParagraphAt, sessionTracker, log) plus a separate
+ * `comprehensionMonitor` constructor argument. Those used to live inline in
+ * content.js — a content script, which Chrome never injects into a
+ * chrome-extension:// page, so the PDF/PPTX viewers (item 30c) could not
+ * construct one. This module is importable from either context.
+ *
+ * See CLAUDE.md's "Extracting the host from content.js (item 30a)" section
+ * for the full inventory of what moved here, what stayed in content.js, and
+ * why — this header only summarises the two non-obvious design points:
+ *
+ * - Settings are read live through the injected `settings()` accessor,
+ *   never captured once, for the same reason content.js itself holds every
+ *   setting as a loose `let`: a captured copy goes stale the moment the
+ *   storage listener fires. This accessor's surface is deliberately small —
+ *   only what code in *this* module actually reads (`assistantEnabled`,
+ *   `backendUrl`). orchestrator.js has its own, separate `settings()`
+ *   accessor with a different surface, built and passed by the caller.
+ * - `orchestrator` does not exist yet when this module's `questionCard` (and
+ *   the `runQuiz`/`onAnswered`/`onDismissed` closures around it) are built —
+ *   `orchestrator` needs `host` first. `setOrchestrator()` resolves this the
+ *   same way content.js always has: a reference that starts `null` and is
+ *   set once, right after `createOrchestrator()` resolves. A reader cannot
+ *   answer a question before boot completes, so the closures below never
+ *   observe the `null` state in practice.
+ */
+
+import { t, uiLang, isRtl } from '../shared/i18n.js';
+
+const AI_CALL_BURST_LIMIT       = 6;        // calls
+const AI_CALL_BURST_WINDOW_MS   = 10_000;   // per 10s
+const AI_CALL_CEILING_LIMIT     = 30;       // calls
+const AI_CALL_CEILING_WINDOW_MS = 600_000;  // per 10 minutes
+
+const QUIZ_TARGET_COUNT  = 8;
+const QUIZ_MIN_QUESTIONS = 5;
+
+// Evidence-silo fix (intelligence-architecture audit, step 2). quiz.js runs
+// as a separate extension page/tab, not this content script, so it cannot
+// reach this file's in-memory `responseSignals` instance directly — there is
+// no shared JS realm between them. chrome.storage.local is the bridge,
+// mirroring the SAME handoff pattern sra_quiz_pending already uses in the
+// other direction (this file writes it, quiz.js reads it). The cap that
+// keeps sra_quiz_evidence bounded (count-based, never time-pruned — the same
+// shape session-tracker.js's own MAX_SESSIONS already uses for local reading
+// history in this codebase) lives in quiz.js, the writer — this file only
+// ever reads, never trims, so there is nothing to bound here.
+
+export async function createHost(deps) {
+  const {
+    loadModule,
+    ui,      // already-constructed ui-controller.js instance — shared, not built here
+    esc,     // from ui-controller.js's own exports
+    log,     // content.js's _log
+    warn,    // content.js's _warn
+    settings, // () => { assistantEnabled, backendUrl, showInterventions }
+    // Item S6/E4 follow-up. Both undefined/null for EVERY caller except
+    // reading-bridge.js opening a document from the Assignments entry
+    // point — content.js (every ordinary web page) never passes either,
+    // so submitOutcome below stays a no-op there, unchanged from before
+    // this item existed. assignmentId is the whole reading session's
+    // context, established once at construction — not per-signal.
+    assignmentId = null,
+    getSession = null,
+    // Item DC-2's passive prerequisite-gap flag. Defaults to reporting
+    // "unknown" (undefined), not false — a caller that never passed this
+    // dependency at all (every caller before this item existed) has not
+    // established that no explanation ever happened, only that it never
+    // asked. outcomes.js already treats undefined as "field fully absent",
+    // the same three-way shape `correct`/`substate` already use, so an
+    // existing outcome body is byte-for-byte unchanged until a real
+    // tracker (content.js's selection-explain.js) is actually wired in.
+    // Optional extra tracker (content.js's selection-explain). host.js now tracks assistance itself at its
+    // own fetchSummary chokepoint (see assistedKeys below), so the absence of this dependency no longer means
+    // "unknown": every explanation surface in this host goes through that chokepoint.
+    wasParagraphExplained = () => false,
+    // Ordinary pages only: called with the list of the reader's own workspace documents that the ideas on this page
+    // connect to (possibly empty). The caller shows it quietly (reading map entry and badge), never as a card.
+    onConnections = null,
+  } = deps;
+
+  const s = () => settings() || {};
+  const BACKEND_DEFAULT = self.ALCOIA_CONFIG.SUMMARIZE_URL;
+
+  // ── Outcome reporting (item S6/E4 follow-up) ────────────────────────────
+  // The SAME detection pipeline as ordinary reading, now also reporting
+  // outward — no new gate here. Whatever already decided a struggle signal
+  // or a question should fire (state-engine.js's transitions, intervention-
+  // policy.js's per-paragraph budget, the coverage gate governing the
+  // quiz/session-recall paths) is unchanged by this item; submitOutcome()
+  // is purely a tap on signals that already passed through them, not a
+  // second gate of its own. Fire-and-forget, one POST per discrete signal,
+  // no batching — see outcomes.js's own header for the full reasoning on
+  // that choice, made explicitly rather than guessed through.
+  // ── Learner estimates (Stage B) ───────────────────────────────────────────
+  // knowledgeUnitId -> { level, confidence, action, kind, reason } as last stated by the server. Read by
+  // learnerEstimateFor() below, which orchestrator.js passes to the intervention policy. Never persisted.
+  const learnerEstimates = new Map();
+  function noteLearnerEstimate(e) {
+    if (!e || typeof e.knowledgeUnitId !== 'string' || !e.knowledgeUnitId) return;
+    if (e.action !== 'abstain' && e.action !== 'gather' && e.action !== 'intervene') return;
+    learnerEstimates.set(e.knowledgeUnitId, {
+      level: e.level, confidence: e.confidence, action: e.action, kind: e.kind, reason: e.reason,
+      // What the learner has shown on the CONCEPT this paragraph belongs to, across every reading (labels only).
+      ...(e.light === true ? { light: true } : {}),
+      ...(e.concept && typeof e.concept === 'object' ? { concept: e.concept } : {}),
+    });
+  }
+  let submitOutcome = () => {};
+  if (assignmentId && getSession) {
+    // Routes through background.js instead of fetching directly — a
+    // content-script fetch to server.alcoia.app carries the host page's
+    // origin, which the server's CORS response rejects (see
+    // src/shared/proxy-fetch.js's own header). outcomes.js's own code is
+    // unchanged; only what it's given as fetchImpl differs.
+    const proxyFetchModule = await loadModule('src/shared/proxy-fetch.js');
+    const outcomesModule = await loadModule('src/shared/outcomes.js');
+    const outcomesManager = outcomesModule.createOutcomesManager({
+      getSession,
+      outcomesUrl: `${self.ALCOIA_CONFIG.ASSIGNMENTS_URL}/${encodeURIComponent(assignmentId)}/outcomes`,
+      fetchImpl: proxyFetchModule.backgroundFetchImpl,
+    });
+    submitOutcome = (fields) => {
+      // A session-recall review question (host.js's runSessionRecall, not
+      // handleAsk) has no reliable numeric index — session-recall.js
+      // keys everything by truncated text, never an ordinal — so this
+      // guard is what keeps those answers from attempting (and always
+      // failing) a submission, rather than special-casing that call site.
+      if (!Number.isInteger(fields.paragraphIndex) || fields.paragraphIndex < 0) return;
+      // Stage B: new evidence for this unit is on its way, so the copy of its estimate (which was decided
+      // without it) is dropped now; the server's answer, when it carries one, replaces it. A failed or
+      // memory-off submission simply leaves the unit without an estimate, i.e. the normal behaviour.
+      if (fields.knowledgeUnitId && fields.questionId) learnerEstimates.delete(fields.knowledgeUnitId);
+      outcomesManager.submit(fields)
+        .then((r) => { if (r && r.learnerEstimate) noteLearnerEstimate(r.learnerEstimate); })
+        .catch(() => {});
+    };
+  }
+
+  // ── Scroll-kinematics reporting (item DC-1a) ────────────────────────────
+  // Identical gate to submitOutcome above, for the identical reason: the
+  // real server endpoint (confirmed by reading alcoiaServer's
+  // src/http/routes/scroll-sessions.js directly, not assumed) requires a
+  // real assignmentId and an active seat in that assignment's class — there
+  // is no server-side path for a general "any signed-in reader" corpus, so
+  // this stays a no-op for every ordinary content.js page exactly the way
+  // submitOutcome already does, unchanged from before this item. Called once
+  // per session, at unload (content.js's/viewer.js's own beforeunload
+  // handler), never mid-session — see kinematics.js's own header for why
+  // that specific moment needs keepalive:true, unlike submitOutcome's calls.
+  let submitKinematics = () => {};
+  if (assignmentId && getSession) {
+    // Same routing reason as submitOutcome above. Note: kinematics.js's own
+    // { keepalive: true } on its fetchImpl call is what mattered when this
+    // ran as a real content-script fetch at beforeunload; now that the
+    // actual network request happens inside background.js's own fetch()
+    // (a separate context, not tied to this tab's lifecycle), keepalive is
+    // inert there but harmless — the property this call still depends on,
+    // chrome.runtime.sendMessage() being dispatched before the page
+    // unloads, holds the same way it does for every other message this
+    // content script already sends unconditionally at unload.
+    const proxyFetchModule = await loadModule('src/shared/proxy-fetch.js');
+    const kinematicsModule = await loadModule('src/shared/kinematics.js');
+    const kinematicsManager = kinematicsModule.createKinematicsManager({
+      getSession,
+      kinematicsUrl: self.ALCOIA_CONFIG.KINEMATICS_URL,
+      fetchImpl: proxyFetchModule.backgroundFetchImpl,
+    });
+    submitKinematics = (kinematics) => {
+      kinematicsManager.submit({ assignmentId, kinematics }).catch(() => {});
+    };
+  }
+
+  // ── Explanation-event reporting (item DC-2 follow-up) ───────────────────
+  // Identical gate to submitOutcome/submitKinematics above, for the
+  // identical reason (confirmed by reading alcoiaServer's
+  // src/http/routes/explanation-events.js directly): the real endpoint
+  // requires a real assignmentId and an active class seat, so this stays a
+  // no-op for every ordinary content.js page. Fires mid-session, right
+  // after an explanation is shown (content.js's own call site) — never at
+  // unload, so no keepalive needed, unlike submitKinematics.
+  let reportExplanationEvent = () => {};
+  if (assignmentId && getSession) {
+    // Same routing reason as submitOutcome above.
+    const proxyFetchModule = await loadModule('src/shared/proxy-fetch.js');
+    const explanationEventsModule = await loadModule('src/shared/explanation-events.js');
+    const explanationEventsManager = explanationEventsModule.createExplanationEventsManager({
+      getSession,
+      explanationEventsUrl: `${self.ALCOIA_CONFIG.ASSIGNMENTS_URL}/${encodeURIComponent(assignmentId)}/explanation-events`,
+      fetchImpl: proxyFetchModule.backgroundFetchImpl,
+    });
+    reportExplanationEvent = (selectionType, paragraphIndex) => {
+      explanationEventsManager.submit({ selectionType, paragraphIndex }).catch(() => {});
+    };
+  }
+
+  // ── Intervention reporting (intelligence-architecture audit, step 5) ────
+  // Identical gate to submitOutcome/reportExplanationEvent above, for the
+  // identical reason: the real endpoint (src/http/routes/interventions.js,
+  // alcoiaServer) requires a real assignmentId and an active class seat, so
+  // this stays a no-op for every ordinary content.js page — no intervention
+  // is ever recorded server-side for ordinary, non-assignment reading,
+  // exactly the same boundary submitOutcome already draws. Fires the moment
+  // a question-bearing intervention actually reaches the screen (handleAsk/
+  // runSessionRecall below), BEFORE any answer — see interventions.js's own
+  // header for why this has to be its own call, not folded into
+  // submitOutcome.
+  let reportIntervention = () => {};
+  if (assignmentId && getSession) {
+    // Same routing reason as submitOutcome above.
+    const proxyFetchModule = await loadModule('src/shared/proxy-fetch.js');
+    const interventionsModule = await loadModule('src/shared/interventions.js');
+    const interventionsManager = interventionsModule.createInterventionsManager({
+      getSession,
+      interventionsUrl: `${self.ALCOIA_CONFIG.ASSIGNMENTS_URL}/${encodeURIComponent(assignmentId)}/interventions`,
+      fetchImpl: proxyFetchModule.backgroundFetchImpl,
+    });
+    // `text` (step 19): the exact bounded passage this intervention's own
+    // identity/knowledgeUnitId was already computed from, at each call
+    // site below — never re-fetched, never more than the one paragraph
+    // already in hand. Optional, the same as every parameter above it —
+    // see interventions.js's own header for the full reasoning.
+    reportIntervention = (interventionId, knowledgeUnitId, paragraphIndex, type, text, policyAction) => {
+      if (!interventionId) return;
+      interventionsManager.submit({ interventionId, knowledgeUnitId, paragraphIndex, type, text, policyAction }).catch(() => {});
+    };
+  }
+
+  let lastNormalCardAt = 0; // when a help / retention / focus card last appeared; read by the quick-check logic
+  // Any intervention reported (a question, an explanation, a review) means the reader has just had help or been
+  // checked, so the scheduled quick-check window restarts (probeCovered is defined with the probe below).
+  {
+    const baseReport = reportIntervention;
+    reportIntervention = (...args) => {
+      // args[3] is the intervention type. Anything but a scheduled quick check is a "normal" card: note when it
+      // appeared so a quick check keeps clear of it (see PROBE_QUIET_MS).
+      try { if (args[3] !== 'probe' && args[3] !== 'return_check') lastNormalCardAt = Date.now(); probeCovered(); } catch (e) { /* defined later; never blocks reporting */ }
+      // The card's kind, for this learner's own profile and the local log. args[6] names a kind the wire type cannot
+      // (a 'focus' card is an ordinary 'ask' on the wire).
+      try { noteCardShown(args[0], args[6] || (args[3] === 'ask' ? (args[5] === 'repair' ? 'repair' : args[5] === 'explain' ? 'explain' : 'ask') : args[3])); } catch (e) { /* never blocks reporting */ }
+      return baseReport(...args);
+    };
+  }
+
+  // ── Retention due-list (intelligence-architecture audit, step 7 built,
+  // step 10 context-scoped, step 27 refreshed) ───────────────────────────
+  // Same account-only gate as every reporting manager above -- there is no
+  // "account session without an assignment" path in this extension today,
+  // so this reuses that exact boundary rather than inventing a new one.
+  // Keyed by knowledgeUnitId so checkRetentionCandidate (below, near
+  // handleAsk) can do a cheap Map lookup per paragraph read, rather than a
+  // linear scan.
+  //
+  // STEP 10: dueUrl is built per-assignment, the same way
+  // interventionsUrl/explanationEventsUrl already are above, not a flat
+  // config constant -- Knowledge State (and its due-list route) is scoped
+  // by (account, assignment, knowledge unit), so a due candidate fetched
+  // here is only ever due WITHIN this one assignmentId, never blended with
+  // any other assignment the same account may have used the same content
+  // in.
+  //
+  // STEP 27: a genuine mid-session staleness gap, found by investigation,
+  // not assumed. retention.js's own header (pre-step-27) disclosed this due
+  // list was "fetched ONCE... never re-fetched mid-session... a knowledge
+  // unit that becomes due after this call simply isn't picked up until the
+  // next session." That is real staleness, not a hypothetical: retention
+  // intervals are measured in whole DAYS (RETENTION_INTERVAL_DAYS,
+  // alcoiaServer), but a single reading session on one long document (a
+  // multi-page PDF through reading-bridge.js, or a long SPA-style article)
+  // can itself run long enough for a knowledge unit to cross from "not yet
+  // due" to "due" purely from wall-clock time passing, with no outcome of
+  // this session's own causing it. Fixed with the smallest additive
+  // change: refreshRetentionDue() below is the exact same fetch this block
+  // already made once, now also run on a periodic timer. No second
+  // retention store, no second scheduler, no change to the server contract
+  // or to evaluateRetentionCandidate() itself -- a refresh only ever
+  // updates this Map's data; the only place that ever turns a due entry
+  // into an actual interruption is still checkRetentionCandidate(), via
+  // the same policy gate as before.
+  //
+  // presentedRetentionUnits guards the one real race a periodic refresh
+  // introduces: advanceRetentionSchedule() only runs once the LEARNER'S
+  // OUTCOME for a presented retention item is submitted and graded
+  // server-side, which can be well after checkRetentionCandidate() already
+  // presented it (the reader is still looking at the card, or hasn't
+  // answered yet) -- until that outcome lands, the server's own
+  // next_retrieval_at for that knowledge unit is still in the past, so a
+  // refresh in that window would see it as "still due" and would otherwise
+  // resurrect it into dueKnowledgeUnits, undoing checkRetentionCandidate's
+  // own belt-and-suspenders delete (below) and risking a second retention
+  // ask for the same knowledge unit at a different paragraph position
+  // while the first is still pending. This Set, not the Map, is what
+  // actually has to survive a refresh for that guarantee to hold.
+  const RETENTION_DUE_REFRESH_MS = 600_000; // 10 minutes -- see comment above: ample resolution against a day-scale schedule, not "continuous polling".
+  const dueKnowledgeUnits = new Map();
+  const presentedRetentionUnits = new Set();
+  let retentionManager = null;
+  // Deliberately NO assistantEnabled check in here -- this function is also
+  // the original one-time construction-time fetch (unchanged from before
+  // this item), which has never gated on assistantEnabled: a reader who
+  // starts a session with the assistant off but switches it on mid-session
+  // (settings are read live, s() above) should find dueKnowledgeUnits
+  // already populated the moment checkRetentionCandidate starts being
+  // reachable, not empty until some later refresh tick happens to run. The
+  // periodic timer below applies its own assistantEnabled check instead,
+  // purely to skip a pointless network call per tick while disabled.
+  async function refreshRetentionDue() {
+    if (!retentionManager) return;
+    try {
+      const result = await retentionManager.getDue();
+      if (!result.ok) return;
+      for (const c of result.candidates) {
+        if (!c || typeof c.knowledgeUnitId !== 'string' || !c.knowledgeUnitId) continue;
+        if (presentedRetentionUnits.has(c.knowledgeUnitId)) continue; // see presentedRetentionUnits comment above
+        dueKnowledgeUnits.set(c.knowledgeUnitId, { retentionStage: c.retentionStage, nextRetrievalAt: c.nextRetrievalAt });
+      }
+    } catch (e) {}
+  }
+  let learnerEstimatesManager = null;
+  async function refreshLearnerEstimates() {
+    if (!learnerEstimatesManager) return;
+    try {
+      const result = await learnerEstimatesManager.getEstimates();
+      if (!result.ok) return; // keep whatever we had; never invent an estimate
+      learnerEstimates.clear();
+      for (const e of result.estimates) noteLearnerEstimate(e);
+    } catch (e) {}
+  }
+  let retentionRefreshTimer = null;
+  if (assignmentId && getSession) {
+    // Same routing reason as submitOutcome above.
+    const proxyFetchModule = await loadModule('src/shared/proxy-fetch.js');
+    const retentionModule = await loadModule('src/shared/retention.js');
+    retentionManager = retentionModule.createRetentionManager({
+      getSession,
+      dueUrl: `${self.ALCOIA_CONFIG.ASSIGNMENTS_URL}/${encodeURIComponent(assignmentId)}/knowledge-state/due`,
+      fetchImpl: proxyFetchModule.backgroundFetchImpl,
+    });
+    await refreshRetentionDue(); // the original, one-time fetch this block always made, unconditional as before
+    // Stage B: the learner's estimates for this assignment, fetched with the same gate and on the same cadence.
+    const estimatesModule = await loadModule('src/shared/learner-estimates.js');
+    learnerEstimatesManager = estimatesModule.createLearnerEstimatesManager({
+      getSession,
+      estimatesUrl: `${self.ALCOIA_CONFIG.ASSIGNMENTS_URL}/${encodeURIComponent(assignmentId)}/knowledge-state/estimates`,
+      fetchImpl: proxyFetchModule.backgroundFetchImpl,
+    });
+    await refreshLearnerEstimates();
+    // Step 27: the periodic half. Not covered by installListeners()'s own
+    // AbortSignal (orchestrator.js's own idleTimer isn't either, for the
+    // identical reason stated there: "the content script lives as long as
+    // the page") -- stopRetentionRefresh is exposed below regardless, same
+    // "owned here, so the ability to stop it belongs here too, even though
+    // nothing calls it today" precedent orchestrator.js's own stop() sets.
+    retentionRefreshTimer = setInterval(() => {
+      if (!s().assistantEnabled) return; // mirrors checkRetentionCandidate's own first real check -- skip this tick's call, not the construction-time one above.
+      refreshRetentionDue();
+      refreshLearnerEstimates();
+    }, RETENTION_DUE_REFRESH_MS);
+  }
+  function stopRetentionRefresh() {
+    if (retentionRefreshTimer) clearInterval(retentionRefreshTimer);
+    retentionRefreshTimer = null;
+  }
+
+  // ── Teaching focus (instructor Teaching Intent, ASSIGNED readings only) ──
+  // Hashes of paragraphs the instructor marked important. Fetched once, and only when there is an
+  // assignment, so ordinary web pages never ask. It never creates a new kind of interruption:
+  // checkRetentionCandidate below applies it through the same policy, guard, cooldown and
+  // dismissal backoff as a due item, and skips it while the reader is struggling or drifting.
+  // unitId -> mode: 'normal' (a check), 'light' (one short check on an idea the learner knows but has not yet shown they
+  // retain), 'support' (an explanation first) or 'repair' (a direct correction). The server decides the mode from what
+  // THIS learner has shown on the concept across every reading; nothing here ever sees the instructor's wording.
+  const focusKnowledgeUnits = new Map();
+  let focusLevelBias = null; // 'recall' | 'application' | null, from the instructor's depth
+  if (assignmentId && getSession) {
+    const proxyFetchModule = await loadModule('src/shared/proxy-fetch.js');
+    const focusModule = await loadModule('src/shared/teaching-focus.js');
+    const focusManager = focusModule.createTeachingFocusManager({
+      getSession,
+      focusUrl: `${self.ALCOIA_CONFIG.ASSIGNMENTS_URL}/${encodeURIComponent(assignmentId)}/teaching-focus`,
+      fetchImpl: proxyFetchModule.backgroundFetchImpl,
+    });
+    try {
+      const result = await focusManager.getFocus();
+      if (result.ok) {
+        for (const u of result.units) focusKnowledgeUnits.set(u.unitId, u.mode);
+        focusLevelBias = result.levelBias || null;
+      }
+    } catch (e) {}
+  }
+
+  // ── Exposure (ASSIGNED readings only) ────────────────────────────────────────────────────────────────────
+  // Which ideas the reader has MET is learned from ordinary reading, not only from questions: each paragraph the reader
+  // actually read is reported once per page load, as its content-hash id, in small batches. The server turns that into
+  // one encounter per idea and keeps no per-paragraph or per-time record. Needs an account with learner memory on.
+  let exposureReporter = null;
+  if (assignmentId && getSession) {
+    try {
+      const proxyFetchModule = await loadModule('src/shared/proxy-fetch.js');
+      const exposureModule = await loadModule('src/shared/exposure.js');
+      exposureReporter = exposureModule.createExposureReporter({
+        getSession,
+        exposureUrl: `${self.ALCOIA_CONFIG.ASSIGNMENTS_URL}/${encodeURIComponent(assignmentId)}/exposure`,
+        fetchImpl: proxyFetchModule.backgroundFetchImpl,
+      });
+    } catch (e) { /* exposure is an enhancement */ }
+  }
+
+  const {
+    reservePopup, showPopup, closePopup, highlightElement,
+    showNudge, showSimulateToast, showStatusToast,
+  } = ui;
+
+  // ── AI-call infrastructure ────────────────────────────────────────────
+  const diagLogModule = await loadModule('src/shared/diag-log.js');
+  const diagLog = diagLogModule.createDiagLog();
+  const decisionLogModule = await loadModule('src/shared/decision-log.js');
+  const decisionLog = decisionLogModule.createDecisionLog();
+  // Ordinary web pages (no assignment): which ideas this reader grasps, kept on this device only. The module has no
+  // network code; see shared/device-concepts.js. Assigned readings use the account's server-side concept memory instead.
+  let deviceConcepts = null;
+  if (!assignmentId) {
+    try { deviceConcepts = (await loadModule('src/shared/device-concepts.js')).createDeviceConcepts(); deviceConcepts.load(); } catch (e) { deviceConcepts = null; }
+  }
+  // Connections to the reader's own workspace documents (ordinary pages only). Matching is done here, on this device,
+  // from the ideas device-concepts.js detected on this page; the only request is the account's own document idea list
+  // (see shared/document-connections.js). It never interrupts: it hands a list to onConnections and nothing else.
+  let documentConnections = null;
+  if (!assignmentId && onConnections) {
+    try {
+      const sessionModule = await loadModule('src/shared/session.js');
+      const entitlementsModule = await loadModule('src/shared/entitlements.js');
+      const proxyFetchModule = await loadModule('src/shared/proxy-fetch.js');
+      const connectionsModule = await loadModule('src/shared/document-connections.js');
+      const sessionManager = sessionModule.createSessionManager({ fetchImpl: proxyFetchModule.backgroundFetchImpl });
+      const entitlements = entitlementsModule.createEntitlementsManager({
+        getSession: sessionManager.getSession,
+        entitlementsUrl: self.ALCOIA_CONFIG.ENTITLEMENTS_URL,
+        fetchImpl: proxyFetchModule.backgroundFetchImpl,
+      });
+      documentConnections = connectionsModule.createDocumentConnections({
+        getSession: sessionManager.getSession,
+        hasFeature: entitlements.hasFeature,
+        fetchImpl: proxyFetchModule.backgroundFetchImpl,
+        url: self.ALCOIA_CONFIG.DOCUMENT_CONCEPTS_URL,
+        workspaceOrigin: self.ALCOIA_CONFIG.READER_ORIGIN,
+      });
+    } catch (e) { documentConnections = null; }
+  }
+  let lastConnectionsKey = '';
+  let lastConnectionsAt = 0;
+  let connectionsBusy = false;
+  const CONNECTIONS_MIN_GAP_MS = 15000;
+  async function checkConnections() {
+    if (!documentConnections || !deviceConcepts || !onConnections) return;
+    if (s().showConnections === false || !s().assistantEnabled) return;
+    if (connectionsBusy || Date.now() - lastConnectionsAt < CONNECTIONS_MIN_GAP_MS) return;
+    const ideas = deviceConcepts.pageIdeas();
+    if (!ideas.length) return;
+    const key = ideas.map((i) => i.key).sort().join('|');
+    if (key === lastConnectionsKey) return;
+    connectionsBusy = true;
+    lastConnectionsAt = Date.now();
+    try {
+      const list = await documentConnections.find(ideas);
+      lastConnectionsKey = key;
+      // A snooze keeps even this quiet entry away until it ends; the next new idea asks again.
+      if (list.length && await snoozeControl.isActive()) { lastConnectionsKey = ''; return; }
+      onConnections(list);
+    } finally { connectionsBusy = false; }
+  }
+
+  // The basis of the detection behind the most recently shown card, so a later dismissal or answer can be
+  // attributed to it. Short internal tags only, never content.
+  let lastShownBasis = null;
+
+  // ── Automatic-intervention concurrency guard (Step 12A) ─────────────────
+  // Shared between handleAsk() and checkRetentionCandidate() below — see
+  // automatic-intervention-guard.js's own header for why those two
+  // specifically need one shared lock. Session recall, quiz, and every
+  // manual fetchSummary call are reader-initiated and never acquire this.
+  const automaticInterventionGuardModule = await loadModule('src/content/automatic-intervention-guard.js');
+  const automaticInterventionGuard = automaticInterventionGuardModule.createAutomaticInterventionGuard();
+  const tokenUrl = () => {
+    try { return new URL('/api/token', s().backendUrl || BACKEND_DEFAULT).href; }
+    catch (e) { return self.ALCOIA_CONFIG.TOKEN_URL; }
+  };
+  // Item 43: callBackend()/installToken extracted to src/shared/backend-client.js
+  // so quiz.js (a normal extension page, not this content-script host) can
+  // reach the grading endpoint the same way, without duplicating the
+  // token/retry logic — see that file's own header.
+  const backendClientModule = await loadModule('src/shared/backend-client.js');
+  const { callBackend, installToken } = backendClientModule.createBackendClient({ getTokenUrl: tokenUrl, diagLog });
+
+  // ── The learner's own adaptive profile, the local log by card type, and the anonymous pool ─────────────────────
+  // What each kind of card (ask, explain, repair, retention, probe, return_check, focus, session_recall) did for THIS
+  // learner is counted and sent to their ACCOUNT (src/shared/policy-profile.js), so what the system learns about how
+  // they like to be helped follows them to any device and shapes the intervention policy (intervention-policy.js
+  // setAdaptation). Counts only: no page, text or time. The same events go into the local decision log with the card
+  // type, and, when the SERVER says the evidence pool is on, into anonymous daily counters (pool-counters.js).
+  const QUICK_DISMISS_MS = 4000;
+  const cardsShown = new Map(); // interventionId -> { type, at, state, basis }
+  let lastCardId = null;
+  let policyProfileManager = null;
+  let styleModule = null;
+  let poolReporter = null;
+  let adaptationTimer = null;
+  let visibilityHandler = null;
+  const profileRecord = (e) => { try { policyProfileManager?.record(e); } catch (err) {} };
+  const poolAdd = (metric, dimension) => { try { poolReporter?.add(metric, dimension, 1); } catch (err) {} };
+  function noteCardShown(interventionId, type) {
+    if (!interventionId || !type) return;
+    const card = { type, at: Date.now(), state: null, basis: null, logged: false };
+    cardsShown.set(interventionId, card);
+    if (cardsShown.size > 60) cardsShown.delete(cardsShown.keys().next().value);
+    lastCardId = interventionId;
+    profileRecord({ scope: 'card', key: type, shown: 1 });
+    poolAdd('card_shown', type);
+    // A detector-triggered card is logged once, by orchestrator.js's own 'shown' entry (which carries the detector's side),
+    // and gets its card type from here. Any other card (a review, a quick check, a focus card) has no such entry, so it is
+    // logged here once that has had its chance to arrive.
+    setTimeout(() => { if (!card.logged) { card.logged = true; try { decisionLog.record({ kind: 'shown', cardType: type }); } catch (err) {} } }, 0);
+  }
+  function noteCardAnswered(record) {
+    const c = cardsShown.get(record?.interventionId);
+    if (!c) return;
+    const correct = record.correct === true ? 1 : 0;
+    profileRecord({ scope: 'card', key: c.type, answered: 1, correct });
+    if (c.state) profileRecord({ scope: 'detector', key: `${c.state}:${c.basis ?? 'unknown'}`, answered: 1, correct });
+    poolAdd('card_answered', c.type);
+    cardsShown.delete(record.interventionId);
+    return c.type;
+  }
+  function noteCardDismissed(record) {
+    const c = cardsShown.get(record?.interventionId);
+    if (!c) return;
+    const quick = Date.now() - c.at < QUICK_DISMISS_MS ? 1 : 0;
+    profileRecord({ scope: 'card', key: c.type, dismissed: 1, quickDismissed: quick });
+    if (c.state) profileRecord({ scope: 'detector', key: `${c.state}:${c.basis ?? 'unknown'}`, dismissed: 1, quickDismissed: quick });
+    poolAdd('card_dismissed', c.type);
+    if (quick) poolAdd('card_quick_dismissed', c.type);
+    cardsShown.delete(record.interventionId);
+    return c.type;
+  }
+  // Called when a detector-triggered card has just been shown: ties it to the reading state that justified it.
+  function noteDetectorShown(state, basis) {
+    const c = cardsShown.get(lastCardId);
+    if (!c || !state) return;
+    c.state = state;
+    c.basis = basis ?? null;
+    profileRecord({ scope: 'detector', key: `${state}:${basis ?? 'unknown'}`, shown: 1 });
+  }
+  // The reader said they were struggling while the detector saw nothing: a missed detection (a proxy, not a measure).
+  function noteSelfReport(previousState) {
+    if (!previousState || ['on_pace', 'skimming', 'unknown'].includes(previousState)) profileRecord({ scope: 'detector', key: 'quiet', selfReports: 1 });
+  }
+  // WAYS OF EXPLAINING. Which style worked for this learner is learned from their own results: what they say ("Did this
+  // help?") and what happens next (a later question on the same passage, answered correctly or not). Counts go to their
+  // account profile and, anonymously, to the pool. Nothing is stored about the passage.
+  const styleFollow = new Map(); // paragraphKey -> 'mode:style' awaiting the next answered question on that passage
+  function pickExplanationStyle(mode) {
+    try {
+      const list = policyProfileManager?.getProfile?.().styles?.[mode];
+      return styleModule ? styleModule.chooseStyle(list) : null;
+    } catch (e) { return null; }
+  }
+  function noteStyleShown(mode, style, paragraphKey) {
+    const key = `${mode}:${style}`;
+    profileRecord({ scope: 'style', key, shown: 1 });
+    poolAdd('style_shown', key);
+    if (paragraphKey) {
+      styleFollow.set(paragraphKey, key);
+      if (styleFollow.size > 40) styleFollow.delete(styleFollow.keys().next().value);
+    }
+  }
+  function noteStyleFeedback(mode, style, helped) {
+    const key = `${mode}:${style}`;
+    profileRecord({ scope: 'style', key, [helped ? 'helped' : 'notHelped']: 1 });
+    poolAdd(helped ? 'style_helped' : 'style_not_helped', key);
+  }
+  function noteStyleFollowed(record) {
+    const key = record?.paragraphKey ? styleFollow.get(record.paragraphKey) : null;
+    if (!key) return;
+    styleFollow.delete(record.paragraphKey);
+    profileRecord({ scope: 'style', key, answered: 1, ...(record.correct === true ? { correct: 1 } : {}) });
+  }
+  // Generation that failed (a question, an explanation, a grading call), counted anonymously by kind.
+  function noteGenerationFailure(kind) { poolAdd('generation_failure', kind); }
+  try {
+    const sessionModule = await loadModule('src/shared/session.js');
+    const proxyFetchModule = await loadModule('src/shared/proxy-fetch.js');
+    const profileModule = await loadModule('src/shared/policy-profile.js');
+    const poolModule = await loadModule('src/shared/pool-counters.js');
+    styleModule = await loadModule('src/shared/explanation-style.js');
+    const profileGetSession = getSession || sessionModule.createSessionManager().getSession;
+    policyProfileManager = profileModule.createPolicyProfileManager({
+      getSession: profileGetSession,
+      profileUrl: self.ALCOIA_CONFIG.LEARNER_POLICY_PROFILE_URL,
+      eventsUrl: self.ALCOIA_CONFIG.LEARNER_POLICY_EVENTS_URL,
+      fetchImpl: proxyFetchModule.backgroundFetchImpl,
+      onChange: (p) => { try { orchestratorRef?.interventionPolicy.setAdaptation(p); } catch (err) {} },
+    });
+    poolReporter = poolModule.createPoolReporter({
+      callBackend,
+      fetchImpl: proxyFetchModule.backgroundFetchImpl,
+      statusUrl: self.ALCOIA_CONFIG.POOL_STATUS_URL,
+      countersUrl: self.ALCOIA_CONFIG.POOL_COUNTERS_URL,
+    });
+    // Counts left over from an earlier page are sent first, then the profile is read; neither blocks reading.
+    policyProfileManager.flush().then(() => policyProfileManager.load()).catch(() => {});
+    const flushAdaptation = () => { try { policyProfileManager.flush(); poolReporter.flush(); exposureReporter?.flush(); } catch (err) {} };
+    adaptationTimer = setInterval(flushAdaptation, 60_000);
+    visibilityHandler = () => { if (document.visibilityState === 'hidden') flushAdaptation(); };
+    try { document.addEventListener('visibilitychange', visibilityHandler); } catch (err) {}
+  } catch (e) { /* adaptation is an enhancement: without it the policy keeps its starting values */ }
+  function stopAdaptationSync() {
+    if (adaptationTimer) clearInterval(adaptationTimer);
+    adaptationTimer = null;
+    try { if (visibilityHandler) document.removeEventListener('visibilitychange', visibilityHandler); } catch (err) {}
+    visibilityHandler = null;
+  }
+
+  // Item 38: bug backstop, not entitlement enforcement — see CLAUDE.md's
+  // "Client-side AI-call rate limiting" section for the full reasoning.
+  const _summaryCache = new Map();
+  const aiCallTimestampsByPath = { summarize: [], questions: [] };
+  function checkAiCallBudget(path, mode) {
+    const now = Date.now();
+    const list = (aiCallTimestampsByPath[path] || (aiCallTimestampsByPath[path] = []))
+      .filter((t) => now - t < AI_CALL_CEILING_WINDOW_MS);
+    aiCallTimestampsByPath[path] = list;
+    const burstCount = list.filter((t) => now - t < AI_CALL_BURST_WINDOW_MS).length;
+    if (burstCount >= AI_CALL_BURST_LIMIT) {
+      diagLog.log(path, `rate_limited_burst mode=${mode} count=${burstCount}`);
+      return false;
+    }
+    if (list.length >= AI_CALL_CEILING_LIMIT) {
+      diagLog.log(path, `rate_limited_ceiling mode=${mode} count=${list.length}`);
+      return false;
+    }
+    list.push(now);
+    return true;
+  }
+
+  // Answer provenance (what the server reads as explanation_preceded_attempt). `false` is a positive claim:
+  // "this client established that no explanation was shown for this paragraph before this attempt". Every
+  // explanation or summary the reader is shown is generated through fetchSummary below (the selection
+  // tooltip, the explain/repair card, the card's "explain more", simplify, define, ...), cached results
+  // included, so noting assistance there covers them all.
+  //
+  // Attribution, in order, for assistance that did not arrive with a paragraph key:
+  //   1. MAPPED: the text is inside the paragraph being read, or inside any paragraph-level element of the
+  //      page (found by looking the text up in the document). Those paragraphs are `assistedKeys` (true).
+  //   2. UNMAPPED but locatable: the text is in no page element, but a paragraph is being read. The
+  //      explanation most plausibly belongs to that paragraph and we cannot rule it out, so only THAT
+  //      paragraph becomes `uncertainKeys` (outcomes there report UNKNOWN: undefined, never false). Answers
+  //      about other paragraphs are unaffected, because nothing ties the explanation to them.
+  //   3. UNMAPPED and unlocatable: no paragraph is being read, so nothing narrows where the explanation
+  //      belongs. Only this case still sets the session-wide `unmappedAssistance`, which makes every later
+  //      outcome UNKNOWN (conservative, as before).
+  // A retry or later write cannot clear any of the three records.
+  const assistedKeys = new Set();
+  const uncertainKeys = new Set();
+  let unmappedAssistance = false;
+  const MAX_SCANNED_BLOCKS = 2000;
+  const keyOf = (t) => (t || '').slice(0, 80).trim();
+  const squash = (t) => (t || '').replace(/\s+/g, ' ').trim();
+  function currentParagraphText() {
+    try {
+      return currentParagraph?.type === 'dom' && currentParagraph.data
+        ? (currentParagraph.data.innerText || currentParagraph.data.textContent || '') : '';
+    } catch (e) { return ''; }
+  }
+  // Paragraph-level elements of the page whose text contains `text`, as paragraph keys (same 80-char convention).
+  function paragraphKeysContaining(text) {
+    const needle = squash(text);
+    const keys = [];
+    if (!needle || typeof document === 'undefined') return keys;
+    try {
+      const blocks = document.querySelectorAll('p, li, blockquote, dd, td, h1, h2, h3, h4, h5, h6');
+      const limit = Math.min(blocks.length, MAX_SCANNED_BLOCKS);
+      for (let i = 0; i < limit; i += 1) {
+        const body = squash(blocks[i].innerText || blocks[i].textContent || '');
+        if (body && body.includes(needle)) keys.push(keyOf(blocks[i].innerText || blocks[i].textContent || ''));
+      }
+    } catch (e) { return keys; }
+    return keys;
+  }
+  function noteAssistance(text, paragraphKey) {
+    if (paragraphKey) { assistedKeys.add(paragraphKey); return; }
+    const own = keyOf(text);
+    if (own) assistedKeys.add(own);
+    const current = currentParagraphText();
+    if (current && text && squash(current).includes(squash(text))) { assistedKeys.add(keyOf(current)); return; }
+    const found = paragraphKeysContaining(text);
+    if (found.length) { for (const k of found) assistedKeys.add(k); return; }
+    if (current && keyOf(current) !== own) { uncertainKeys.add(keyOf(current)); return; }
+    if (!current || !text) unmappedAssistance = true;
+  }
+  function explanationPreceded(paragraphKey) {
+    if (!paragraphKey) return undefined;
+    if (assistedKeys.has(paragraphKey) || wasParagraphExplained(paragraphKey) === true) return true;
+    if (unmappedAssistance || uncertainKeys.has(paragraphKey)) return undefined;
+    return false;
+  }
+
+  async function fetchSummary(text, mode = 'tldr', context = '', opts = {}) {
+    const style = typeof opts.style === 'string' && opts.style ? opts.style : null;
+    const cacheKey = `${mode}${style ? ':' + style : ''}:${text.slice(0, 80).trim()}`;
+    if (_summaryCache.has(cacheKey)) {
+      log(`Cache hit: ${mode}`);
+      const cached = _summaryCache.get(cacheKey);
+      if (cached) noteAssistance(text, opts.paragraphKey);
+      return cached;
+    }
+    if (!checkAiCallBudget('summarize', mode)) return null;
+    try {
+      const url = s().backendUrl || BACKEND_DEFAULT;
+      log(`Fetching ${url} mode=${mode} len=${text.length}`);
+      const body = { text: text.slice(0, 3500), mode };
+      if (context) body.context = context.slice(0, 800);
+      if (style) body.style = style;
+      const resp = await callBackend('summarize', url, body);
+      if (!resp.ok) { warn(`Server ${resp.status || ''} ${resp.error || ''}`); if (resp.status !== 429) noteGenerationFailure(mode === 'repair' ? 'repair' : mode === 'relate' ? 'relate' : mode === 'explain_more' ? 'explain' : 'summarize'); return null; }
+      const j = resp.data;
+      if (!j) return null;
+      const result = j.summary || j.result || null;
+      if (!result) noteGenerationFailure(mode === 'repair' ? 'repair' : mode === 'relate' ? 'relate' : mode === 'explain_more' ? 'explain' : 'summarize');
+      if (result) {
+        noteAssistance(text, opts.paragraphKey);
+        _summaryCache.set(cacheKey, result);
+        if (_summaryCache.size > 100) _summaryCache.delete(_summaryCache.keys().next().value);
+      }
+      return result;
+    } catch (e) {
+      warn('fetchSummary failed:', e.message);
+      return null;
+    }
+  }
+
+  // Levels the connected server can deliver. ALCOIA_CONFIG.QUESTION_LEVELS_SUPPORTED is the single
+  // switch: it ships as ['recognition'] because alcoiaServer has no level-aware /api/questions and no
+  // /api/grade route (its CLAUDE.md section 7 keeps the higher rungs unbuilt until a level-dependent
+  // span validator exists). Add 'free_recall', 'scenario' and 'adversarial' here only together with
+  // that server work.
+  const supportedQuestionLevels = () => {
+    const configured = self.ALCOIA_CONFIG && self.ALCOIA_CONFIG.QUESTION_LEVELS_SUPPORTED;
+    return Array.isArray(configured) && configured.length ? configured : ['recognition'];
+  };
+
+  const questionsUrl = () => (s().backendUrl || BACKEND_DEFAULT).replace(/\/api\/summarize\/?$/, '/api/questions');
+
+  async function fetchQuestions(text, opts = {}) {
+    if (!text || text.trim().length < 120) return [];
+    if (!checkAiCallBudget('questions', opts.kind || 'recall')) return [];
+    const body = {
+      text: text.slice(0, 3500),
+      language: (document.documentElement.lang || '').slice(0, 5),
+      count: opts.count || 1,
+      kind: opts.kind || 'recall',
+    };
+    // Item 42/44: one level per call, decided by the caller — omitted
+    // entirely rather than defaulted here, so a server that has never heard
+    // of levels sees exactly the request shape it always has.
+    if (opts.level && supportedQuestionLevels().includes(opts.level)) body.level = opts.level;
+    const resp = await callBackend('apiPost', questionsUrl(), body);
+    if (!resp.ok) {
+      log(`Questions unavailable (${resp.status || resp.error || 'error'})`);
+      if (resp.status !== 429) noteGenerationFailure('questions');
+      return [];
+    }
+    const j = resp.data;
+    if (!j) return [];
+    if (body.level && j.levelHonoured === false) {
+      // The server answered with a different level than requested. Questions keep the level the
+      // server labelled them with (question-card.js and response-signals.js read question.level),
+      // so nothing downstream records a level that was not delivered.
+      diagLog.log('questions', `level_not_honoured requested=${body.level} delivered=${j.deliveredLevel || 'unknown'}`);
+    }
+    return Array.isArray(j.questions) ? j.questions : [];
+  }
+
+  // ── Free-text answer grading (item 43) ──────────────────────────────────
+  // Grading authority degrades by level — see tests/contract/grading.js's
+  // header for the full reasoning. recognition is deterministic and never
+  // reaches this function at all; adversarial is never graded, refused
+  // before any network call. Own rate-limit bucket ('grade'), separate from
+  // 'summarize' and 'questions' — a burst of grading calls must not starve
+  // or be starved by either of those. The grading logic itself lives in
+  // src/shared/grading-client.js, shared with quiz.js — see that file's own
+  // header for why it was pulled out rather than duplicated.
+  const gradingClientModule = await loadModule('src/shared/grading-client.js');
+  const { fetchGrading } = gradingClientModule.createGradingClient({
+    callBackend,
+    getGradeUrl: () => (s().backendUrl || BACKEND_DEFAULT).replace(/\/api\/summarize\/?$/, '/api/check-answer'),
+    checkBudget: checkAiCallBudget,
+    log, warn,
+  });
+
+  // ── comprehensionMonitor, sessionTracker ──────────────────────────────
+  const compModule = await loadModule('src/content/comprehension-monitor.js');
+  const comprehensionMonitor = compModule.createComprehensionMonitor({
+    speedRatio:      0.30,
+    minWords:        70,
+    minDifficulty:   58,
+    backtrackWindow: 4000,
+    cooldown:        30000,
+  });
+
+  const sessionModule = await loadModule('src/content/session-tracker.js');
+  const sessionTracker = sessionModule.createSessionTracker();
+
+  // ── Snooze (item 18) ───────────────────────────────────────────────────
+  const snoozeModule = await loadModule('src/content/snooze.js');
+  const snoozeControl = snoozeModule.createSnoozeControl();
+
+  /* The card's own snooze control (onSnooze, below). The popup's old
+   * "Pause" button used to reach this too via a snoozeReminders message
+   * handler in content.js — removed along with the button (the master
+   * on/off switch is the popup's own equivalent now), so this is reached
+   * only from in-page UI today. */
+  async function startSnooze(durationMs, label) {
+    const until = await snoozeControl.snooze(durationMs);
+    showStatusToast(`Snoozed${label ? ' for ' + label : ''}. Reminders paused.`);
+    return until;
+  }
+
+  // ── orchestrator reference — see this file's own header ───────────────
+  let orchestratorRef = null;
+  function setOrchestrator(o) {
+    orchestratorRef = o;
+    try { o.interventionPolicy.setAdaptation(policyProfileManager?.getProfile()); } catch (e) {}
+  }
+
+  // ── Self-report (item 13a) ──────────────────────────────────────────────
+  // The "alcoia Evidence Base" research artifact's confusion/overload/
+  // boredom section: confusion and overload demand OPPOSITE responses
+  // (preserve and work through vs. reduce load) but "behavioral separation
+  // is hard... the most reliable disambiguator available to a browser tool
+  // is a lightweight probe... a one-tap self-report" — the loop it calls
+  // "not optional". This is that probe.
+  //
+  // Always reader-initiated, from all three affordances (content.js's
+  // Alt+C, the persistent trigger below, and active surfacing inside the
+  // question card itself) — never called from anywhere the interruption
+  // budget governs, so it spends none, the same "reader-initiated actions
+  // spend no budget" principle intervention-policy.js's header already
+  // states for the quiz/manual paths, extended here to a genuinely new
+  // trigger rather than reusing one of those existing ones.
+  const stateEngineModule = await loadModule('src/content/state-engine.js');
+  const { SELF_REPORT } = stateEngineModule;
+
+  function reportSelfState(subtype) {
+    // Fed through the SAME pumpSignals() chokepoint every other reading
+    // signal already uses (host.js's own onAnswered callback above does
+    // the same for response-signals.js's records) — not a second pathway
+    // into the engine. state-engine.js's own SELF_REPORT_CONFIDENCE (1.0,
+    // above even a wrong-answer response) is what makes this win
+    // strongestAssertion() against anything else batched in the same call,
+    // so the resulting state/substate change is reflected on the very next
+    // emission — immediate in exactly the sense this codebase's engine
+    // already gives every other signal, not a new "sticky override"
+    // mechanism layered on top of it.
+    try { orchestratorRef?.pumpSignals({ type: 'self_report', subtype }); } catch (e) {}
+  }
+
+  const SELF_REPORT_FINGERPRINT = 'sra-self-report';
+  /* Affordances 1 (Alt+C, content.js) and 2 (the persistent trigger,
+   * ui-controller.js) both open this same standalone card — it exists
+   * independent of any active intervention, since a reader can decide to
+   * self-report at any moment, not only while a question is on screen.
+   * Affordance 3 (active surfacing) is different: it augments the
+   * QUESTION card itself, wired below via questionCard's own onSelfReport
+   * option, rather than replacing it with this card — see handleAsk's own
+   * comment for why replacing the primary intervention outright would be a
+   * much bigger behavioural change than this item's own scope. */
+  function showSelfReportCard() {
+    const root = reservePopup(SELF_REPORT_FINGERPRINT);
+    if (!root) return false;
+    const lang = uiLang();
+    if (isRtl(lang)) root.setAttribute('dir', 'rtl');
+
+    root.innerHTML = `
+      <div class="sra-controls">
+        <button class="sra-ctrl-btn sra-close-btn" title="${esc(t('card.dismiss', lang))}">✕</button>
+      </div>
+      <div class="sra-popup-body">
+        <div class="sra-state-badge sra-self-report-badge">${esc(t('sr.title', lang))}</div>
+        <div class="sra-self-report-options">
+          <button type="button" class="sra-btn sra-btn-secondary" data-self-report="${SELF_REPORT.OVERLOAD}">${esc(t('sr.overload', lang))}</button>
+          <button type="button" class="sra-btn sra-btn-secondary" data-self-report="${SELF_REPORT.CONFUSION}">${esc(t('sr.confusion', lang))}</button>
+          <button type="button" class="sra-btn sra-btn-secondary" data-self-report="${SELF_REPORT.DISENGAGED}">${esc(t('sr.disengaged', lang))}</button>
+        </div>
+      </div>`;
+
+    root.querySelector('.sra-close-btn').onclick = () => closePopup(root, SELF_REPORT_FINGERPRINT);
+    for (const btn of root.querySelectorAll('[data-self-report]')) {
+      btn.onclick = () => {
+        reportSelfState(btn.dataset.selfReport);
+        for (const b of root.querySelectorAll('[data-self-report]')) b.disabled = true;
+        btn.textContent = t('sr.thanks', lang);
+        // Bug found verifying this in real Chromium (tests/browser/smoke.mjs):
+        // stored on root._hideT, the SAME property closePopup() already
+        // clearTimeout()s on every close path — Escape, the ✕ button, or
+        // this auto-close itself. Without that, an early close (Escape,
+        // right after this click) left this bare setTimeout alive; every
+        // instance of this card shares SELF_REPORT_FINGERPRINT, so when it
+        // later fired it closed whatever card currently held that
+        // fingerprint — including a genuinely different, still-open one a
+        // reader had opened since — deleting its openPopups entry without
+        // actually removing it from the DOM, orphaning it: visible,
+        // unpinned, and no longer reachable by hidePopup()/Escape at all.
+        root._hideT = setTimeout(() => closePopup(root, SELF_REPORT_FINGERPRINT), 900);
+      };
+    }
+
+    showPopup(root);
+    return true;
+  }
+
+  // Affordance 2: a persistent trigger, always reachable regardless of
+  // whether any intervention is currently on screen — in contrast to
+  // affordance 3, which only ever appears alongside an actual question.
+  // ui-controller.js owns all rendered chrome (CLAUDE.md: "orchestrator.js
+  // decides, ui-controller.js renders"); this just asks it to ensure the
+  // trigger exists and wires what a click does. Optional-chained since a
+  // ui built with a stub (e.g. some existing tests' fakeUI()) may not
+  // implement it — the mechanism this task builds must not throw in a
+  // context that predates it.
+  try { ui.ensureSelfReportTrigger?.(showSelfReportCard); } catch (e) {}
+
+  /* Settings: Interventions -> "Show the self-report button" (default on),
+   * its own switch, independent of "Show intervention popups" above — this
+   * button is reader-initiated (affordance 2, see showSelfReportCard's own
+   * header), not an automatic interruption, so it stays reachable even with
+   * every automatic popup turned off. content.js calls this once settings
+   * finish loading, and again on every live change from the settings page.
+   * Idempotent either direction, same guard ensureSelfReportTrigger/
+   * removeSelfReportTrigger already use for the master-switch teardown. */
+  function setShowSelfReportButton(show) {
+    try {
+      if (show) ui.ensureSelfReportTrigger?.(showSelfReportCard);
+      else ui.removeSelfReportTrigger?.();
+    } catch (e) {}
+  }
+
+  // ── Question layer ─────────────────────────────────────────────────────
+  const responseModule = await loadModule('src/content/signals/response-signals.js');
+  const cardModule     = await loadModule('src/content/question-card.js');
+  const responseSignals = responseModule.createResponseSignals();
+  const recallModule = await loadModule('src/content/signals/session-recall.js');
+  const sessionRecall = recallModule.createSessionRecall();
+
+  // ── Epistemic engine (item 44) ─────────────────────────────────────────
+  // Selects the next question TYPE from demonstrated failure rather than
+  // rotating formats — see that module's own header for the ladder and its
+  // rules. Pure: it only ever reads a history array — nothing new is stored
+  // or transmitted to make this work. Used identically by every place a
+  // question gets generated below (handleAsk, runSessionRecall, runQuiz) —
+  // "same engine, same rules" is structural, not a convention to remember,
+  // since all three call this one function.
+  const engineModule = await loadModule('src/content/epistemic-engine.js');
+
+  // Knowledge-unit identity (intelligence-architecture audit, step 3).
+  // Computed from the SAME text every call site already slices paragraphKey
+  // from — additive, alongside it, never replacing it (see knowledge-
+  // unit.js's own header for the normalization rules and why this is
+  // FNV-1a rather than crypto.subtle). `null` whenever there's no real text
+  // to hash (matches computeKnowledgeUnitId's own contract), which
+  // pickLevelForConcept's compatibility layer already treats as "fall back
+  // to paragraphKey," never a crash.
+  const knowledgeUnitModule = await loadModule('src/content/signals/knowledge-unit.js');
+  const { hasRelationCues } = await loadModule('src/content/relation-cues.js');
+  // Intelligence-architecture audit, step 5 — same shared id generator
+  // intervention-policy.js itself uses for a policy-triggered 'ask', reused
+  // here for the reader-initiated paths (runSessionRecall) that have no
+  // policy decision to mint one for them.
+  const interventionIdModule = await loadModule('src/content/signals/intervention-id.js');
+  function computeIdentity(text) {
+    return {
+      paragraphKey: text.slice(0, 80).trim(),
+      knowledgeUnitId: knowledgeUnitModule.computeKnowledgeUnitId(text),
+    };
+  }
+
+  // Evidence-silo fix (step 2): reads whatever quiz.js has recorded for THIS
+  // document (never another one — same partitioning quiz-store.js's own
+  // documentKey index already uses) since it can't write into
+  // responseSignals directly. Read-only here, non-destructive: entries stay
+  // in storage for the next read too, bounded by QUIZ_EVIDENCE_STORAGE_CAP
+  // at write time (quiz.js) rather than pruned at read time. A malformed or
+  // missing key degrades to "no quiz evidence yet", never a thrown error.
+  async function readQuizEvidence(documentKey) {
+    if (!documentKey) return [];
+    try {
+      const { sra_quiz_evidence: all } = await new Promise((resolve) =>
+        chrome.storage.local.get({ sra_quiz_evidence: [] }, resolve));
+      return (Array.isArray(all) ? all : []).filter((r) => r && r.documentKey === documentKey);
+    } catch (e) { return []; }
+  }
+
+  // pickLevel is now async only to fold in that storage read — the ladder
+  // decision itself (pickLevelForConcept) is unchanged and still pure/sync.
+  // Ordering caveat, deliberately not solved here: quiz evidence is appended
+  // AFTER responseSignals.history() rather than interleaved by time, since
+  // neither array carries an absolute timestamp today. This is correct for
+  // the overwhelmingly common case (the quiz happens, then the reader
+  // returns to this tab) and wrong only in the rare case where an inline
+  // answer on the same paragraph happens between two quiz answers — a real,
+  // disclosed limitation, not something worth a timestamp/sort mechanism
+  // for this step.
+  // `identity` is the { paragraphKey, knowledgeUnitId } shape computeIdentity()
+  // above produces — pickLevelForConcept's own compatibility layer (step 3)
+  // is what actually prefers knowledgeUnitId when both sides have one and
+  // falls back to paragraphKey otherwise; this function doesn't duplicate
+  // that decision, only supplies the merged history to decide it against.
+  async function pickLevel(identity) {
+    const quizEvidence = await readQuizEvidence(orchestratorRef?.documentKey?.() || null);
+    let wanted = engineModule.pickLevelForConcept(identity, [...responseSignals.history(), ...quizEvidence]);
+    // Teaching Intent depth (assigned readings): the instructor can cap the ladder at recall or prefer scenario questions,
+    // but never lifts a learner past what their own answers earned (free_recall only becomes scenario).
+    if (focusLevelBias === 'recall' && (wanted === 'scenario' || wanted === 'adversarial')) wanted = 'free_recall';
+    else if (focusLevelBias === 'application' && wanted === 'free_recall') wanted = 'scenario';
+    // Stage A: never ask the server for a level it has not said it can deliver. The ladder's own
+    // decision is unchanged; only the request is clamped (see supportedQuestionLevels()).
+    return supportedQuestionLevels().includes(wanted) ? wanted : 'recognition';
+  }
+
+  const questionCard = cardModule.createQuestionCard({
+    ui,
+    esc,
+    responseSignals,
+    // Item 13a, affordance 3 (active surfacing) — see handleAsk's own
+    // comment for when context.showSelfReport is set. Reuses the exact
+    // same reportSelfState() affordances 1/2 already call — one signal
+    // pathway, three ways to reach it.
+    onSelfReport: reportSelfState,
+    fetchExplanation: (spanText) => fetchSummary(spanText, 'explain_more'),
+    fetchGrading, // item 43 — free_recall/scenario only; question-card.js itself never calls this for recognition or adversarial
+    onAnswered: (record) => {
+      let answeredCard = null;
+      try { answeredCard = noteCardAnswered(record); } catch (e) {}
+      try { noteStyleFollowed(record); } catch (e) {}
+      try {
+        // Only an independent correct answer counts for an idea (one given right after an explanation does not).
+        if (deviceConcepts && record.paragraphKey && !(record.correct === true && explanationPreceded(record.paragraphKey) !== false)) {
+          deviceConcepts.noteAnswer(record.paragraphKey, typeof record.correct === 'boolean' ? record.correct : null);
+        }
+      } catch (e) {}
+      try { decisionLog.record({ kind: 'answered', basis: lastShownBasis, cardType: answeredCard }); } catch (e) {}
+      try { orchestratorRef?.pumpSignals(record); } catch (e) {}
+      try { sessionTracker.recordSignal('response', record.subtype, record.span || ''); } catch (e) {}
+      if (record.paragraphKey) sessionRecall.recordAnswered(record.paragraphKey, record.correct);
+      // Step 8: the same record's own `correct` (boolean, or null for an
+      // ungraded/adversarial verdict) — see intervention-policy.js's own
+      // recordAnswered() header for what this now feeds (consecutive-
+      // wrong-answer backoff, and "was the last answer right" for the
+      // scroll-back candidate check). Not a second read of anything: this
+      // is the exact same field submitOutcome() below already sends.
+      try {
+        orchestratorRef?.interventionPolicy.recordAnswered(
+          typeof record.correct === 'boolean' ? record.correct : null,
+        );
+      } catch (e) {}
+      // Item S6/E4 follow-up. Deliberately excludes quiz.js's separate
+      // standalone-quiz answers — those never reach this callback at all
+      // (quiz.js writes straight to quiz-store.js's IndexedDB, which its
+      // own header documents as "never transmitted", a design boundary
+      // this item does not cross) and dismiss()'s record has no
+      // questionId/correct worth reporting either. `correct` is only ever
+      // included when it's a real boolean — response-signals.js's own
+      // `null` means "not graded" (model verdict 'unknown', or
+      // adversarial's deliberate non-grading), not "wrong", and the
+      // server rejects `correct` without a `questionId` regardless — both
+      // are naturally satisfied here since they come from the same record.
+      submitOutcome({
+        paragraphIndex: record.paragraphIndex,
+        questionId: record.questionId,
+        correct: typeof record.correct === 'boolean' ? record.correct : undefined,
+        confidence: record.confidence,
+        // Item 13j-1: response-signals.js's answer() (recognition, real
+        // discrete options) is the only record shape that ever carries
+        // chosenIndex — answerGraded()/respond() (free_recall/scenario/
+        // adversarial) never set it, so this correctly sends an explicit
+        // null for those rather than fabricating an option id.
+        selectedAnswer: typeof record.chosenIndex === 'number' ? record.chosenIndex : null,
+        // Item DC-2 — same paragraph-key lookup as onStruggle above.
+        explanationPrecededAttempt: explanationPreceded(record.paragraphKey),
+        // Knowledge-unit identity (step 3): additive, sent whenever the
+        // record has one (null whenever there was no computable text to
+        // hash at present()-time — outcomes.js's own guard treats that the
+        // same as any other caller that predates this field: simply absent
+        // from the request, never a fabricated value).
+        knowledgeUnitId: record.knowledgeUnitId,
+        // Intervention linkage (step 5): the same id this specific card was
+        // presented with (handleAsk's decision.interventionId, or
+        // runSessionRecall's own freshly-minted one) — response-signals.js
+        // carries it on every record it produces, resolved correctly even
+        // when a second card was concurrently open (see that file's own
+        // header). null for a dismissed-and-reopened edge case that can't
+        // occur in practice (dismiss() clears the record entirely) and for
+        // any record produced before this item existed in a given session.
+        interventionId: record.interventionId,
+        // Which rung of the ladder this answer was to, so recall and application evidence lands in its own dimension.
+        questionLevel: record.level,
+      });
+    },
+    onDismissed: (record) => {
+      let dismissedCard = null;
+      try { dismissedCard = noteCardDismissed(record); } catch (e) {}
+      try { decisionLog.record({ kind: 'dismissed', basis: lastShownBasis, cardType: dismissedCard }); } catch (e) {}
+      try { orchestratorRef?.interventionPolicy.recordDismissal(); } catch (e) {}
+    },
+    onSnooze: (durationMs, label) => { startSnooze(durationMs, label); },
+  });
+
+  // ── Quiz generation ─────────────────────────────────────────────────────
+  // Item 13i: assignmentId, if this page has one, rides along on the quiz
+  // URL exactly the way assignments.js already appends it to the PDF
+  // viewer URL — quiz.js is a separate extension page (no content-script
+  // context to inherit it from) and reads it back the same way viewer.js
+  // does, to know it should report outcomes for this specific quiz.
+  function openQuizPage(key) {
+    let url = chrome.runtime.getURL('src/popup/quiz.html') + (key ? '?key=' + encodeURIComponent(key) : '');
+    if (assignmentId) url += (key ? '&' : '?') + 'assignmentId=' + encodeURIComponent(assignmentId);
+    try { chrome.runtime.sendMessage({ action: 'openTab', url }); } catch (e) {}
+  }
+
+  let quizGenerating = false;
+  async function runQuiz() {
+    if (quizGenerating) return false;
+    const key = orchestratorRef?.documentKey();
+    if (!key) return false;
+
+    quizGenerating = true;
+    try {
+      const picked = sessionRecall.select(QUIZ_TARGET_COUNT);
+      if (!picked.length) return false;
+
+      const questions = [];
+      if (assignmentId) {
+        // Item 13i: a quiz outcome needs a real paragraph_index per
+        // question (13g's server contract), and a question generated from
+        // several paragraphs' COMBINED text (the ordinary path below)
+        // cannot be attributed back to just one of them. So under
+        // assignment context specifically, generation is one
+        // fetchQuestions() call per picked paragraph instead — more AI
+        // calls than the ordinary path, deliberately, only here — and each
+        // resulting question is tagged with the real paragraphIndex
+        // sessionRecall recorded it under (session-recall.js's own
+        // comment on recordRead()). A paragraph with no recorded index
+        // (shouldn't happen in practice, but not assumed) yields questions
+        // with paragraphIndex: null — outcomes.js's own guard already
+        // refuses to submit those rather than guessing one.
+        for (const p of picked) {
+          const identity = computeIdentity(p.text);
+          const level = await pickLevel(identity);
+          const opts = { count: Math.max(1, Math.round(QUIZ_TARGET_COUNT / picked.length)), kind: 'recall' };
+          if (level !== 'recognition') opts.level = level;
+          const qs = await fetchQuestions(p.text, opts);
+          for (const q of qs) {
+            q.paragraphIndex = Number.isInteger(p.paragraphIndex) ? p.paragraphIndex : null;
+            // Evidence-silo fix (step 2) / knowledge-unit identity (step 3):
+            // the same identity pickLevel() above was just called with —
+            // computed once, attached here rather than recomputed later, so
+            // a quiz answer to this question can be matched back to "this
+            // concept" by quiz.js the same way an inline answer already is.
+            // paragraphIndex (above) alone isn't enough for that:
+            // pickLevelForConcept() matches on paragraphKey/knowledgeUnitId.
+            q.paragraphKey = identity.paragraphKey;
+            q.knowledgeUnitId = identity.knowledgeUnitId;
+          }
+          questions.push(...qs);
+        }
+      } else {
+        // Item 44: quiz questions get generated at whatever level each picked
+        // paragraph's session history calls for, not always recognition — but
+        // this stays ONE fetchQuestions call per distinct level needed
+        // (bounded at 4, the ladder's own size), not one per paragraph.
+        // tests/contract/questions.js only accepts one level per call, so
+        // paragraphs that land on the same level are combined into the same
+        // request, same as the un-escalated version of this function always
+        // combined all of them into one. In practice most paragraphs have no
+        // prior attempt this session and land on 'recognition' together, so
+        // this is usually still the same single call it always was.
+        const groups = new Map(); // level -> paragraph texts
+        for (const p of picked) {
+          const level = await pickLevel(computeIdentity(p.text));
+          if (!groups.has(level)) groups.set(level, []);
+          groups.get(level).push(p.text);
+        }
+
+        // `count` requests how many QUESTIONS to write from the combined text,
+        // not how many paragraphs are in it — a single paragraph can and does
+        // yield several questions (this is exactly what the un-escalated
+        // version of this function always asked for: QUIZ_TARGET_COUNT
+        // questions from however many paragraphs got picked). Splitting into
+        // level groups must not silently shrink that request to "one question
+        // per paragraph" — each group's share of QUIZ_TARGET_COUNT is
+        // proportional to how many of the picked paragraphs landed in it, so
+        // the single-group case (the common one — most paragraphs have no
+        // prior attempt yet) asks for exactly QUIZ_TARGET_COUNT, same as before.
+        for (const [level, texts] of groups) {
+          const share = Math.max(1, Math.round((QUIZ_TARGET_COUNT * texts.length) / picked.length));
+          const opts = { count: share, kind: 'recall' };
+          if (level !== 'recognition') opts.level = level;
+          const qs = await fetchQuestions(texts.join('\n\n'), opts);
+          questions.push(...qs);
+        }
+      }
+      if (questions.length < QUIZ_MIN_QUESTIONS) return false;
+
+      await new Promise((resolve) => chrome.storage.local.set({
+        sra_quiz_pending: { key, questions: questions.slice(0, QUIZ_TARGET_COUNT), createdAt: Date.now() },
+      }, resolve));
+
+      openQuizPage(key);
+      return true;
+    } catch (e) {
+      return false;
+    } finally {
+      quizGenerating = false;
+    }
+  }
+
+  /* This IS onQuizOfferEligible's implementation. Reader-initiated once
+   * shown — quiz-offer.js never touches intervention-policy.js, and neither
+   * does dismissing this card. */
+  function showQuizOffer(result) {
+    if (!s().assistantEnabled) return;
+    const fingerprint = 'quiz-offer-' + (result.key || 'doc');
+    const root = reservePopup(fingerprint);
+    if (!root) return;
+
+    root.innerHTML = `
+      <div class="sra-controls">
+        <button class="sra-ctrl-btn sra-close-btn" title="Dismiss">✕</button>
+      </div>
+      <div class="sra-popup-body">
+        <div class="sra-state-badge sra-q-badge">quiz</div>
+        <div class="sra-q-text">Ready to test what you remember?</div>
+      </div>
+      <div class="sra-popup-divider"></div>
+      <div class="sra-actions">
+        <button class="sra-btn sra-btn-primary sra-quiz-start-btn">Take the quiz</button>
+        <button class="sra-btn sra-btn-secondary sra-q-skip">Not now</button>
+      </div>`;
+
+    const dismiss = () => closePopup(root, fingerprint);
+    root.querySelector('.sra-close-btn').onclick = dismiss;
+    root.querySelector('.sra-q-skip').onclick = dismiss;
+    root.querySelector('.sra-quiz-start-btn').onclick = async () => {
+      const btn = root.querySelector('.sra-quiz-start-btn');
+      btn.disabled = true;
+      btn.textContent = 'Preparing…';
+      const ok = await runQuiz();
+      if (!ok) { btn.disabled = false; btn.textContent = 'Take the quiz'; return; }
+      dismiss();
+    };
+
+    showPopup(root, null);
+  }
+
+  // ── Session recall — reader-initiated review ───────────────────────────
+  let recallRunning = false;
+  function waitForCardToClose() {
+    return new Promise((resolve) => {
+      const started = Date.now();
+      const tick = setInterval(() => {
+        // Item 44: a review question can now render either markup branch
+        // (.sra-q-options for recognition, .sra-q-freetext for the other
+        // three levels) — .sra-q-badge is on the card regardless of level,
+        // so this keeps detecting "still open" correctly whichever the
+        // engine picked, instead of only ever recognising recognition's own
+        // markup and resolving instantly for anything else.
+        const open = document.querySelector('.sra-popup .sra-q-badge');
+        if (!open || Date.now() - started > 120000) { clearInterval(tick); resolve(); }
+      }, 400);
+    });
+  }
+  async function runSessionRecall(count = 5) {
+    if (recallRunning) return;
+    const picked = sessionRecall.select(count);
+    if (!picked.length) {
+      showSimulateToast('Nothing read yet to review');
+      return;
+    }
+
+    recallRunning = true;
+    try {
+      const questions = [];
+      for (const entry of picked) {
+        const identity = computeIdentity(entry.text);
+        // Item 44: what level to ask THIS concept at is decided from the
+        // reader's own session history for it, not always recognition —
+        // the same pickLevel() every question-generating path below uses.
+        const level = await pickLevel(identity);
+        const opts = { count: 1 };
+        if (level !== 'recognition') opts.level = level;
+        const qs = await fetchQuestions(entry.text, opts);
+        // text: entry.text carried through so reportIntervention below can
+        // report it (step 19) -- the exact same text identity was already
+        // computed from a few lines up, never re-fetched.
+        if (qs.length) questions.push({ question: qs[0], paragraphKey: identity.paragraphKey, knowledgeUnitId: identity.knowledgeUnitId, paragraphIndex: entry.paragraphIndex, level, text: entry.text });
+        if (questions.length >= count) break;
+      }
+
+      if (!questions.length) {
+        showSimulateToast('Could not prepare a review right now');
+        return;
+      }
+
+      for (const item of questions) {
+        // Item 44: adversarial gets its own calm, non-hostile framing
+        // instead of the generic review line — see epistemic-engine.js's
+        // own header for why that rung specifically needs it spelled out.
+        const evidence = engineModule.evidenceLineForLevel(item.level) || 'Reviewing what you read this session';
+        // Step 5: this path is reader-initiated, never gated by
+        // intervention-policy.js, so there is no `decision.interventionId`
+        // to reuse — minted here instead, using the same shared generator
+        // intervention-policy.js itself calls, so every question-bearing
+        // presentation in this codebase gets its identity the same way.
+        const interventionId = interventionIdModule.generateInterventionId();
+        const shown = questionCard.show(item.question, {
+          evidence: [evidence],
+          paragraphKey: item.paragraphKey,
+          knowledgeUnitId: item.knowledgeUnitId,
+          interventionId,
+        });
+        if (!shown) continue;
+        reportIntervention(interventionId, item.knowledgeUnitId, item.paragraphIndex, 'session_recall', item.text);
+        await waitForCardToClose();
+      }
+    } finally {
+      recallRunning = false;
+    }
+  }
+
+  /* Returns true only if a card reached the screen. paragraphIndex (item
+   * S6/E4 follow-up) is the active paragraph's real ordinal, captured by
+   * orchestrator.js at the moment it decided to intervene — see that
+   * file's own comment. Threaded through to questionCard.show()'s context
+   * purely so an eventual onAnswered record can carry it; nothing in this
+   * function's own question-generation logic reads it.
+   *
+   * Item 13a, affordance 3 (active surfacing): when state.substate is
+   * 'unclear' — today, always, since no dedicated confusion/overload
+   * signal exists yet (items 13b/13c/13d build those) — the question card
+   * ALSO shows the three self-report options alongside the real question,
+   * rather than replacing it. Deliberately additive, not a swap: the
+   * question is still this system's primary intervention (CLAUDE.md
+   * decision #1), and the self-report options are what "visibly ask rather
+   * than infer" actually means here — an honest admission next to the
+   * question, not instead of it. Costs no extra budget: it rides the SAME
+   * 'ask' interruption intervention-policy.js already gated before this
+   * function was ever called. */
+  async function handleAsk(decision, state, target, paragraphIndex) {
+    const el = target || (currentParagraph?.type === 'dom' ? currentParagraph.data : null);
+    const text = el ? (el.innerText || el.textContent || '').trim() : (state.signal?.text || '');
+    if (!text) return false;
+
+    // Step 12A: this and checkRetentionCandidate (below) are the two
+    // AUTOMATIC paths that reach AI generation — see automatic-
+    // intervention-guard.js's own header. orchestrator.js's own
+    // interventionInFlight already keeps a second state-subscription
+    // dispatch from re-entering this function, but checkRetentionCandidate
+    // is invoked from onParagraphRead, entirely outside that guard, so it
+    // is not enough on its own to prevent this specific function and that
+    // one from generating concurrently. Acquired after the text/target
+    // extraction above (which never reaches an AI call either way, so
+    // guarding it would serve nothing), released in `finally` regardless
+    // of how generation or presentation turns out.
+    if (!automaticInterventionGuard.tryAcquire()) return false;
+    try {
+      const identity = computeIdentity(text);
+      // Item 44: same engine, same rule, as every other caller — in practice
+      // this is almost always 'recognition' here, since the interruption
+      // budget already refuses to ask about the same paragraph twice
+      // automatically; a higher rung only comes up if this exact paragraph
+      // was already tested via a review or the quiz earlier this session.
+      // A light check (the learner's own evidence on this concept says a short confirmation is enough) is one easy question.
+      const level = decision.light ? 'recognition' : await pickLevel(identity);
+      const opts = level !== 'recognition' ? { level } : {};
+
+      const questions = await fetchQuestions(text, opts);
+      if (!questions.length) return false;
+
+      let anchorRect = null;
+      try { if (el) anchorRect = el.getBoundingClientRect(); } catch (e) {}
+      if (el) highlightElement(el, 4000);
+
+      const evidenceOverride = engineModule.evidenceLineForLevel(level);
+
+      // Step 5: minted by intervention-policy.js at the moment this 'ask'
+      // decision was made (the "intervention selected" step of the causal
+      // chain) — reused here as-is, not regenerated, so the id genuinely
+      // identifies the decision that led to this presentation.
+      const interventionId = decision.interventionId;
+      const shown = questionCard.show(questions[0], {
+        evidence: evidenceOverride ? [evidenceOverride] : decision.evidence,
+        anchorRect,
+        paragraphKey: identity.paragraphKey,
+        knowledgeUnitId: identity.knowledgeUnitId,
+        paragraphIndex: Number.isInteger(paragraphIndex) ? paragraphIndex : null,
+        showSelfReport: state.substate === 'unclear',
+        interventionId,
+      });
+      if (shown) {
+        reportIntervention(interventionId, identity.knowledgeUnitId, Number.isInteger(paragraphIndex) ? paragraphIndex : null, 'ask', text, 'retrieve');
+      } else {
+        // Step 12A: generation succeeded (a real, usable question came
+        // back) but presentation did not — diagnostic-only, never a budget
+        // spend. record() (called by orchestrator.js) already only runs
+        // when `shown` is true, unchanged by this item; this is purely
+        // what makes the "spent but not shown" case observable, per the
+        // Step 12 audit's §6/§15 finding. Structural fields only —
+        // decision.action/decision.reason are the same fixed, generic
+        // strings orchestrator.js's own debugEnabled branch already logs,
+        // never passage text, an id, or a hash.
+        diagLog.log('questions', `generated_not_presented action=${decision.action} reason=${decision.reason}`);
+      }
+      return shown;
+    } finally {
+      automaticInterventionGuard.release();
+    }
+  }
+
+  /* Learning Intelligence step 24 — explain / repair generation.
+   *
+   * Reached from the exact same onIntervention() 'ask' branch handleAsk is
+   * (Step 23 kept decision.action === 'ask' for every policyAction that
+   * renders through the question-card shell — see intervention-policy.js's
+   * own POLICY_ACTIONS header, "several policyActions share one rendering
+   * on purpose"); onIntervention below picks THIS function over handleAsk
+   * specifically when decision.policyAction is 'explain' or 'repair'.
+   *
+   * kind: 'explain' | 'repair', passed straight through from the caller.
+   * Chooses the generation mode here — the one place the two intents'
+   * actual server-side DIFFERENCE is decided on this client: 'explain' asks
+   * for mode 'explain_more' (the SAME generator a wrong retrieval answer
+   * already offers — explain is genuinely that same kind of help, offered
+   * proactively rather than only after a miss); 'repair' asks for the new
+   * 'repair' mode (src/ai/summary-prompts.js, alcoiaServer step 24),
+   * addressing a specific prior insufficient attempt rather than a first
+   * encounter. Both are constrained mode strings validated server-side
+   * against SUPPORTED_MODE_SET (step 24 §6/§7) — never a free-text prompt
+   * built or sent by this client.
+   *
+   * Bounded-content discipline (step 24 §8): `text` is the SAME single
+   * paragraph extraction handleAsk already uses — no new content source,
+   * no whole-page or document transmission, no new Content Intelligence
+   * fetch (step 24 §16) — fetchSummary() below sends exactly that text,
+   * the identical bounded call every other summarize mode already makes.
+   *
+   * Shares handleAsk's own automaticInterventionGuard: this is the second
+   * of the two automatic, AI-generation-triggering paths in this file (see
+   * automatic-intervention-guard.js's own header) — the guard is held for
+   * the full duration of the generation call, released only in `finally`,
+   * so a concurrent retrieval/explain/repair/retention generation can never
+   * overlap this one. */
+  async function handleExplainOrRepair(kind, decision, state, target, paragraphIndex, textOverride) {
+    const el = textOverride ? null : (target || (currentParagraph?.type === 'dom' ? currentParagraph.data : null));
+    const text = textOverride || (el ? (el.innerText || el.textContent || '').trim() : (state.signal?.text || ''));
+    if (!text) return false;
+
+    if (!automaticInterventionGuard.tryAcquire()) return false;
+    try {
+      const identity = computeIdentity(text);
+      // An explanation for a paragraph built on a relationship (cause, dependence, contrast...) points the reader
+      // at how the ideas connect; any other explanation, and every repair, is unchanged.
+      const relate = kind !== 'repair' && hasRelationCues(text);
+      const mode = kind === 'repair' ? 'repair' : relate ? 'relate' : 'explain_more';
+      // The way of explaining is chosen from THIS learner's own results (their account profile), mostly the best so far and
+      // sometimes another so the order can change. Only explain and repair have styles; with no profile there is none.
+      const style = mode === 'relate' ? null : pickExplanationStyle(mode);
+      const generated = await fetchSummary(text, mode, '', { paragraphKey: identity.paragraphKey, style });
+      if (!generated) return false;
+
+      let anchorRect = null;
+      try { if (el) anchorRect = el.getBoundingClientRect(); } catch (e) {}
+      if (el) highlightElement(el, 4000);
+
+      // Step 5: same reuse pattern as handleAsk — this decision's own
+      // interventionId, minted by intervention-policy.js at the moment the
+      // explain/repair decision was made, never regenerated here.
+      const interventionId = decision.interventionId;
+      const shown = questionCard.showExplanation(kind, generated, {
+        evidence: decision.evidence,
+        anchorRect,
+        paragraphKey: identity.paragraphKey,
+        knowledgeUnitId: identity.knowledgeUnitId,
+        interventionId,
+        ...(relate ? { badge: 'how the ideas connect' } : {}),
+        ...(style ? { onFeedback: (helped) => noteStyleFeedback(mode, style, helped) } : {}),
+      });
+      if (shown && style) noteStyleShown(mode, style, identity.paragraphKey);
+      if (shown) {
+        // Step 12: same intervention-evidence contract as handleAsk, same
+        // wire-level type 'ask' — interventions.type's own CHECK constraint
+        // (alcoiaServer) has no separate 'explain'/'repair' value, and this
+        // item's own §12 is explicit that reporting stays additive-or-
+        // reused rather than inventing a new type. The retrieve/explain/
+        // repair distinction lives in which generation mode produced the
+        // content the reader actually saw, not in a new reporting field.
+        reportIntervention(interventionId, identity.knowledgeUnitId, Number.isInteger(paragraphIndex) ? paragraphIndex : null, 'ask', text, decision.policyAction === 'repair' ? 'repair' : 'explain');
+      } else {
+        diagLog.log('questions', `generated_not_presented action=${decision.action} policyAction=${decision.policyAction} reason=${decision.reason}`);
+      }
+      return shown;
+    } finally {
+      automaticInterventionGuard.release();
+    }
+  }
+
+  /* Intelligence-architecture audit, step 7 -- a due retention item becomes
+   * an actual interruption only if it matches a paragraph the reader is
+   * ALREADY reading (never reconstructed from the hash -- see retention.js's
+   * own header) and the intervention policy allows it (due is a candidate,
+   * not an order — CLAUDE.md's own step 7 entry). Called fire-and-forget
+   * from onParagraphRead below, mirroring handleAsk's own shape closely but
+   * triggered by dueKnowledgeUnits, never by a classified reading state.
+   *
+   * Deliberately checks assistantEnabled and snoozeControl itself, the same
+   * two gates onIntervention already applies to every state-driven
+   * interruption — this path reaches the screen through a completely
+   * different trigger (onParagraphRead, not the state-engine subscription
+   * onIntervention normally answers), so nothing upstream of this function
+   * already checked either for it. */
+  async function checkRetentionCandidate(text, paragraphIndex) {
+    if ((!dueKnowledgeUnits.size && !focusKnowledgeUnits.size) || !text) return;
+    if (!s().assistantEnabled) return;
+    // "Show intervention popups" (settings: Interventions) — a view-only
+    // switch, same reasoning as onIntervention's own check below: detection,
+    // scheduling and reporting all keep running underneath, only the card
+    // itself never reaches the screen while this is off.
+    if (s().showInterventions === false) return;
+    if (!orchestratorRef?.interventionPolicy) return;
+
+    const identity = computeIdentity(text);
+    if (!identity.knowledgeUnitId) return;
+    const isDue = dueKnowledgeUnits.has(identity.knowledgeUnitId);
+    // A due review comes first. An instructor focus is only a preference among moments the policy
+    // already allows, and never while the reader is struggling or drifting: it must not add friction.
+    const isFocus = !isDue && focusKnowledgeUnits.has(identity.knowledgeUnitId) && lastCogState !== 'struggling' && lastCogState !== 'drifting' && lastCogState !== 'away';
+    if (!isDue && !isFocus) return;
+
+    if (await snoozeControl.isActive()) return;
+
+    // Step 9A: ui.hasVisibleQuestionCard() is called directly here (this
+    // closure already holds `ui`, unlike orchestrator.js, which reaches it
+    // through host.isQuestionCardVisible() instead — see that callback's
+    // own comment below for why two different call sites need two
+    // different paths to the same fact).
+    const decision = orchestratorRef.interventionPolicy.evaluateRetentionCandidate({
+      paragraphKey: identity.paragraphKey,
+      questionCardVisible: ui.hasVisibleQuestionCard(),
+      kind: isFocus ? 'focus' : 'retention',
+      mode: isFocus ? focusKnowledgeUnits.get(identity.knowledgeUnitId) : undefined,
+    });
+    if (!decision.allow) return;
+
+    // A flagged concept the learner reliably does not know: help comes first (an explanation, or a direct correction
+    // when confident wrong answers dominate), through the same generation, guard and card as any other explanation.
+    if (isFocus && (decision.policyAction === 'explain' || decision.policyAction === 'repair')) {
+      const kind = decision.policyAction === 'repair' ? 'repair' : 'explain';
+      const shown = await handleExplainOrRepair(kind, decision, { signal: { text } }, null, paragraphIndex, text);
+      if (shown) {
+        orchestratorRef.interventionPolicy.record(decision);
+        focusKnowledgeUnits.delete(identity.knowledgeUnitId);
+        presentedRetentionUnits.add(identity.knowledgeUnitId);
+      }
+      return;
+    }
+
+    // Step 12A: same shared guard handleAsk acquires — see that function's
+    // own comment, and automatic-intervention-guard.js's header. This is
+    // the one call site the guard actually exists for: this function is
+    // reached from onParagraphRead, fire-and-forget, outside
+    // orchestrator.js's own interventionInFlight entirely, so without this
+    // a due retention candidate and a state-driven ask could both reach
+    // fetchQuestions() at once.
+    if (!automaticInterventionGuard.tryAcquire()) return;
+    try {
+      // A light check (a flagged idea the learner already knows) is one short, easy confirmation, never a stretch.
+      const level = decision.light ? 'recognition' : await pickLevel(identity);
+      const opts = level !== 'recognition' ? { level } : {};
+      const questions = await fetchQuestions(text, opts);
+      if (!questions.length) return;
+
+      const shown = questionCard.show(questions[0], {
+        evidence: decision.evidence,
+        paragraphKey: identity.paragraphKey,
+        knowledgeUnitId: identity.knowledgeUnitId,
+        paragraphIndex: Number.isInteger(paragraphIndex) ? paragraphIndex : null,
+        interventionId: decision.interventionId,
+        // Step 29: the one badge-level cue that distinguishes "you've seen
+        // this before" from an ordinary fresh question — see question-
+        // card.js's own context doc comment for why the evidence line
+        // alone wasn't a reliable enough signal on its own. Plain,
+        // non-jargon wording — never "retention"/"knowledge state"/
+        // "spaced repetition", none of which a reader should ever see.
+        badge: 'from earlier',
+      });
+      // "Budget spent only on yes" — the same rule orchestrator.js's own
+      // comment states for handleAsk's path, applied here directly since
+      // this path has no orchestrator call site to do it for us.
+      if (shown) {
+        orchestratorRef.interventionPolicy.record(decision);
+        // A focus question is an ordinary 'ask': only a 'retention' answer moves a review schedule.
+        reportIntervention(decision.interventionId, identity.knowledgeUnitId, Number.isInteger(paragraphIndex) ? paragraphIndex : null, isFocus ? 'ask' : 'retention', text, undefined, isFocus ? 'focus' : 'retention');
+        // Belt-and-suspenders alongside the policy's own paragraph-key dedup:
+        // this specific knowledge unit has now been presented this session,
+        // so it should not be attempted again even if a later paragraph
+        // happens to produce a different paragraphKey for the same
+        // knowledgeUnitId (duplicate content at a different position).
+        dueKnowledgeUnits.delete(identity.knowledgeUnitId);
+        focusKnowledgeUnits.delete(identity.knowledgeUnitId);
+        // Step 27: also remembered past this single delete, since
+        // refreshRetentionDue() can otherwise resurrect this exact entry
+        // from a still-stale server response before this presentation's own
+        // outcome has had a chance to advance/regress it -- see that
+        // function's own comment above for the full race.
+        presentedRetentionUnits.add(identity.knowledgeUnitId);
+      } else {
+        // Step 12A: same "generated but not presented" diagnostic as
+        // handleAsk — see that function's own comment for the exact
+        // conditions and privacy reasoning.
+        diagLog.log('questions', `generated_not_presented action=${decision.action} reason=${decision.reason}`);
+      }
+    } finally {
+      automaticInterventionGuard.release();
+    }
+  }
+
+  /* Scheduled quick checks ("probes"). A reader who reads smoothly triggers nothing, which leaves the instructor
+   * with no evidence from exactly the students who are doing well, and can make a fluent reader think the tool
+   * is not working. So, in an assigned reading only, a short quick check is offered after a set amount of
+   * material has been read, then again after each further stretch, for as long as the reading goes on. The
+   * amount is measured in words actually read (each paragraph counted once), so it adapts to the length of the
+   * material without scanning it: a long reading gets more checks, a short one may get none.
+   *
+   * It is deliberately modest:
+   *   - never while the reader is struggling or drifting (the help path owns those moments);
+   *   - never when anything was shown or answered in the current stretch (the stretch restarts, see probeCovered);
+   *   - never about a paragraph the learner has already shown they know (the server's estimate says abstain);
+   *   - always through the same policy gates as every other question (budget, 3-minute gap, dismissal
+   *     back-off, one card at a time), and it can never take the last free slot of the session budget;
+   *   - tagged 'probe' so its answers stay distinguishable from questions triggered by difficulty.
+   * Questions alternate between multiple choice and fill-in-the-blank (choose the word). */
+  const PROBE_FIRST_WORDS = 500;
+  const PROBE_EVERY_WORDS = 1000;
+  const PROBE_MIN_PARAGRAPH_WORDS = 30;
+  // A quick check never appears within this long after a normal card, and if both are due at once the normal
+  // card goes first (the check simply waits for the next paragraph).
+  const PROBE_QUIET_MS = 30000;
+  const probeBlocked = () => (
+    ui.hasVisibleQuestionCard()
+    || (lastNormalCardAt !== 0 && Date.now() - lastNormalCardAt < PROBE_QUIET_MS)
+    || lastCogState === 'struggling' || lastCogState === 'drifting' || lastCogState === 'away'
+  );
+  const probe = { words: 0, nextAt: PROBE_FIRST_WORDS, counted: new Set(), asked: 0, busy: false };
+  const wordCount = (t) => (String(t || '').trim().match(/\S+/g) || []).length;
+  // Quick checks are spaced by how THIS learner has responded to them (their profile on the account): a learner who keeps
+  // turning them away gets them further apart, one who engages gets them closer, and one who reliably turns them away
+  // gets none. Without a profile the spacing is the starting value.
+  const probeProfile = () => policyProfileManager?.getProfile?.().cards?.probe;
+  function probeCovered() { probe.words = 0; probe.nextAt = Math.round(PROBE_EVERY_WORDS * (probeProfile()?.cooldownFactor ?? 1)); }
+
+  async function checkProbe(text, paragraphIndex) {
+    if (!assignmentId || !getSession || !text) return;
+    const key = text.slice(0, 80).trim();
+    if (!probe.counted.has(key)) { probe.counted.add(key); probe.words += wordCount(text); }
+    if (probe.words < probe.nextAt || probe.busy) return;
+    if (wordCount(text) < PROBE_MIN_PARAGRAPH_WORDS) return; // wait for a substantive paragraph
+    if (!s().assistantEnabled || !orchestratorRef?.interventionPolicy) return;
+    // Same "Show intervention popups" view-only switch as onIntervention and
+    // checkRetentionCandidate — a quick check is still a card on screen.
+    if (s().showInterventions === false) return;
+    if (probeBlocked()) return;
+    const identity = computeIdentity(text);
+    if (!identity.knowledgeUnitId) return;
+    const est = learnerEstimates.get(identity.knowledgeUnitId);
+    if (est && est.action === 'abstain') return; // already shown they know this one
+    if (await snoozeControl.isActive()) return;
+
+    const decision = orchestratorRef.interventionPolicy.evaluateRetentionCandidate({
+      paragraphKey: identity.paragraphKey,
+      questionCardVisible: ui.hasVisibleQuestionCard(),
+      kind: 'probe',
+    });
+    if (!decision.allow) return; // stays due; the next paragraph tries again
+
+    if (!automaticInterventionGuard.tryAcquire()) return;
+    probe.busy = true;
+    try {
+      let questions = await fetchQuestions(text, { kind: probe.asked % 2 === 1 ? 'cloze' : 'recall' });
+      if (!questions.length && probe.asked % 2 === 1) questions = await fetchQuestions(text, { kind: 'recall' });
+      if (!questions.length) return;
+      // Fetching took time: a normal card may have appeared meanwhile. It has priority, so drop the check.
+      if (probeBlocked()) return;
+      const shown = questionCard.show(questions[0], {
+        evidence: decision.evidence,
+        paragraphKey: identity.paragraphKey,
+        knowledgeUnitId: identity.knowledgeUnitId,
+        paragraphIndex: Number.isInteger(paragraphIndex) ? paragraphIndex : null,
+        interventionId: decision.interventionId,
+      });
+      if (shown) {
+        orchestratorRef.interventionPolicy.record(decision);
+        probe.asked += 1;
+        reportIntervention(decision.interventionId, identity.knowledgeUnitId, Number.isInteger(paragraphIndex) ? paragraphIndex : null, 'probe', text, 'retrieve');
+        probeCovered();
+      }
+    } finally {
+      probe.busy = false;
+      automaticInterventionGuard.release();
+    }
+  }
+
+  // A long absence followed by a return to the same paragraph is its own retrieval check, never a struggle
+  // signal: the reader may simply have been away. One check per return, and it yields to any normal card.
+  const returnCheck = { busy: false, lastAt: 0 };
+  const RETURN_CHECK_GAP_MS = 5 * 60 * 1000;
+  async function checkReturnCheck(blurMs) {
+    if (returnCheck.busy || !s().assistantEnabled || !orchestratorRef?.interventionPolicy) return;
+    if (Date.now() - returnCheck.lastAt < RETURN_CHECK_GAP_MS) return;
+    const el = currentParagraph?.type === 'dom' ? currentParagraph.data : null;
+    const text = el ? String(el.innerText || el.textContent || '').trim() : '';
+    if (wordCount(text) < PROBE_MIN_PARAGRAPH_WORDS) return;
+    if (probeBlocked() || await snoozeControl.isActive()) return;
+    const identity = computeIdentity(text);
+    if (!identity.knowledgeUnitId) return;
+    const decision = orchestratorRef.interventionPolicy.evaluateRetentionCandidate({
+      paragraphKey: identity.paragraphKey,
+      questionCardVisible: ui.hasVisibleQuestionCard(),
+      kind: 'return_check',
+    });
+    if (!decision.allow) return;
+    if (!automaticInterventionGuard.tryAcquire()) return;
+    returnCheck.busy = true;
+    try {
+      const questions = await fetchQuestions(text, { kind: 'recall' });
+      if (!questions.length || probeBlocked()) return;
+      const shown = questionCard.show(questions[0], {
+        evidence: decision.evidence,
+        paragraphKey: identity.paragraphKey,
+        knowledgeUnitId: identity.knowledgeUnitId,
+        paragraphIndex: null,
+        interventionId: decision.interventionId,
+      });
+      if (shown) {
+        orchestratorRef.interventionPolicy.record(decision);
+        returnCheck.lastAt = Date.now();
+        reportIntervention(decision.interventionId, identity.knowledgeUnitId, null, 'return_check', text, 'retrieve');
+      }
+    } finally {
+      returnCheck.busy = false;
+      automaticInterventionGuard.release();
+    }
+  }
+
+  // ── Paragraph state — what setCurrentParagraph/setPrevParagraphText/
+  // setCogState/getCurrentParagraph hold ──────────────────────────────────
+  let currentParagraph = null;
+  let prevParagraphText = '';
+  let lastCogState = 'unknown';
+
+  // ── Paragraph finder ────────────────────────────────────────────────────
+  // pdfHandler/pptxHandler are deliberately not imported or known about
+  // here — see this file's own header and CLAUDE.md's item-30a section.
+  // content.js (today) and the PDF/PPTX viewer (item 30c) both inject
+  // whatever handler they detected, or nothing at all.
+  let pdfHandler = null;
+  let pptxHandler = null;
+  function setPdfHandler(h) { pdfHandler = h; }
+  function setPptxHandler(h) { pptxHandler = h; }
+
+  const overlayUtils = await loadModule('src/content/overlay-utils.js');
+
+  async function findParagraphAt(cx, cy) {
+    if (pdfHandler?.findParagraphAt)  { const p = await pdfHandler.findParagraphAt(cx, cy);  if (p) return { type: 'pdf', data: p }; }
+    if (pptxHandler?.findParagraphAt) { const p = await pptxHandler.findParagraphAt(cx, cy); if (p) return { type: 'pptx', data: p }; }
+    const el = document.elementFromPoint(cx, cy);
+    if (!el) return null;
+    return { type: 'dom', data: overlayUtils.getBlockAncestor(el) || el };
+  }
+
+  // ── The callback surface orchestrator.js requires ───────────────────
+  const host = {
+    sessionTracker,
+    log,
+    findParagraphAt,
+    // Stage B: the server's estimate for the knowledge unit of this paragraph element, or null when there is
+    // none (no assignment, no account, learner memory off, or simply no evidence yet).
+    learnerEstimateFor: (el) => {
+      try {
+        const text = el ? (el.innerText || el.textContent || '').trim() : '';
+        if (learnerEstimates.size) {
+          const id = text ? knowledgeUnitModule.computeKnowledgeUnitId(text) : null;
+          if (id && learnerEstimates.get(id)) return learnerEstimates.get(id);
+        }
+        // No account estimate: on an ordinary page, what this device has seen of the paragraph's ideas.
+        if (deviceConcepts && text) return deviceConcepts.estimateFor(computeIdentity(text).paragraphKey);
+        return null;
+      } catch (e) { return null; }
+    },
+    logDecision: (entry) => {
+      if (entry?.kind === 'shown') {
+        lastShownBasis = entry.basis ?? null;
+        try { noteDetectorShown(entry.state, entry.basis); } catch (e) {}
+        const c = cardsShown.get(lastCardId);
+        if (c && !c.logged) { c.logged = true; entry = { ...entry, cardType: c.type }; }
+      }
+      if (entry?.kind === 'self_report') { try { noteSelfReport(entry.previousState); } catch (e) {} }
+      // The card's own 'shown' entry (with its kind) is written when the card is reported; this one adds the detector's side.
+      decisionLog.record(entry);
+    },
+    getCurrentParagraph: () => currentParagraph,
+    setCurrentParagraph: (p) => { currentParagraph = p; },
+    setPrevParagraphText: (t) => { prevParagraphText = t; },
+    setCogState: (label) => { lastCogState = label; },
+    // Step 9A (active intervention awareness): orchestrator.js has no
+    // reference to `ui` at all (by design — it decides, ui-controller.js
+    // renders), so this is the one callback that carries ui-controller.js's
+    // own hasVisibleQuestionCard() fact across that boundary, the same
+    // "UI controller owns visibility, orchestrator transports the fact,
+    // policy consumes the fact" shape this item's own brief asks for. A
+    // plain, synchronous getter — no new state is created here, this reads
+    // straight through to ui-controller.js's own openPopups.
+    isQuestionCardVisible: () => ui.hasVisibleQuestionCard(),
+    onParagraphRead: (text, dwellMs, paragraphIndex) => {
+      sessionRecall.recordRead(text, dwellMs, paragraphIndex);
+      // Intelligence-architecture audit, step 7 -- fire-and-forget, same
+      // pattern as submitOutcome/reportIntervention elsewhere in this
+      // file. orchestrator.js calls onParagraphRead synchronously,
+      // unawaited (see its own comment on this call site), so this must
+      // not become async from the caller's own point of view either.
+      try {
+        if (deviceConcepts) Promise.resolve(deviceConcepts.noteRead(computeIdentity(text).paragraphKey, text)).then(() => checkConnections()).catch(() => {});
+      } catch (e) {}
+      try { if (exposureReporter) { const id = computeIdentity(text).knowledgeUnitId; if (id) exposureReporter.note(id); } } catch (e) {}
+      checkRetentionCandidate(text, paragraphIndex).catch(() => {});
+      checkProbe(text, paragraphIndex).catch(() => {});
+    },
+    onReturnCheck: (blurMs) => { checkReturnCheck(blurMs).catch(() => {}); },
+    onStruggle: (text, paragraphIndex, substate, selfReported) => {
+      sessionRecall.recordStruggle(text);
+      // Item S6/E4 follow-up — see submitOutcome's own header just above.
+      // substate/selfReported: already resolved by orchestrator.js at the
+      // moment struggle was decided (13a's 'unclear' default translated to
+      // null there, not here — see its own comment). source: 'inline'
+      // names this specific chokepoint — the in-page retrieval prompt —
+      // distinct from quiz.js's separate, never-transmitted path (13i,
+      // untouched by this item).
+      // Item DC-2: same text.slice(0, 80).trim() paragraph key every other
+      // paragraph-identity check in this codebase already uses (handleAsk's
+      // own paragraphKey, intervention-policy.js's paragraphKey()) — so a
+      // key produced by selection-explain.js's markParagraphExplained() is
+      // directly comparable here with no second convention to keep in sync.
+      const explanationPrecededAttempt = explanationPreceded(text.slice(0, 80).trim());
+      // Knowledge-unit identity (step 3): computed straight from the same
+      // text, not via computeIdentity() — this call site never needed a
+      // paragraphKey of its own (wasParagraphExplained above still uses the
+      // old text-slice convention, unchanged), only this one new field.
+      const knowledgeUnitId = knowledgeUnitModule.computeKnowledgeUnitId(text);
+      submitOutcome({ paragraphIndex, struggled: true, substate, selfReported, source: 'inline', explanationPrecededAttempt, knowledgeUnitId });
+    },
+    onQuizOfferEligible: (result) => showQuizOffer(result),
+    onIntervention: async (decision, state, target, paragraphIndex) => {
+      if (!s().assistantEnabled) return false;
+      // "Show intervention popups" (settings: Interventions, default on) —
+      // a view-only switch, same shape as the master switch's own comment
+      // above but narrower: the state engine, the intervention policy, and
+      // every signal feeding the instructor view and learner memory keep
+      // running exactly as before. Only the thing a reader would actually
+      // SEE (a nudge, a question card, an explain/repair card) is
+      // suppressed here, at the one dispatcher every automatic render path
+      // (ask/explain/repair/nudge) already goes through. Ambient signals
+      // that never reach this function at all (onStruggle's own
+      // submitOutcome, the self-report button, scroll kinematics) are
+      // completely unaffected — this is why it's independent of the
+      // self-report button's own visibility switch, not the same toggle.
+      if (s().showInterventions === false) return false;
+      // Item 18: only the final render is suppressed — see snooze.js's own
+      // header for why detection/coverage/the quiz gate keep running above.
+      if (await snoozeControl.isActive()) return false;
+      if (decision.action === 'nudge') {
+        showNudge(target);
+        if (target) highlightElement(target, 3000);
+        return true;
+      }
+      if (decision.action === 'ask') {
+        // Learning Intelligence step 24: decision.action stays 'ask' for
+        // every policyAction that renders through the question-card shell
+        // (Step 23's own design — see intervention-policy.js's POLICY_ACTIONS
+        // header), so policyAction is what actually picks the generation
+        // path here. 'explain'/'repair' are genuinely different generation
+        // behavior (see handleExplainOrRepair's own header); anything else
+        // ('retrieve', or an older/unset policyAction for backward
+        // compatibility) keeps the existing retrieval-question path.
+        if (decision.policyAction === 'explain' || decision.policyAction === 'repair') {
+          return await handleExplainOrRepair(decision.policyAction, decision, state, target, paragraphIndex);
+        }
+        return await handleAsk(decision, state, target, paragraphIndex);
+      }
+      return false;
+    },
+  };
+
+  return {
+    host,
+    setOrchestrator,
+    comprehensionMonitor,
+    // Same instance as host.sessionTracker — exposed at the top level too
+    // since content.js's own content-script-only manual paths (the
+    // receipt, the simulate/manual AI-trigger path) need it directly, not
+    // just through orchestrator.js's view of `host`.
+    sessionTracker,
+    // Item DC-1a — content.js's/viewer.js's own beforeunload handler calls
+    // this directly, the same top-level-exposure reason as sessionTracker
+    // just above. Always safe to call unconditionally: a no-op unless this
+    // host was constructed with assignmentId+getSession (see above).
+    submitKinematics,
+    // Item DC-2 follow-up — same top-level exposure, same "always safe to
+    // call unconditionally" reason as submitKinematics just above.
+    reportExplanationEvent,
+    // Step 27 — owned here (the timer is created here), so the ability to
+    // stop it belongs here too, the same "unreachable otherwise" reasoning
+    // orchestrator.js's own stop() already states for its idleTimer. Not
+    // called anywhere today — the content script lives as long as the
+    // page, same as that one.
+    stopRetentionRefresh,
+    stopAdaptationSync,
+    fetchSummary,
+    fetchQuestions,
+    fetchGrading,
+    // Exposed for content.js's receipt signing (receipt.js's signReceipt),
+    // a reader-initiated cryptographic operation, not an AI call — it needs
+    // the same token-attaching relay fetchSummary/fetchQuestions use, but
+    // deliberately bypasses checkAiCallBudget() by calling this directly
+    // instead of going through either of them (see item 38's own scope note).
+    callBackend,
+    questionCard,
+    runQuiz,
+    runSessionRecall,
+    // Item 13a — affordances 1 (content.js's Alt+C) and 2 (a settings/
+    // popup-triggered equivalent) both call showSelfReportCard() directly;
+    // reportSelfState() is exposed separately in case a caller ever needs
+    // to submit one without the standalone card (none does today).
+    showSelfReportCard,
+    setShowSelfReportButton,
+    reportSelfState,
+    // startSnooze/SNOOZE_OPTIONS used to also be exposed here for the
+    // popup's old "Pause" button (a remote snoozeReminders message) —
+    // removed along with that button; the card's own snooze control
+    // (onSnooze, above) reaches startSnooze directly via closure, with no
+    // need to export it.
+    snoozeControl,
+    sessionRecall,
+    // The receipt (content.js's own manual, Alt+I feature) reads
+    // responseSignals.stats()/.history() directly — not part of the
+    // orchestrator callback contract, but responseSignals lives here since
+    // it feeds questionCard, which is host-owned.
+    responseSignals,
+    diagLog,
+    installToken,
+    setPdfHandler,
+    setPptxHandler,
+    getCogState: () => lastCogState,
+    getPrevParagraphText: () => prevParagraphText,
+  };
+}
