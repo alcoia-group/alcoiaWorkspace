@@ -122,7 +122,13 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-body { margin: 0; min-height: 100svh; background: #f5f5f5; color: #2d3b45; }
+/* Viewport height that ignores the browser's collapsing address bar (iOS Safari, Chrome Android).
+   Older browsers without svh get 100vh. */
+:root { --vh: 100vh; }
+@supports (height: 100svh) { :root { --vh: 100svh; } }
+img, svg, video, canvas { max-width: 100%; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; min-height: var(--vh); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); overflow-wrap: break-word; background: #f5f5f5; color: #2d3b45; }
 h1, h2, h3 { font-family: var(--sans); color: #2d3b45; font-weight: 600; line-height: 1.25; }
 h1 { font-size: 24px; margin: 0 0 12px; }
 h2 { font-size: 18px; margin: 0 0 8px; }
@@ -203,7 +209,7 @@ button.link-button:hover:not(:disabled) { background: none; }
 .app-main.wide { max-width: none; padding: 0; }
 .viewer { --z: 1; }
 .viewer-toolbar {
-  position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  position: sticky; top: var(--anno-h, 0px); z-index: 2; display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap;
   padding: 8px 20px; background: #fff; border-bottom: 1px solid #c7cdd1;
 }
 .viewer-title { color: #2d3b45; font-size: 15px; font-weight: 600; margin-right: auto; }
@@ -211,12 +217,12 @@ button.link-button:hover:not(:disabled) { background: none; }
 .viewer-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .viewer-controls button { padding: 5px 10px; font-size: 13px; }
 .viewer-stage {
-  background: #e9ebed; padding: 20px 12px 64px; display: flex; flex-direction: column;
-  align-items: center; gap: 20px; min-height: calc(100svh - 110px);
+  background: #e9ebed; padding: 20px 12px calc(64px + env(safe-area-inset-bottom)); display: flex; flex-direction: column;
+  align-items: center; gap: 20px; min-height: calc(var(--vh) - 110px);
 }
 .docx-page {
   width: calc(816px * var(--z)); max-width: 100%; box-sizing: border-box;
-  min-height: calc(1056px * var(--z)); padding: calc(72px * var(--z));
+  min-height: 0; padding: max(18px, min(calc(72px * var(--z)), 7vw));
   background: var(--paper-raised); border: 1px solid var(--field-border); border-radius: 2px;
   color: var(--ink); font-family: var(--alc-serif); font-size: calc(16px * var(--z)); line-height: 1.55;
   overflow-wrap: anywhere;
@@ -225,15 +231,15 @@ button.link-button:hover:not(:disabled) { background: none; }
 .docx-heading { margin: 1.2em 0 0.5em; font-family: var(--alc-serif); font-weight: 600; color: var(--ink); }
 .docx-page h1 { font-size: 1.8em; } .docx-page h2 { font-size: 1.4em; } .docx-page h3 { font-size: 1.2em; }
 .docx-list { margin: 0 0 0.8em; padding-left: 1.5em; }
-.docx-table { border-collapse: collapse; margin: 0 0 1em; width: 100%; }
+.docx-table { border-collapse: collapse; margin: 0 0 1em; width: 100%; display: block; max-width: 100%; overflow-x: auto; }
 .docx-table td { border: 1px solid var(--field-border); padding: 0.4em 0.6em; vertical-align: top; }
 .docx-table td p:last-child { margin-bottom: 0; }
 .docx-image-placeholder { color: var(--ink-faint); font-style: italic; }
-@media (max-width: 700px) { .docx-page { padding: 24px 18px; min-height: 0; } .viewer-toolbar { padding: 8px 12px; } }
+@media (min-width: 900px) { .docx-page { min-height: calc(1056px * var(--z)); } }
 
 /* ── Slide viewer ─────────────────────────────────────────────────────── */
-.slides-body { display: flex; background: #e9ebed; min-height: calc(100svh - 110px); }
-.slides-rail { width: 220px; flex: none; overflow-y: auto; max-height: calc(100svh - 110px); padding: 12px 8px; border-right: 1px solid #c7cdd1; background: #f5f5f5; }
+.slides-body { display: flex; background: #e9ebed; min-height: calc(var(--vh) - 110px); }
+.slides-rail { width: 220px; flex: none; overflow-y: auto; max-height: calc(var(--vh) - 110px); padding: 12px 8px; border-right: 1px solid #c7cdd1; background: #f5f5f5; }
 .rail-item { display: flex; align-items: flex-start; gap: 8px; width: 100%; text-align: left; background: transparent; color: var(--ink); border: 1px solid transparent; border-radius: 3px; padding: 6px 6px 6px 4px; font-weight: 500; font-size: 12px; }
 .rail-item.current { background: #fff; border-color: #1b6fb8; }
 .rail-no { color: var(--ink-faint); min-width: 1.6em; text-align: right; padding-top: 2px; }
@@ -270,28 +276,28 @@ html.is-fullscreen .viewer { position: fixed; inset: 0; z-index: 40; background:
 html.is-fullscreen .viewer-toolbar { transition: opacity 0.25s; }
 html.is-fullscreen .viewer[data-idle='true'] .viewer-toolbar { opacity: 0; pointer-events: none; }
 html.is-fullscreen .viewer[data-idle='true'] { cursor: none; }
-html.is-fullscreen .viewer-stage { min-height: 100svh; }
+html.is-fullscreen .viewer-stage { min-height: var(--vh); }
 /* slideshow: the slide alone, as large as fits, on black */
 html.is-fullscreen .slides-viewer { background: #000; overflow: hidden; }
 html.is-fullscreen .slides-viewer .viewer-toolbar { position: fixed; left: 0; right: 0; top: 0; z-index: 5; background: rgba(0, 0, 0, 0.72); border-bottom: 0; color: #fff; }
 html.is-fullscreen .slides-viewer .viewer-title,
 html.is-fullscreen .slides-viewer .viewer-pageno { color: #fff; }
 html.is-fullscreen .slides-viewer .viewer-toolbar button.secondary { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
-html.is-fullscreen .slides-viewer .slides-body { display: block; background: #000; min-height: 100svh; }
+html.is-fullscreen .slides-viewer .slides-body { display: block; background: #000; min-height: var(--vh); }
 html.is-fullscreen .slides-viewer .slides-rail { display: none; }
 html.is-fullscreen .slides-stage-wrap { position: fixed; inset: 0; padding: 0; display: flex; align-items: center; justify-content: center; }
-html.is-fullscreen .slides-stage { width: min(100vw, calc(100svh * var(--slide-ratio, 1.7778))); max-width: none; border: 0; cursor: pointer; }
+html.is-fullscreen .slides-stage { width: min(100vw, calc(var(--vh) * var(--slide-ratio, 1.7778))); max-width: none; border: 0; cursor: pointer; }
 
 /* ── PDF viewer ──────────────────────────────────────────────────────── */
-.slides-rail { position: sticky; top: 52px; align-self: flex-start; }
+.slides-rail { position: sticky; top: calc(var(--anno-h, 0px) + 52px); align-self: flex-start; }
 .pdf-body { align-items: flex-start; }
-.pdf-stage { flex: 1; min-width: 0; min-height: calc(100svh - 110px); }
+.pdf-stage { flex: 1; min-width: 0; min-height: calc(var(--vh) - 110px); }
 .pdf-page { position: relative; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.18); flex: none; max-width: none; }
 .pdf-canvas { display: block; position: absolute; top: 0; left: 0; }
 .pdf-page .textLayer { position: absolute; inset: 0; }
 .pdf-thumb canvas { display: block; width: 100%; height: auto; }
 .pdf-thumb { background: #fff; }
-html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: 100svh; }
+html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: var(--vh); }
 @media (max-width: 800px) { .slides-rail { position: static; } .pdf-body { flex-direction: column; } }
 
 /* sign-in screens follow the system colour scheme; the logo switches with it */
@@ -444,7 +450,7 @@ table.list th, table.list td { text-align: left; padding: 8px 12px; border-botto
 .annotator-note { margin: 6px 12px; font-size: 13px; }
 .annotator-body { display: flex; align-items: flex-start; }
 .annotator-doc { flex: 1; min-width: 0; }
-.annotator-panel { width: 300px; flex: none; max-height: 80vh; overflow: auto; position: sticky; top: 52px; padding: 12px; border-left: 1px solid var(--field-border, #ddd); background: var(--paper-raised, #fff); font-size: 14px; }
+.annotator-panel { width: 300px; flex: none; max-height: 80vh; overflow: auto; position: sticky; top: calc(var(--anno-h, 0px) + 8px); padding: 12px; border-left: 1px solid var(--field-border, #ddd); background: var(--paper-raised, #fff); font-size: 14px; }
 .annotator-panel ul { list-style: none; margin: 0; padding: 0; }
 .annotator-panel li { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 8px; }
 .annotator-panel .mark-row { flex: 1; display: flex; gap: 8px; text-align: left; background: transparent; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
@@ -512,8 +518,75 @@ a.an-chip { text-decoration: none; }
 .settings-page .setting-label { display: block; }
 .settings-page .setting-hint { display: block; font-size: 13px; }
 
-/* Scroll recording chip and summary (device-local diagnostics) */
-.scroll-chip { position: fixed; left: 8px; bottom: 8px; z-index: 60; display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 13px; background: #fff; color: #2d3b45; border: 1px solid #c7cdd1; border-left: 4px solid #b3261e; border-radius: 3px; box-shadow: 0 2px 8px rgba(0,0,0,.15); max-width: calc(100vw - 16px); }
-.scroll-chip button { padding: 3px 10px; font-size: 13px; }
-.scroll-summary { padding-left: 20px; }
-.scroll-summary li { margin: 4px 0; }
+/* ── Responsive pass: phone (320-430), tablet (600-1024), desktop ─────────────────────────────
+   Rules: no horizontal page scroll at any width from 320 up (wide things scroll inside their own
+   box); heights use --vh (svh) so the iOS address bar does not cut things off; fixed bars respect
+   the safe-area insets; touch targets are at least 44 px; the editing tools are hidden on phones
+   by the Annotator itself (see lib/useEditingTools.js), not here. */
+html, body { max-width: 100%; overflow-x: hidden; }
+.app-main, main { min-width: 0; }
+.page, .an-page, .exam-page { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+.lms-table, table.list { display: block; max-width: 100%; overflow-x: auto; }
+.crumbs { padding-left: max(16px, env(safe-area-inset-left)); }
+.viewer-title { min-width: 0; overflow-wrap: anywhere; }
+.viewer-toolbar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+.skip-panel { max-height: calc(var(--vh) - 140px); }
+.explain-back, .connections, .prep { margin-left: 12px; margin-right: 12px; max-width: none; }
+@media (min-width: 880px) { .explain-back, .connections { margin-left: auto; margin-right: auto; max-width: 820px; } .prep { margin-left: auto; margin-right: auto; max-width: 880px; } }
+.explain-back textarea, .note-text, .annotator-pop textarea { max-width: 100%; }
+.prep-choice, .prep-q { overflow-wrap: anywhere; }
+.docx-page img, .docx-page svg, .docx-page canvas { max-width: 100%; height: auto; }
+.docx-page a, .docx-page td { overflow-wrap: anywhere; }
+.pdf-stage { overflow-x: auto; align-items: flex-start; }
+.pdf-page { margin-left: auto; margin-right: auto; }
+
+@media (max-width: 800px) {
+  .slides-stage-wrap { padding: 12px 8px 24px; }
+  .pdf-body, .slides-body { min-height: 0; }
+  .viewer-stage { padding: 12px 8px calc(40px + env(safe-area-inset-bottom)); gap: 12px; }
+  .viewer-title { flex: 1 1 100%; }
+  .viewer-controls { flex: 1 1 100%; }
+  /* Prove it to skip: a sheet at the bottom, full width, not hanging off a button */
+  .skip-panel { position: fixed; left: 8px; right: 8px; width: auto; top: auto; bottom: calc(8px + env(safe-area-inset-bottom)); max-height: 70vh; }
+}
+@media (max-width: 599.98px) {
+  /* Phones: the page or slide list takes room the reading needs; previous/next, swipe and the
+     page number do the job. Tablets keep the strip. */
+  .slides-rail { display: none; }
+  .viewer-controls .viewer-zoom { display: none; }
+  .explain-back, .connections, .prep { padding-left: 14px; padding-right: 14px; }
+}
+@media (max-width: 800px) { .pdf-body { align-items: stretch; } .slides-rail { align-self: stretch; max-width: 100%; min-width: 0; } }
+@media (max-width: 800px) and (min-width: 600px) { .slides-rail { max-height: 132px; } }
+
+/* Fullscreen bars and the slideshow respect the notch and the home indicator */
+html.is-fullscreen .viewer { padding-bottom: env(safe-area-inset-bottom); }
+html.is-fullscreen .slides-viewer .viewer-toolbar { padding-top: max(8px, env(safe-area-inset-top)); }
+@supports (height: 100dvh) {
+  html.is-fullscreen .slides-viewer .slides-body, html.is-fullscreen .viewer-stage { min-height: 100dvh; }
+  html.is-fullscreen .slides-stage { width: min(100vw, calc(100dvh * var(--slide-ratio, 1.7778))); }
+}
+
+/* Touch screens: every control at least 44 px; the slide stage keeps vertical scroll and pinch */
+@media (pointer: coarse) {
+  button, .button, summary, select, input[type='email'], input[type='text'], input[type='search'] { min-height: 44px; }
+  button.link-button { min-height: 44px; padding: 0 6px; }
+  .viewer-controls button { min-width: 44px; }
+  .global-nav a { display: inline-flex; align-items: center; min-height: 44px; padding-top: 0; padding-bottom: 0; }
+  .rail-item { min-height: 44px; }
+  .exam-pick, .prep-choice, .an-filter, .setting-row label { min-height: 44px; display: flex; align-items: center; }
+  .exam-pick input, .setting-row input, .prep-choice input { width: 22px; height: 22px; flex: none; }
+  .annotator .swatch { width: 44px; height: 44px; padding: 8px; background-clip: content-box; }
+  .global-brand { min-height: 44px; min-width: 44px; }
+  input[type='file'] { min-height: 44px; max-width: 100%; }
+  .skip-panel input[type='radio'], .prep input[type='radio'] { width: 22px; height: 22px; }
+  .viewer-controls .link-button, .prep-head .link-button, .skip-panel .link-button { min-width: 44px; }
+  .annotator .tool { min-height: 44px; padding: 4px 12px; }
+  .sticky-pin { width: 44px; height: 44px; }
+  .mark-row { min-height: 44px; }
+  .slides-stage { touch-action: pan-y pinch-zoom; }
+  /* links that stand alone on a row (lists, tables, breadcrumb, footer links, chips) */
+  .lms-table a, table.list a, .file-row a, .an-list a, .crumbs a, .row-link, a.an-chip, .legal-links a, .connections a, .an-page p > a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 2px; }
+  a.an-chip { padding: 0 10px; }
+  .legal-links a { margin-right: 6px; }
+}

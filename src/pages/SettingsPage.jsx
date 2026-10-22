@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useSession } from '../context/SessionContext.jsx';
-import ScrollRecordingSection from '../components/diagnostics/ScrollRecordingSection.jsx';
 import { disableLearningMemory, enableLearningMemory, fetchLearningMemory, fetchSettings, saveSettings } from '../lib/settings.js';
 
 const COLORS = [
@@ -133,7 +132,6 @@ export default function SettingsPage() {
       )}
       {memoryError && <p className="alert alert-error">Account-based learning could not be loaded or changed.</p>}
 
-      <ScrollRecordingSection />
     </section>
   );
 }

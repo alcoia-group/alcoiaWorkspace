@@ -7,7 +7,6 @@ import DocxViewer from '../components/viewers/DocxViewer.jsx';
 import SlideViewer from '../components/viewers/SlideViewer.jsx';
 import BeforeYouRead from '../components/BeforeYouRead.jsx';
 import Annotator from '../components/Annotator.jsx';
-import ScrollRecordingChip from '../components/diagnostics/ScrollRecordingChip.jsx';
 import Detection from '../detection/Detection.jsx';
 import ExplainBack from '../components/ExplainBack.jsx';
 import Connections from '../components/Connections.jsx';
@@ -122,7 +121,6 @@ export default function ReaderPage() {
         </Suspense>
         </Annotator>
         <Detection assignmentId={assignmentId} />
-        <ScrollRecordingChip />
         <Connections assignmentId={assignmentId} sessionToken={session.sessionToken} />
         <ExplainBack assignmentId={assignmentId} sessionToken={session.sessionToken} />
         {downloadError && <p className="alert alert-error">The download link could not be created.</p>}

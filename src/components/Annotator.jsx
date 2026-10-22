@@ -4,6 +4,7 @@ import {
   COLORS, COLOR_KEYS, KIND_LABEL, NOTE_MAX, clamp01, anchorFromSelection, caretAtPoint, highlightsSupported, loadMarks,
   marksToMarkdown, newId, rangeFromOffsets, resolveAnchor, saveMarks, scopeLabel, scopeOrder, scopeText,
 } from '../lib/annotations.js';
+import { useEditingTools } from '../lib/useEditingTools.js';
 
 // Reading tools around any viewer: highlighters, underlines, strike-through, notes, a pen and an
 // eraser. Marks stay on this device. Text marks are drawn with the browser's CSS Custom Highlight
@@ -161,20 +162,37 @@ export default function Annotator({ docKey, title, children }) {
   const rootRef = useRef(null);
   const scopes = useScopes(rootRef);
   const supported = useMemo(highlightsSupported, []);
+  const editable = useEditingTools(); // false on a phone: marks are drawn, nothing can be edited
+  const [barH, setBarH] = useState(0);
   const [marks, setMarks] = useState(() => loadMarks(docKey));
-  const [tool, setTool] = useState('select'); // select | highlight | underline | wavy | strike | pen | eraser
+  const [toolChoice, setTool] = useState('select'); // select | highlight | underline | wavy | strike | pen | eraser
+  const tool = editable ? toolChoice : 'select';
   const [color, setColor] = useState('yellow');
   const [penWidth, setPenWidth] = useState('medium');
-  const [panel, setPanel] = useState(false);
+  const [panelChoice, setPanel] = useState(false);
+  const panel = editable && panelChoice;
   const [popover, setPopover] = useState(null); // { x, y, kind: 'new' | 'edit', pieces?, id? }
   const [saveFailed, setSaveFailed] = useState(false);
   const [focusNote, setFocusNote] = useState(null);
   const [openId, setOpenId] = useState(null); // open sticky note
   const [stickyPos, setStickyPos] = useState(null); // { x, y } of the open note's popup
+  const barRef = useRef(null);
   const resolved = useRef(new Map()); // id -> { scopeEl, start, end }
   const pending = useRef(null);
 
   useEffect(() => { setMarks(loadMarks(docKey)); setOpenId(null); }, [docKey]);
+  useEffect(() => { if (!editable) { setPopover(null); setOpenId(null); } }, [editable]);
+  // The reading tools bar is sticky; the viewer's own toolbar sticks just below it (CSS var --anno-h).
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el || !editable) { setBarH(0); return undefined; }
+    const measure = () => setBarH(Math.round(el.getBoundingClientRect().height));
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [editable]);
   useEffect(() => {
     const t = setTimeout(() => setSaveFailed(!saveMarks(docKey, marks)), 300);
     return () => clearTimeout(t);
@@ -203,9 +221,13 @@ export default function Annotator({ docKey, title, children }) {
     }
     const names = [];
     for (const k of ['hl', 'ul', 'wv', 'st']) for (const c of COLOR_KEYS) names.push(`alc-${k}-${c}`);
-    for (const n of names) CSS.highlights.delete(n);
-    for (const [name, ranges] of groups) CSS.highlights.set(name, new Highlight(...ranges));
-    return () => { for (const n of names) CSS.highlights.delete(n); };
+    // A browser with a partial Custom Highlight API must never break reading: drawing is best effort.
+    const clear = () => { try { for (const n of names) CSS.highlights.delete(n); } catch { /* not supported */ } };
+    clear();
+    try {
+      for (const [name, ranges] of groups) CSS.highlights.set(name, new Highlight(...ranges));
+    } catch { /* marks stay stored; they are just not drawn here */ }
+    return clear;
   }, [supported, scopes, marks.items]);
 
   const addItems = useCallback((pieces, kind, col) => {
@@ -226,7 +248,7 @@ export default function Annotator({ docKey, title, children }) {
   };
 
   const onSelectionEnd = (e) => {
-    if (!supported || e.target.closest?.('.annotator-ui')) return;
+    if (!editable || !supported || e.target.closest?.('.annotator-ui')) return;
     setTimeout(() => {
       const got = piecesFromSelection();
       if (!got) return;
@@ -242,7 +264,7 @@ export default function Annotator({ docKey, title, children }) {
   };
 
   const onClick = (e) => {
-    if (!supported || e.target.closest?.('.annotator-ui, .stroke-layer, button, a')) return;
+    if (!editable || !supported || e.target.closest?.('.annotator-ui, .stroke-layer, button, a')) return;
     if (!window.getSelection().isCollapsed) return;
     if (tool !== 'select' && tool !== 'eraser') return;
     const at = caretAtPoint(e.clientX, e.clientY);
@@ -362,8 +384,9 @@ export default function Annotator({ docKey, title, children }) {
   const stickyRows = [...marks.stickies].sort((a, b) => scopeOrder(a.scope) - scopeOrder(b.scope) || a.y - b.y);
 
   return (
-    <div className="annotator" data-tool={tool} ref={rootRef} onMouseUp={onSelectionEnd} onTouchEnd={onSelectionEnd} onKeyUp={onSelectionEnd} onClick={onClick}>
-      <div className="annotator-bar annotator-ui" role="toolbar" aria-label="Reading tools">
+    <div className="annotator" data-tool={tool} data-editable={editable ? 'true' : 'false'} style={{ '--anno-h': `${barH}px` }} ref={rootRef} onMouseUp={onSelectionEnd} onTouchEnd={onSelectionEnd} onKeyUp={onSelectionEnd} onClick={onClick}>
+      {editable && (
+      <div className="annotator-bar annotator-ui" role="toolbar" aria-label="Reading tools" ref={barRef}>
         <button type="button" className={tool === 'select' ? 'tool on' : 'tool'} onClick={() => { setTool('select'); setPopover(null); }} aria-pressed={tool === 'select'} title="Select text; a menu appears">Select</button>
         {supported && textToolButtons.map(([k, label]) => (
           <button key={k} type="button" className={tool === k ? 'tool on' : 'tool'} onClick={() => setTool(tool === k ? 'select' : k)} aria-pressed={tool === k} title={`${label}: select text to mark it`}>
@@ -389,8 +412,9 @@ export default function Annotator({ docKey, title, children }) {
         <span className="annotator-spacer" />
         <button type="button" className={panel ? 'tool on' : 'tool'} onClick={() => setPanel((v) => !v)} aria-expanded={panel}>My marks{count ? ` (${count})` : ''}</button>
       </div>
-      {!supported && <p className="annotator-note annotator-ui muted">Highlighting needs a newer browser. The pen still works.</p>}
-      {saveFailed && <p className="annotator-note annotator-ui alert alert-error">Your marks could not be saved on this device (storage is full or blocked).</p>}
+      )}
+      {editable && !supported && <p className="annotator-note annotator-ui muted">Highlighting needs a newer browser. The pen still works.</p>}
+      {editable && saveFailed && <p className="annotator-note annotator-ui alert alert-error">Your marks could not be saved on this device (storage is full or blocked).</p>}
       <div className="annotator-body">
         <div className="annotator-doc">{children}</div>
         {panel && (
@@ -473,13 +497,13 @@ export default function Annotator({ docKey, title, children }) {
         id,
       ))}
 
-      {scopes.map(({ id, el }) => createPortal(
+      {editable && scopes.map(({ id, el }) => createPortal(
         <StickyLayer key={id} scopeId={id} stickies={marks.stickies} openId={openId} onToggle={toggleSticky} onMove={moveSticky} />,
         el,
         `st-${id}`,
       ))}
 
-      {openSticky && stickyPos && (
+      {editable && openSticky && stickyPos && (
         <div className="annotator-pop annotator-ui sticky-pop" style={{ left: stickyPos.x, top: stickyPos.y }} role="dialog" aria-label="Sticky note">
           <textarea
             autoFocus
@@ -501,7 +525,7 @@ export default function Annotator({ docKey, title, children }) {
         </div>
       )}
 
-      {popover?.kind === 'new' && (
+      {editable && popover?.kind === 'new' && (
         <div className="annotator-pop annotator-ui" style={{ left: popover.x, top: popover.y }} role="menu">
           <div className="pop-row">
             {COLOR_KEYS.map((c) => (
@@ -517,7 +541,7 @@ export default function Annotator({ docKey, title, children }) {
         </div>
       )}
 
-      {editing && (
+      {editable && editing && (
         <div className="annotator-pop annotator-ui" style={{ left: popover.x, top: popover.y }} role="dialog" aria-label="Edit mark">
           <div className="pop-row">
             {COLOR_KEYS.map((c) => (
