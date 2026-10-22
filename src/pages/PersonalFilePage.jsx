@@ -4,6 +4,7 @@ import { useSession } from '../context/SessionContext.jsx';
 import { downloadPersonalFile, fetchPersonalContent } from '../lib/personalDocuments.js';
 import DocxViewer from '../components/viewers/DocxViewer.jsx';
 import Annotator from '../components/Annotator.jsx';
+import ScrollRecordingChip from '../components/diagnostics/ScrollRecordingChip.jsx';
 import Detection from '../detection/Detection.jsx';
 import BeforeYouRead from '../components/BeforeYouRead.jsx';
 import ExplainBack from '../components/ExplainBack.jsx';
@@ -54,6 +55,7 @@ export default function PersonalFilePage() {
         </Suspense>
         </Annotator>
         <Detection />
+        <ScrollRecordingChip />
         <ExplainBack assignmentId={id} personal sessionToken={session.sessionToken} />
       </section>
     );

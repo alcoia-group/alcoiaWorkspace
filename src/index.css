@@ -208,7 +208,7 @@ button.link-button:hover:not(:disabled) { background: none; }
 }
 .viewer-title { color: #2d3b45; font-size: 15px; font-weight: 600; margin-right: auto; }
 .viewer-pageno, .viewer-zoom { font-size: 14px; color: var(--ink-muted); }
-.viewer-controls { display: flex; align-items: center; gap: 8px; }
+.viewer-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .viewer-controls button { padding: 5px 10px; font-size: 13px; }
 .viewer-stage {
   background: #e9ebed; padding: 20px 12px 64px; display: flex; flex-direction: column;
@@ -455,6 +455,15 @@ table.list th, table.list td { text-align: left; padding: 8px 12px; border-botto
 .panel-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .annotator-pop { position: fixed; z-index: 60; background: var(--paper-raised, #fff); border: 1px solid var(--field-border, #ccc); border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); padding: 8px; display: flex; flex-direction: column; gap: 6px; width: 250px; max-width: calc(100vw - 20px); }
 .annotator-pop textarea { width: 100%; box-sizing: border-box; font: inherit; }
+.sticky-layer { position: absolute; inset: 0; pointer-events: none; z-index: 7; }
+.sticky-pin { position: absolute; width: 26px; height: 26px; transform: translate(-50%, -50%); border-radius: 50% 50% 50% 4px; border: 2px solid #fff; background: var(--c, #d4a500); box-shadow: 0 1px 4px rgba(0,0,0,0.4); padding: 0; cursor: grab; pointer-events: auto; touch-action: none; }
+.sticky-pin::before { content: ''; position: absolute; inset: 6px; border-top: 2px solid rgba(0,0,0,0.55); border-bottom: 2px solid rgba(0,0,0,0.55); height: 0; box-sizing: content-box; }
+.sticky-pin.open { outline: 2px solid var(--ink, #222); }
+.sticky-pin:focus-visible { outline: 3px solid var(--lilac-deep, #6b4fa3); outline-offset: 2px; }
+.sticky-chip { border-radius: 50% 50% 50% 2px; background: var(--c); }
+.panel-h { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; color: #666; }
+.annotator-panel .note-item { flex-direction: column; }
+.note-text { width: 100%; box-sizing: border-box; font: inherit; }
 .pop-row { display: flex; flex-wrap: wrap; gap: 5px; }
 .stroke-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 .stroke-layer[data-active='pen'] { pointer-events: auto; cursor: crosshair; touch-action: none; }
@@ -502,3 +511,9 @@ a.an-chip { text-decoration: none; }
 .settings-page .setting-sub { padding-left: 26px; align-items: center; }
 .settings-page .setting-label { display: block; }
 .settings-page .setting-hint { display: block; font-size: 13px; }
+
+/* Scroll recording chip and summary (device-local diagnostics) */
+.scroll-chip { position: fixed; left: 8px; bottom: 8px; z-index: 60; display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 13px; background: #fff; color: #2d3b45; border: 1px solid #c7cdd1; border-left: 4px solid #b3261e; border-radius: 3px; box-shadow: 0 2px 8px rgba(0,0,0,.15); max-width: calc(100vw - 16px); }
+.scroll-chip button { padding: 3px 10px; font-size: 13px; }
+.scroll-summary { padding-left: 20px; }
+.scroll-summary li { margin: 4px 0; }
