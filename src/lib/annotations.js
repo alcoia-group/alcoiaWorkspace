@@ -171,29 +171,50 @@ const KEY = (docKey) => `alcoia_workspace_marks_${docKey}`;
 export function loadMarks(docKey) {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY(docKey)) ?? 'null');
-    if (raw && raw.v === 1) return { items: raw.items ?? [], strokes: raw.strokes ?? [] };
+    if (raw && raw.v === 1) {
+      return { items: raw.items ?? [], strokes: raw.strokes ?? [], stickies: raw.stickies ?? [], notes: raw.notes ?? [] };
+    }
   } catch { /* unreadable: start empty */ }
-  return { items: [], strokes: [] };
+  return { items: [], strokes: [], stickies: [], notes: [] };
 }
 
 export function saveMarks(docKey, marks) {
   try {
-    if (marks.items.length === 0 && marks.strokes.length === 0) localStorage.removeItem(KEY(docKey));
+    const empty = marks.items.length + marks.strokes.length + (marks.stickies?.length ?? 0) + (marks.notes?.length ?? 0) === 0;
+    if (empty) localStorage.removeItem(KEY(docKey));
     else localStorage.setItem(KEY(docKey), JSON.stringify({ v: 1, ...marks }));
     return true;
   } catch { return false; }
 }
 
-// A plain-text (Markdown) copy of the reader's marks, to keep outside the app.
-export function marksToMarkdown(title, items) {
-  const sorted = [...items].sort((a, b) => scopeOrder(a.scope) - scopeOrder(b.scope) || a.start - b.start);
+export const NOTE_MAX = 2000;
+export const clamp01 = (n) => Math.min(1, Math.max(0, n));
+
+// A plain-text (Markdown) copy of the reader's marks, to keep outside the app. Sticky notes sit
+// under their page or slide; free notes come last.
+export function marksToMarkdown(title, items, extra = {}) {
+  const stickies = extra.stickies ?? [];
+  const notes = extra.notes ?? [];
+  const rows = [
+    ...items.map((it) => ({ type: 'mark', scope: it.scope, pos: it.start, it })),
+    ...stickies.map((st) => ({ type: 'sticky', scope: st.scope, pos: -1 + st.y / 10, it: st })),
+  ].sort((a, b) => scopeOrder(a.scope) - scopeOrder(b.scope) || a.pos - b.pos);
   const lines = [`# Notes on ${title}`, ''];
   let last = null;
-  for (const it of sorted) {
-    if (it.scope !== last) { lines.push(`## ${scopeLabel(it.scope)}`, ''); last = it.scope; }
+  for (const r of rows) {
+    if (r.scope !== last) { lines.push(`## ${scopeLabel(r.scope)}`, ''); last = r.scope; }
+    if (r.type === 'sticky') {
+      lines.push(`*Sticky note, ${Math.round(r.it.y * 100)}% down the page*`, '', r.it.text || '(empty)', '');
+      continue;
+    }
+    const it = r.it;
     lines.push(`> ${it.quote.replace(/\s+/g, ' ')}`, '');
     lines.push(`*${KIND_LABEL[it.kind] ?? 'Mark'}, ${COLORS[it.color]?.name ?? ''}*`.replace(', *', '*'), '');
     if (it.note) lines.push(it.note, '');
+  }
+  if (notes.length) {
+    lines.push('## Notes', '');
+    for (const n of notes) lines.push(n.text || '(empty)', '');
   }
   return lines.join('\n');
 }

@@ -470,7 +470,7 @@ table.list th, table.list td { text-align: left; padding: 8px 12px; border-botto
 .stroke-layer[data-active='eraser'] { pointer-events: none; }
 .annotator[data-tool='highlight'] .annotator-doc, .annotator[data-tool='underline'] .annotator-doc, .annotator[data-tool='wavy'] .annotator-doc, .annotator[data-tool='strike'] .annotator-doc { cursor: text; }
 .docx-page { position: relative; }
-@media (max-width: 900px) { .annotator-body { flex-direction: column; } .annotator-panel { width: auto; position: static; border-left: 0; border-top: 1px solid var(--field-border, #ddd); max-height: none; } }
+@media (max-width: 900px) { .annotator-body { flex-direction: column; align-items: stretch; } .annotator-panel { width: auto; position: static; border-left: 0; border-top: 1px solid var(--field-border, #ddd); max-height: none; } }
 
 /* Explain it back */
 .explain-back { max-width: 820px; margin: 24px auto; padding: 16px 20px; background: var(--paper-raised, #fff); border: 1px solid var(--field-border, #ddd); border-left: 3px solid var(--lilac-deep, #6b4fa3); border-radius: 3px; }
