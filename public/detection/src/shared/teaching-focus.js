@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/teaching-focus.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/teaching-focus.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* teaching-focus.js: fetches which paragraphs of an ASSIGNED reading the instructor marked as
  * important (and the learner has not already shown they know).
  *

@@ -179,14 +179,25 @@ export function createPlatform({ apiBase, getSession, detectionBase = '/detectio
 
 // Puts the adapter where the vendored modules look for it (the global `chrome`). The previous value, if the
 // browser defines one on web pages, is restored by the returned function.
+/* Chrome defines window.chrome as writable but NOT configurable, so defineProperty throws there (found in a
+ * real Chrome build; the headless shell used earlier has no window.chrome at all). Try the clean way first,
+ * then plain assignment, which a writable property allows. */
+function setChrome(value) {
+  try {
+    Object.defineProperty(globalThis, 'chrome', { value, configurable: true, writable: true });
+  } catch {
+    globalThis.chrome = value;
+  }
+}
+
 export function installPlatform(platform) {
   const had = Object.prototype.hasOwnProperty.call(globalThis, 'chrome');
   const previous = globalThis.chrome;
-  Object.defineProperty(globalThis, 'chrome', { value: platform.chrome, configurable: true, writable: true });
+  setChrome(platform.chrome);
   window.addEventListener('storage', platform.onStorageEvent);
   return () => {
     window.removeEventListener('storage', platform.onStorageEvent);
-    if (had) Object.defineProperty(globalThis, 'chrome', { value: previous, configurable: true, writable: true });
-    else delete globalThis.chrome;
+    if (had) setChrome(previous);
+    else { try { delete globalThis.chrome; } catch { /* not deletable */ } }
   };
 }

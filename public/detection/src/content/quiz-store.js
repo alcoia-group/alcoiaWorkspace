@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/quiz-store.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/quiz-store.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* quiz-store.js — the quiz record, local-only, persisted, IndexedDB
  *
  * "Local-only, persisted, IndexedDB. Never transmitted." (CLAUDE.md, The

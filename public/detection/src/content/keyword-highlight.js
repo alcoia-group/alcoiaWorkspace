@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/keyword-highlight.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/keyword-highlight.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* keyword-highlight.js — load-bearing terms in a post-failure explanation
  *
  * Only on the failure path: after a wrong answer, on the explanation text

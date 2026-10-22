@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/retention.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/retention.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* retention.js — fetches the account's due Knowledge State candidates,
  * scoped to one assignment (intelligence-architecture audit, step 7 built,
  * step 10 context-scoped)

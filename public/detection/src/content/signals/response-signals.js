@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/response-signals.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/response-signals.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* response-signals.js — what the reader actually answered
  *
  * Top of the signal hierarchy, and the only ground truth in the system.

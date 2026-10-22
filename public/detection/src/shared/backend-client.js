@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/backend-client.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/backend-client.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* backend-client.js — acquires an install token, relays a POST through
  * background.js's apiPost proxy (item 43)
  *

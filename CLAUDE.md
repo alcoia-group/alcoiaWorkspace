@@ -253,3 +253,11 @@ extension (alcoia-group/alcoia); the vendored files are copied, not licensed in.
   class; `/settings` saved a change with one `PUT` and has no horizontal scroll at 1280 px. **Not verified:** a real
   server or model, `vite dev` (only the built app), the extension and workspace loaded together in a real browser
   (the step-back is unit-tested in the extension), Safari and Firefox, touch devices.
+
+### Detection re-sync, 22 October 2026
+
+`public/detection` was re-synced from the extension at commit `b2cf58dc7287`, and `scripts/sync-detection.mjs` now also copies the five word lists `libs/wordfreq/common-words-{fr,es,de,pt,it}.js` (CC BY-SA 4.0, see the extension's `docs/NOTICE.md`; the owner has to confirm that is acceptable). What the page now does differently, all inside the vendored code and none of it sent to the server: expected paragraph time is a continuous per-reader model instead of grade steps; a reader who moves a screen at a time is timed per screen; one slow paragraph is held until a genuine re-read or a second slow paragraph follows (a self-report, a backtrack and a lone confirmed re-read are unchanged); scheduled quick checks on assigned readings ask about a random earlier paragraph. The files `shared/sensitive-sites.js` and `shared/site-access.js` are copied along (extension-only code, never loaded on the workspace).
+
+**One bug fixed here:** `installPlatform` (`src/detection/platform.js`) used `Object.defineProperty(globalThis, 'chrome', ...)`. Chrome defines `window.chrome` as writable but not configurable, so on a real Chrome build that threw and detection never started (the headless shell used before has no `window.chrome`). It now falls back to plain assignment (`setChrome`).
+
+**Verified:** lint (one pre-existing warning) and build clean; Chromium (full build, not the headless shell) against `vite preview` of the built app with the API mocked: detection starts, the session goes out as `Authorization: Bearer`, steady reading down a 40-paragraph Word page produced a question card and an intervention report. The same check against the previous extension copy gave the same result. **Not verified:** a real server or model, Safari or Firefox, touch devices, the screen-mode and two-evidence behaviour in a real browser (they are unit-tested in the extension repo only).

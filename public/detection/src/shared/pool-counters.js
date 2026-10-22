@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/pool-counters.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/pool-counters.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* pool-counters.js: anonymous daily counters for product-level questions (how often does generation fail, which card
  * types are turned away). A metric, a dimension from a closed list and a number: no account, no page, no text, and
  * nothing that links a count to a person. Sent through the install-token path, like every other anonymous call.

@@ -24,7 +24,7 @@ const INCLUDE = [
   { dir: 'shared' },
   { dir: 'styles' },
   { dir: 'libs/fonts' },
-  { dir: 'libs/wordfreq', only: new Set(['common-words.js']) },
+  { dir: 'libs/wordfreq', only: new Set(['common-words.js', 'common-words-fr.js', 'common-words-es.js', 'common-words-de.js', 'common-words-pt.js', 'common-words-it.js']) },
 ];
 
 if (!fs.existsSync(path.join(source, 'content', 'host.js'))) {

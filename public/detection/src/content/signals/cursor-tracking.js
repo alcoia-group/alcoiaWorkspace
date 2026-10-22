@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/cursor-tracking.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/cursor-tracking.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* cursor-tracking.js — the mouse as a reading pointer, when it is one
  *
  * Plenty of readers track text with the cursor. When they do, it is a pointer

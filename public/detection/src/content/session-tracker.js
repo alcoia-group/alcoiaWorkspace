@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/session-tracker.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/session-tracker.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* session-tracker.js
    Tracks cognitive state distribution, comprehension signals, and WPM per page session.
    Persists completed sessions (>30s) to chrome.storage.local for the session report page.

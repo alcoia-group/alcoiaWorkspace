@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/receipt.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/receipt.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* receipt.js — a reader-owned record of a reading session
  *
  * Design rules from CLAUDE.md, none of them negotiable:

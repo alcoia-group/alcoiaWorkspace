@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/highlights-sidebar.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/highlights-sidebar.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* highlights-sidebar.js
  *
  * The reader's saved highlights, in a panel that slides in over whatever

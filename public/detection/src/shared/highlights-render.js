@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/highlights-render.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/highlights-render.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* highlights-render.js
  *
  * The one place that reads sra_text_highlights, builds a highlight card, and

@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/explanation-style.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/explanation-style.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* explanation-style.js: which way of explaining to try for THIS learner.
  *
  * The server keeps, per summarize mode, an ordered list of the styles the learner's own results favour

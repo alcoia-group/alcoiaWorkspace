@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/relation-cues.js, commit e3c390bd88b6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/relation-cues.js, commit b2cf58dc7287) by scripts/sync-detection.mjs. Do not edit here. */
 /* relation-cues.js -- does this paragraph say how ideas connect?
  *
  * A struggling reader often reads every sentence but misses how the ideas fit together. When a paragraph is
