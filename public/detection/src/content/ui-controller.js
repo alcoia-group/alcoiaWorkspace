@@ -1,0 +1,665 @@
+/* Vendored from the alcoia browser extension (alcoia/src/content/ui-controller.js, commit 39d972259e6a) by scripts/sync-detection.mjs. Do not edit here. */
+/* ui-controller.js — everything the reader actually sees
+ *
+ * Extracted from content.js, which was a single 1982-line IIFE. This owns the
+ * popup lifecycle (creation, positioning, dedup, the MAX_POPUPS cap, pinning,
+ * autohide), the paragraph highlight, the toasts and the dark-mode stylesheet.
+ *
+ * It owns `openPopups`. Nothing outside this module should mutate that map —
+ * the eviction cap and the dedup-by-fingerprint logic both depend on it being
+ * the single record of what is on screen.
+ *
+ * Settings are read through a getter rather than captured, because the storage
+ * listener in content.js reassigns them at runtime and a captured copy would
+ * silently go stale.
+ *
+ * Every element this module renders lives inside its own shadow-host.js
+ * shadow root, not the page's own light DOM — see that file's header for
+ * why. `sharedStyles` (the fetched, URL-corrected overlay.css + fonts.css
+ * text) is a required dependency now: content.js awaits
+ * shadow-host.js's loadSharedStyles() once, before constructing this
+ * controller, so every createShadowHost() call here stays synchronous.
+ */
+
+import { createShadowHost, setDarkMode as setShadowDarkMode } from './shadow-host.js';
+import { t, uiLang, isRtl } from '../shared/i18n.js';
+
+const POPUP_MARGIN = 14;
+const MAX_POPUPS   = 5;      // hard cap before the oldest unpinned is evicted
+
+// Original z-index values, preserved per element rather than given one
+// blanket value — see shadow-host.js's createShadowHost() header for why
+// relative stacking order among alcoia's own elements would otherwise
+// silently change.
+const Z_POPUP = 2147483647;
+const Z_TOAST = 2147483646;
+const Z_SELECT_TOOLTIP = 2147483646;
+const Z_SELF_REPORT_TRIGGER = 2147483645;
+
+export const esc = (s = '') => String(s).replace(/[&<>"']/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/* Dedup helpers for single-instance elements (toasts, the selection
+ * tooltip) that used to be found and removed via a plain, GLOBAL
+ * document.getElementById(id) — a lookup that doesn't care which code
+ * created the element, only whether one with that id exists anywhere.
+ * Tracking "the current one" in a variable local to this module's own
+ * closure would look equivalent for the one real instance of this
+ * controller the shipped extension ever constructs, but silently regresses
+ * to per-instance dedup the moment more than one exists (as a couple of
+ * tests here deliberately do, to exercise "a second call replaces the
+ * first" without needing a live singleton) — a second createUIController()
+ * would no longer find or remove the first one's element at all. Searching
+ * every shadow host, the same way a global ID lookup would have searched
+ * the whole light DOM, keeps the exact original dedup semantics regardless
+ * of how many controller instances exist. */
+function findAlcoiaHostContaining(id) {
+  for (const host of document.querySelectorAll('[data-alcoia-host]')) {
+    if (host.shadowRoot?.getElementById(id)) return host;
+  }
+  return null;
+}
+
+export function createUIController(deps = {}) {
+  const getSettings = deps.getSettings || (() => ({}));
+  const fetchSummary = deps.fetchSummary || (async () => '');
+  const margin = deps.popupMargin ?? POPUP_MARGIN;
+  const maxPopups = deps.maxPopups ?? MAX_POPUPS;
+  const sharedStyles = deps.sharedStyles || '';
+  const onPopupShown = deps.onPopupShown || null; // optional local history hook
+
+  /* fingerprint -> { el }. The single record of what is on screen. */
+  const openPopups = new Map();
+  const shownBefore = new WeakSet();
+  let lastHighlighted = null;
+
+  // ── Paragraph highlight ──────────────────────────────────────────────────
+  function highlightElement(el, ms = 5000) {
+    if (!getSettings().highlightEnabled) return;
+    if (!el || el === document.body || el === document.documentElement) return;
+    clearHighlight();
+    el.classList.add('sra-para-highlight');
+    lastHighlighted = el;
+    setTimeout(clearHighlight, ms);
+  }
+
+  function clearHighlight() {
+    if (lastHighlighted) {
+      lastHighlighted.classList.remove('sra-para-highlight');
+      lastHighlighted = null;
+    }
+  }
+
+  /* Below this the viewport has no margin to speak of, so a floating card
+     always covers text. Phones get a bottom sheet instead. */
+  const NARROW_VIEWPORT = 560;
+  /* A card narrower than this stops being readable, so it is not worth
+     squeezing into a margin below it. */
+  const MIN_CARD_W = 262;
+
+  // ── Positioning ──────────────────────────────────────────────────────────
+  function placePopup(root, anchorRect, avoidRects) {
+    root.style.visibility = 'hidden';
+    root.style.display    = 'block';
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const m  = margin;
+
+    /* Phone-sized viewport: pin to the bottom, full width. Trying to dodge
+       the text on a 390px screen just means covering different text. A sheet
+       at the bottom is the one position that is predictable, reachable with
+       a thumb, and never lands on the line being read. */
+    if (vw < NARROW_VIEWPORT) {
+      root.classList.add('sra-sheet');
+      root.style.left = root.style.right = '10px';
+      root.style.width = 'auto';
+      root.style.maxWidth = 'none';
+      root.style.position = 'fixed';
+      const sh = root.offsetHeight || 200;
+      root.style.top = Math.max(m, vh - sh - 12) + 'px';
+      root.style.visibility = '';
+      return;
+    }
+    root.classList.remove('sra-sheet');
+    root.style.right = '';
+    root.style.width = '';
+    root.style.maxWidth = '';
+
+    const pw = root.offsetWidth  || 360;
+    const ph = root.offsetHeight || 150;
+    const a  = anchorRect || { left: vw/2-100, right: vw/2+100, top: vh/2-30, bottom: vh/2+30 };
+    const av = avoidRects || [];
+
+    function overlaps(cx, cy) {
+      return av.some((r) =>
+        cx < r.right + m && cx + pw > r.left - m &&
+        cy < r.bottom + m && cy + ph > r.top - m
+      );
+    }
+
+    // Shift a candidate down past any blocking popup, up to 6 attempts
+    function settle(left, top) {
+      for (let i = 0; i < 6; i++) {
+        if (!overlaps(left, top)) return { left, top };
+        const blocker = av.find((r) =>
+          left < r.right + m && left + pw > r.left - m &&
+          top  < r.bottom + m && top  + ph > r.top - m
+        );
+        if (!blocker || blocker.bottom + m + ph > vh - m) return null;
+        top = blocker.bottom + m;
+      }
+      return null;
+    }
+
+    const candidates = [];
+    if (a.right  + m + pw <= vw - m) candidates.push({ left: a.right + m,     top: clamp(a.top, m, vh - ph - m) });
+    if (a.left   - m - pw >= m)      candidates.push({ left: a.left - m - pw, top: clamp(a.top, m, vh - ph - m) });
+    if (a.bottom + m + ph <= vh - m) candidates.push({ left: clamp(a.left, m, vw - pw - m), top: a.bottom + m });
+    if (a.top    - m - ph >= m)      candidates.push({ left: clamp(a.left, m, vw - pw - m), top: a.top - m - ph });
+
+    let chosen = null;
+    for (const c of candidates) {
+      chosen = settle(c.left, c.top);
+      if (chosen) break;
+    }
+
+    /* Nothing fits beside the passage at full width. Before giving up and
+       dropping the card on top of the text — which is what the old last
+       resort did, so on a wide-column page the question covered the very
+       paragraph it was asking about — try narrowing into whichever margin is
+       larger. A slightly narrow card the reader can read around beats a
+       comfortable one sitting on the words. */
+    if (!chosen) {
+      const leftGap  = a.left - m * 2;
+      const rightGap = vw - a.right - m * 2;
+      const useRight = rightGap >= leftGap;
+      const gap = useRight ? rightGap : leftGap;
+
+      if (gap >= MIN_CARD_W) {
+        const w = Math.min(pw, gap);
+        root.style.width    = w + 'px';
+        root.style.maxWidth = w + 'px';
+        const nh = root.offsetHeight || ph;
+        root.style.left = (useRight ? a.right + m : a.left - m - w) + 'px';
+        root.style.top  = clamp(a.top, m, Math.max(m, vh - nh - m)) + 'px';
+        root.style.position   = 'fixed';
+        root.style.visibility = '';
+        return;
+      }
+      chosen = { left: vw - pw - m, top: m };
+    }
+
+    root.style.left       = clamp(chosen.left, m, vw - pw - m) + 'px';
+    root.style.top        = clamp(chosen.top,  m, vh - ph - m) + 'px';
+    root.style.position   = 'fixed';
+    root.style.visibility = '';
+  }
+
+  // ── Lifecycle ────────────────────────────────────────────────────────────
+  function closePopup(el, fingerprint) {
+    if (fingerprint) openPopups.delete(fingerprint);
+    clearTimeout(el._hideT);
+    el.classList.remove('show');
+    // Removing just el would leave its now-empty shadow host behind.
+    setTimeout(() => { try { (el._shadowHost || el).remove(); } catch (e) {} }, 250);
+  }
+
+  function flashPopup(el) {
+    const orig = el.style.boxShadow;
+    el.style.transition = 'box-shadow 0.12s';
+    el.style.boxShadow  = '0 0 0 3px rgba(126,96,174,0.65)';
+    setTimeout(() => { el.style.boxShadow = orig; }, 500);
+  }
+
+  /* Close all unpinned popups (Esc). */
+  function hidePopup() {
+    for (const [fp, { el }] of [...openPopups.entries()]) {
+      if (!el || !el.isConnected) { openPopups.delete(fp); continue; }
+      if (el.dataset.pinned !== 'true') closePopup(el, fp);
+    }
+  }
+
+  /* Reserve a slot for a popup keyed on `fingerprint`.
+   *
+   * Returns the root element, or null when the caller should not proceed:
+   * either an identical popup is already visible (it gets flashed instead) or
+   * every slot is taken by a pinned popup. Both branches used to be duplicated
+   * in each caller, and the comprehension renderer had drifted — it did the
+   * dedup check but not the cap. */
+  /* `kind` (step 9A, optional) tags what this popup IS, for callers that
+   * need to distinguish popup TYPES from the outside without reaching into
+   * the DOM — today, only question-card.js passes `'question'` (see its own
+   * call site). Every other caller (the self-report card, the quiz-offer
+   * card, the plain explain/summary popup) omits it, exactly as before this
+   * item — `kind` is `undefined` for them, unchanged in every other respect.
+   * Purely additive: nothing here reads or branches on it except
+   * hasVisibleQuestionCard() below. */
+  function reservePopup(fingerprint, kind) {
+    if (openPopups.has(fingerprint)) {
+      const entry = openPopups.get(fingerprint);
+      if (entry.el && entry.el.isConnected) { flashPopup(entry.el); return null; }
+      openPopups.delete(fingerprint);
+    }
+
+    if (openPopups.size >= maxPopups) {
+      for (const [fp, { el, kind: openKind }] of openPopups.entries()) {
+        if (!el || !el.isConnected) { openPopups.delete(fp); break; }
+        // Step 29 (student intervention experience audit): a live,
+        // unanswered retrieval question (kind: 'question') is never
+        // silently evicted to make room for something else — question-
+        // card.js's own rule 1 is "the reader can always leave", on their
+        // own terms (the close/skip buttons, or Escape), never because a
+        // LATER, unrelated popup happened to need the slot. Evicting it
+        // here used to leave response-signals.js's pending answer record
+        // dangling forever (resolved as neither an answer nor a
+        // dismissal) and the reader's in-progress selection discarded
+        // with no trace. Skip past it and keep looking for something
+        // genuinely evictable instead of evicting the first entry found.
+        if (el.dataset.pinned === 'true' || openKind === 'question') continue;
+        closePopup(el, fp);
+        break;
+      }
+      // Every remaining slot is pinned/protected and we are at the cap —
+      // do not add another.
+      if (openPopups.size >= maxPopups) return null;
+    }
+
+    const { host, shadow } = createShadowHost(sharedStyles, Z_POPUP);
+    const root = document.createElement('div');
+    root.className = 'sra-popup';
+    root._shadowHost = host; // closePopup() removes this, not just root itself
+    root.addEventListener('mouseenter', () => { root._mouseOver = true; clearTimeout(root._hideT); });
+    root.addEventListener('mouseleave', () => { root._mouseOver = false; resetAutohide(root, fingerprint); });
+    shadow.appendChild(root);
+    openPopups.set(fingerprint, { el: root, kind });
+    return root;
+  }
+
+  /* Step 9A (active intervention awareness) — the intervention policy's one
+   * authoritative source for "is a question card currently visible to the
+   * reader right now". Reuses openPopups, the SAME map every lifecycle
+   * method in this file already mutates through reservePopup()/
+   * closePopup() — no new tracking structure, no DOM query.
+   *
+   * "Question card" means specifically a popup reserved with
+   * `kind: 'question'` — question-card.js's own show(), the ONE machinery
+   * 'ask', 'session_recall' AND 'retention' all render through (see that
+   * file's own header) — never the self-report card, the quiz-offer card,
+   * or an ordinary explain/summary popup, none of which are a retrieval
+   * question the reader must answer. The standalone quiz itself runs in a
+   * separate extension tab (popup/quiz.js) with its own DOM and its own
+   * controller instance entirely — it was never reachable through this map
+   * and still isn't; this function only ever answers for the current tab.
+   *
+   * Every removal path in this file (dismiss, the close/skip buttons,
+   * autohide, MAX_POPUPS eviction) already deletes the openPopups entry
+   * synchronously, before anything else — so this reads live state on every
+   * call, never a value that can go stale between a card closing and the
+   * next policy evaluation. `el.isConnected` is defensive, the same
+   * belt-and-suspenders check hidePopup()/reservePopup() already make
+   * elsewhere in this file. */
+  function hasVisibleQuestionCard() {
+    for (const { el, kind } of openPopups.values()) {
+      if (kind === 'question' && el && el.isConnected) return true;
+    }
+    return false;
+  }
+
+  /* Show, place and start the autohide countdown. */
+  function showPopup(root, anchorRect) {
+    const avoidRects = [...openPopups.values()]
+      .filter((e) => e.el !== root && e.el.isConnected && e.el.classList.contains('show'))
+      .map((e) => e.el.getBoundingClientRect());
+
+    placePopup(root, anchorRect, avoidRects);
+    if (onPopupShown && !shownBefore.has(root)) {
+      shownBefore.add(root);
+      try { onPopupShown(root); } catch { /* never break the popup */ }
+    }
+    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('show')));
+    resetAutohide(root);
+  }
+
+  /* (Re)arm the autohide countdown. It runs only when autohide is on, the card
+   * is not pinned, and the reader is not currently hovering it. Hiding a card
+   * someone is still reading is the most irritating thing this UI can do.
+   *
+   * Step 29 (student intervention experience audit): a popup reserved with
+   * kind: 'question' is exempt outright, regardless of the autohide
+   * setting — a retrieval question is a reader-initiated-close-only
+   * interaction (question-card.js's own rule 1: "the reader can always
+   * leave", on their own terms, not a background timer's). Before this,
+   * a reader who enabled autohide and took longer than its timeout to
+   * read the question, pick an option/type an answer, and go through the
+   * separate confidence step had their card silently vanish mid-answer:
+   * the selection was discarded, no dismissal was ever recorded (so the
+   * policy's own backoff never learned from it), and response-signals.js's
+   * pending record was left dangling forever — resolved as neither an
+   * answer nor a dismissal. Escape (hidePopup) and the explicit close/skip
+   * buttons are unaffected by this — the reader can still always leave,
+   * just never by a timer they didn't ask for. */
+  function resetAutohide(root, fingerprint) {
+    const { autohideEnabled, autohideTimeoutSec } = getSettings();
+    clearTimeout(root._hideT);
+    if (!autohideEnabled || root.dataset.pinned === 'true') return;
+    if (root._mouseOver) return;
+    const fp = fingerprint || findFingerprint(root);
+    if (openPopups.get(fp)?.kind === 'question') return;
+    root._hideT = setTimeout(() => closePopup(root, fp), Math.max(3, autohideTimeoutSec || 12) * 1000);
+  }
+
+  function findFingerprint(root) {
+    for (const [fp, { el }] of openPopups.entries()) if (el === root) return fp;
+    return null;
+  }
+
+  // ── The standard summary card ────────────────────────────────────────────
+  function renderPopup(anchorRect, html, meta = {}) {
+    // No text → no dedup key and no meaningful content.
+    if (!meta.text || !meta.text.trim()) return;
+
+    const fingerprint = meta.text.slice(0, 80).trim();
+    const root = reservePopup(fingerprint);
+    if (!root) return;
+
+    const lang = uiLang();
+    const L = (key) => t(key, lang);
+    const badge = meta.trigger
+      ? `<div class="sra-state-badge">${esc(meta.triggerLabel || meta.trigger)}</div>`
+      : meta.source === 'selection'
+        ? `<div class="sra-state-badge">${esc(L('badge.selected'))}</div>`
+        : '';
+    if (isRtl(lang)) root.setAttribute('dir', 'rtl');
+
+    root.innerHTML = `
+      <div class="sra-controls">
+        <button class="sra-ctrl-btn sra-pin-btn" title="${esc(L('card.keepOpen'))}">📌</button>
+        <button class="sra-ctrl-btn sra-close-btn" title="${esc(L('card.close'))}">✕</button>
+      </div>
+      <div class="sra-popup-body" dir="auto">${badge}${html}</div>
+      <div class="sra-popup-divider"></div>
+      <div class="sra-actions">
+        <button class="sra-btn sra-btn-primary  sra-explain-btn">${esc(L('card.explainMore'))}</button>
+        <button class="sra-btn sra-btn-secondary sra-note-btn">${esc(L('card.saveNote'))}</button>
+      </div>`;
+
+    root.querySelector('.sra-close-btn').onclick = () => closePopup(root, fingerprint);
+
+    const pinBtn = root.querySelector('.sra-pin-btn');
+    if (getSettings().pinDefault) { root.dataset.pinned = 'true'; pinBtn.classList.add('active'); }
+    pinBtn.onclick = () => {
+      const pinned = root.dataset.pinned !== 'true';
+      root.dataset.pinned = pinned.toString();
+      pinBtn.classList.toggle('active', pinned);
+      clearTimeout(root._hideT);
+      if (!pinned) {
+        // Unpin always starts a countdown — the autohide time when enabled, else
+        // a generous 60s so forgotten cards do not accumulate forever.
+        const { autohideEnabled, autohideTimeoutSec } = getSettings();
+        const secs = autohideEnabled ? Math.max(3, autohideTimeoutSec || 12) : 60;
+        root._hideT = setTimeout(() => closePopup(root, fingerprint), secs * 1000);
+      }
+    };
+
+    root.querySelector('.sra-explain-btn').onclick = async () => {
+      const btn = root.querySelector('.sra-explain-btn');
+      btn.disabled = true; btn.textContent = L('card.thinking');
+      const s = await fetchSummary(meta.text || '', 'explain_more');
+      const body = root.querySelector('.sra-popup-body');
+      if (body && s) body.innerHTML = badge + `<div>${esc(s)}</div>`;
+      btn.textContent = L('card.explainMore'); btn.disabled = false;
+      // Give the reader time to read the expanded content.
+      resetAutohide(root, fingerprint);
+    };
+
+    root.querySelector('.sra-note-btn').onclick = () => {
+      chrome.runtime.sendMessage({ action: 'saveNote', note: { text: meta.text || '', meta } });
+      const btn = root.querySelector('.sra-note-btn');
+      btn.textContent = L('card.saved'); btn.disabled = true;
+    };
+
+    showPopup(root, anchorRect);
+  }
+
+  // ── Nudge and toasts ─────────────────────────────────────────────────────
+  function showNudge(el) {
+    if (!el) return;
+    el.classList.add('sra-nudge');
+    setTimeout(() => el.classList.remove('sra-nudge'), 2200);
+  }
+
+  function toast(id, text, styles, ms) {
+    findAlcoiaHostContaining(id)?.remove();
+    const { host, shadow } = createShadowHost(sharedStyles, Z_TOAST);
+    const node = document.createElement('div');
+    node.id = id;
+    Object.assign(node.style, styles);
+    node.textContent = text;
+    shadow.appendChild(node);
+    requestAnimationFrame(() => requestAnimationFrame(() => { node.style.opacity = '1'; }));
+    setTimeout(() => {
+      node.style.opacity = '0';
+      setTimeout(() => { try { host.remove(); } catch (e) {} }, 250);
+    }, ms);
+  }
+
+  /* Test-only. The labels are the engine's state names, not the classifier's
+   * older ones — a toast reading "Confused" would put a word back in front of
+   * the reader that this product deliberately stopped claiming to measure. */
+  function showSimulateToast(state) {
+    const labels = {
+      struggling: 'Simulating: struggling  (Alt+1)',
+      drifting:   'Simulating: drifting    (Alt+3)',
+      skimming:   'Simulating: skimming    (Alt+4)',
+      on_pace:    'Simulating: on pace     (Alt+5)',
+    };
+    toast('sra-sim-toast', labels[state] || `Simulating: ${state}`, {
+      position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+      background: '#5F4589', color: 'white', padding: '9px 18px', borderRadius: '10px',
+      fontFamily: 'var(--alc-ui, system-ui, sans-serif)', fontSize: '12px', fontWeight: '600',
+      zIndex: '2147483646', opacity: '0', transition: 'opacity 0.2s ease',
+      pointerEvents: 'none', whiteSpace: 'pre', boxShadow: '0 6px 20px rgba(60,48,32,0.28)',
+    }, 1800);
+  }
+
+  /* Item 18: confirms a snooze actually started, since "the reader must
+   * never be unable to tell why nothing is happening" while it's active.
+   * Same visual family as showSimulateToast, generalised to any message. */
+  function showStatusToast(text, ms = 3000) {
+    toast('sra-status-toast', text, {
+      position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
+      background: '#5F4589', color: 'white', padding: '9px 18px', borderRadius: '10px',
+      fontFamily: 'var(--alc-ui, system-ui, sans-serif)', fontSize: '12px', fontWeight: '600',
+      zIndex: '2147483646', opacity: '0', transition: 'opacity 0.2s ease',
+      pointerEvents: 'none', whiteSpace: 'pre', boxShadow: '0 6px 20px rgba(60,48,32,0.28)',
+    }, ms);
+  }
+
+  /* Item DC-2 (selection-explain.js's own header) — a small, one-button
+   * tooltip near a selection, NOT the full sra-popup card: the trigger is
+   * narrow (math/figure/rare-term selections only — see that file), so the
+   * UI answering it should read as equally quiet, not as another card
+   * fighting for the reader's attention. Clicking through still lands on
+   * the ordinary renderPopup() card below — this tooltip is only the
+   * "would you like to?" step in front of it, nothing else here bypasses
+   * the shared card system.
+   *
+   * Self-dismisses on the next mousedown anywhere else, on scroll, and
+   * after MAX_TOOLTIP_MS if the reader does neither — a selection tooltip
+   * that outlives the selection it was about reads as a stray leftover
+   * widget, not as attentiveness. Returns nothing; content.js does not need
+   * to hold a reference; there is at most one of these at a time (a new
+   * call always removes any prior instance first, same dedup shape as
+   * showNudge's own single-purpose class toggle). */
+  const MAX_TOOLTIP_MS = 8000;
+  function showSelectionTooltip(anchorRect, onExplain) {
+    findAlcoiaHostContaining('sra-select-tooltip')?.remove();
+    if (!anchorRect) return;
+
+    const { host, shadow } = createShadowHost(sharedStyles, Z_SELECT_TOOLTIP);
+    const el = document.createElement('div');
+    el.id = 'sra-select-tooltip';
+    el.className = 'sra-select-tooltip';
+    el.innerHTML = `<button type="button" class="sra-select-tooltip-btn">${esc(t('card.explainThis', uiLang()))}</button>`;
+    shadow.appendChild(el);
+
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const tw = el.offsetWidth || 140, th = el.offsetHeight || 32;
+    const left = clamp(anchorRect.left, 6, vw - tw - 6);
+    // Below the selection when there's room, above it otherwise — the same
+    // "try the natural side, fall back to the other" idea placePopup() uses
+    // for the full card, simplified: a tooltip this small always fits one
+    // side or the other, so there is no further narrowing case to handle.
+    const top = anchorRect.bottom + 8 + th <= vh - 6
+      ? anchorRect.bottom + 8
+      : Math.max(6, anchorRect.top - 8 - th);
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+
+    let dismissed = false;
+    function dismiss() {
+      if (dismissed) return;
+      dismissed = true;
+      document.removeEventListener('mousedown', onOutsideClick, true);
+      document.removeEventListener('scroll', dismiss, true);
+      clearTimeout(hideT);
+      el.classList.remove('show');
+      setTimeout(() => { try { host.remove(); } catch (e) {} }, 150);
+    }
+    // A click on ev.target retargets to `host` (the shadow host), not the
+    // real element clicked, once this listener sits outside the shadow tree
+    // the click originated in — checking el.contains(ev.target) here would
+    // always be false for a click on the tooltip's own button, and this
+    // would dismiss itself the instant the reader tried to use it.
+    function onOutsideClick(ev) { if (!host.contains(ev.target)) dismiss(); }
+
+    // capture:true on both — a scroll or a click inside the page (not just
+    // on the tooltip) has to reach this before the page's own handlers can
+    // stop propagation first.
+    document.addEventListener('mousedown', onOutsideClick, true);
+    document.addEventListener('scroll', dismiss, true);
+    const hideT = setTimeout(dismiss, MAX_TOOLTIP_MS);
+
+    el.querySelector('.sra-select-tooltip-btn').addEventListener('click', () => {
+      dismiss();
+      onExplain();
+    });
+  }
+
+  /* Item 13a, affordance 2: a small, persistent, always-clickable trigger —
+   * unlike every other element this module renders, it is not conditional
+   * on any detected state or open card (that's affordance 3, inside
+   * question-card.js itself). host.js calls this once, during its own
+   * construction, and owns what a click actually does (showSelfReportCard
+   * — the same standalone card affordance 1's Alt+C shortcut opens too).
+   * Idempotent for the same reason installResizeWatcher() below is: the
+   * content script can be injected into the same page more than once. */
+  function ensureSelfReportTrigger(onClick) {
+    if (window.__sra_self_report_trigger) return;
+    window.__sra_self_report_trigger = true;
+    const { shadow } = createShadowHost(sharedStyles, Z_SELF_REPORT_TRIGGER);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'sra-self-report-trigger';
+    btn.title = "How's this going? (Alt+C)";
+    btn.setAttribute('aria-label', 'Report how your reading is going');
+    btn.textContent = '?';
+    btn.addEventListener('click', () => onClick());
+    shadow.appendChild(btn);
+  }
+
+  /* The master-switch hard-off teardown counterpart to ensureSelfReportTrigger
+   * above — removes the shadow host and clears the idempotency guard so a
+   * later re-enable can call ensureSelfReportTrigger() again and have it
+   * actually recreate the button rather than silently no-op. A global
+   * search rather than a tracked variable, same reasoning as
+   * findAlcoiaHostContaining()'s own header. */
+  function removeSelfReportTrigger() {
+    try { findAlcoiaHostContaining('sra-self-report-trigger')?.remove(); } catch (e) {}
+    window.__sra_self_report_trigger = false;
+  }
+
+  /* Re-clamp visible popups when the viewport changes, so a resize cannot
+   * strand a card off-screen. Guarded against double installation because the
+   * content script can be injected more than once into the same page. */
+  function installResizeWatcher() {
+    if (window.__sra_resize_watcher) return;
+    window.__sra_resize_watcher = true;
+    let timer;
+    window.addEventListener('resize', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const m  = margin;
+        for (const [, { el }] of openPopups.entries()) {
+          if (!el || !el.isConnected || !el.classList.contains('show')) continue;
+          const pw = el.offsetWidth  || 360;
+          const ph = el.offsetHeight || 150;
+          el.style.left = clamp(parseFloat(el.style.left) || 0, m, vw - pw - m) + 'px';
+          el.style.top  = clamp(parseFloat(el.style.top)  || 0, m, vh - ph - m) + 'px';
+        }
+      }, 150);
+    });
+  }
+
+  return {
+    openPopups,
+    installResizeWatcher,
+    highlightElement, clearHighlight,
+    placePopup, closePopup, flashPopup, hidePopup,
+    reservePopup, showPopup, resetAutohide,
+    hasVisibleQuestionCard,
+    renderPopup,
+    showNudge, showSimulateToast, showStatusToast,
+    ensureSelfReportTrigger,
+    removeSelfReportTrigger,
+    showSelectionTooltip,
+  };
+}
+
+// ── Dark mode (in-page overlays) ───────────────────────────────────────────
+/* Overlay.css draws everything from the --alc-* tokens, so dark mode is
+ * mostly a token swap on the host page's :root — custom properties inherit
+ * through a shadow boundary like anywhere else, so this one <style> in
+ * document.head still reaches every alcoia shadow root's content for
+ * anything token-driven. The handful of rules that were never token-driven
+ * (bespoke dark-mode values for the reading map, the colour picker, etc.)
+ * used to live here too, as direct #id/.class overrides — but every element
+ * they targeted now lives inside a shadow root a light-DOM <style> cannot
+ * reach at all, so those rules moved into overlay.css itself, mirrored
+ * behind :host([data-sra-dark]) (see that file's own comment on the
+ * block). setShadowDarkMode() is what keeps data-sra-dark in sync on every
+ * shadow host, present and future. */
+export function applyDarkMode(enabled) {
+  setShadowDarkMode(enabled);
+  const ID = 'sra-dark-styles';
+  if (!enabled) { document.getElementById(ID)?.remove(); return; }
+  if (document.getElementById(ID)) return;
+  const s = document.createElement('style');
+  s.id = ID;
+  s.textContent = `
+      :root {
+        --alc-paper:     #171B19 !important;
+        --alc-surface:   rgba(23,27,25,0.97) !important;
+        --alc-border:    rgba(160,200,180,0.13) !important;
+        --alc-border-2:  rgba(183,159,224,0.30) !important;
+        --alc-text:      #E6E3DB !important;
+        --alc-muted:     #9A958B !important;
+        --alc-faint:     #767066 !important;
+        --alc-accent:    #B79FE0 !important;
+        --alc-accent-2:  #CDBBEE !important;
+        --alc-accent-sf: rgba(183,159,224,0.12) !important;
+        --alc-warn:      #D9A94E !important;
+        --alc-shadow:
+          0 0 0 1px rgba(160,200,180,0.13),
+          0 12px 32px -8px rgba(0,0,0,0.6) !important;
+      }
+    `;
+  document.head.appendChild(s);
+}

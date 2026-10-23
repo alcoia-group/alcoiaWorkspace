@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /sign-in
+Disallow: /a/
+Disallow: /f/
+Disallow: /files
+Disallow: /assignments
+Disallow: /exam
+Disallow: /analytics
+Disallow: /invite/
+Disallow: /lti/
