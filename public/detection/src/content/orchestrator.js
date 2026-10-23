@@ -1,0 +1,504 @@
+/* Vendored from the alcoia browser extension (alcoia/src/content/orchestrator.js, commit 39d972259e6a) by scripts/sync-detection.mjs. Do not edit here. */
+/* orchestrator.js — the detection pipeline, wired together
+ *
+ * Owns everything between "a reader did something" and "the policy says this
+ * earns an interruption". It creates the reading-signal detectors, the state
+ * engine and the interruption budget, and subscribes the one handler that can
+ * reach the reader.
+ *
+ * It does not render. When an interruption is allowed it calls
+ * `host.onIntervention()` and takes a boolean back saying whether anything
+ * actually reached the screen — the budget is spent only on a yes. That
+ * split is deliberate: an offer that bails out downstream must not burn one
+ * of the interruptions a reader gets per session.
+ *
+ * `content.js` keeps the shared mutable state (settings flags, the current
+ * paragraph), so this reads them through the `settings` and `host` accessors
+ * rather than capturing copies that would go stale the moment the storage
+ * listener fires.
+ */
+
+const IDLE_TICK_MS = 5000;
+
+export async function createOrchestrator(deps) {
+  const {
+    loadModule,
+    comprehensionMonitor,
+    settings,        // () => { comprehensionCheckEnabled, ... }
+    host,            // see the destructure below
+    // Item 30c: the PDF viewer is its own chrome-extension:// page, so
+    // coverage-gate.js's default hostname+pathname key (window.location of
+    // *this* page) would be identical for every distinct PDF ever opened —
+    // all coalescing onto one shared, meaningless coverage record. An
+    // optional override lets a non-DOM host supply the real underlying
+    // document's identity instead. Omitted, behaviour is unchanged: the
+    // default is still coverage-gate.js's own documentKey().
+    documentKey: documentKeyOverride,
+    // Item 30c: paragraph-tracker.js's own injectable block source (item
+    // 30b), passed straight through. Omitted, behaviour is unchanged: the
+    // DOM scan stays the default, exactly as before this option existed.
+    paragraphTrackerOpts,
+    // Passed to away-detector.js (thresholds and clock). Omitted, the
+    // provisional defaults and the real clock apply.
+    awayOpts,
+    // Passed to struggle-evidence-rule.js ({ enabled, windowMs, now }). Omitted, the default rule applies.
+    evidenceRuleOpts,
+  } = deps;
+
+  const s = () => settings() || {};
+
+  const engineModule = await loadModule('src/content/state-engine.js');
+  const policyModule = await loadModule('src/content/intervention-policy.js');
+  const coverageModule = await loadModule('src/content/coverage-gate.js');
+  const offerModule = await loadModule('src/content/quiz-offer.js');
+  const pretestModule = await loadModule('src/content/pretest.js');
+  const { SUBSTATES } = engineModule;
+  const stateEngine  = engineModule.createReadingStateEngine();
+  const interventionPolicy = policyModule.createInterventionPolicy();
+  const coverageGate = coverageModule.createCoverageGate();
+  // Predict-then-reveal occlusion (pretesting effect). Standalone: never
+  // touches state-engine.js, only interventionPolicy's shared budget — see
+  // pretest.js's own header.
+  const pretest = pretestModule.createPretestOcclusion({ interventionPolicy });
+  const resolveDocumentKey = documentKeyOverride || coverageModule.documentKey;
+  // Reader-initiated — never touches interventionPolicy, spends no budget.
+  const quizOffer = offerModule.createQuizOfferChecker({
+    coverageGate, documentKey: resolveDocumentKey,
+    onEligible: (result) => { try { host.onQuizOfferEligible?.(result); } catch (e) {} },
+  });
+
+  // Signal detectors. These need no permission and work on any device —
+  // paragraph tracking in particular used to hang off a webcam gaze point,
+  // so none of this fired unless a camera was running. It no longer does.
+  const [paraTrackModule, regressionModule, interactionModule,
+         dynamicsModule, cursorModule, entropyModule, kinematicsTrackerModule, awayModule, evidenceModule] = await Promise.all([
+    loadModule('src/content/signals/paragraph-tracker.js'),
+    loadModule('src/content/signals/scroll-regression.js'),
+    loadModule('src/content/signals/interaction-signals.js'),
+    loadModule('src/content/signals/scroll-dynamics.js'),
+    loadModule('src/content/signals/cursor-tracking.js'),
+    loadModule('src/content/signals/progression-entropy.js'),
+    // Not a signals/ detector despite the neighbouring path — see its own
+    // header for why (item DC-1a): it feeds nothing into state-engine.js.
+    loadModule('src/content/scroll-kinematics-tracker.js'),
+    loadModule('src/content/signals/away-detector.js'),
+    loadModule('src/content/signals/struggle-evidence-rule.js'),
+  ]);
+
+  const paragraphTracker   = paraTrackModule.createParagraphTracker({ minWords: 20, ...(paragraphTrackerOpts || {}) });
+  const scrollRegression   = regressionModule.createScrollRegressionDetector();
+  const interactionSignals = interactionModule.createInteractionSignals();
+  const scrollDynamics     = dynamicsModule.createScrollDynamics();
+  const cursorTracker      = cursorModule.createCursorTracker();
+  const progressionEntropy = entropyModule.createProgressionEntropy();
+  const scrollKinematicsTracker = kinematicsTrackerModule.createScrollKinematicsTracker();
+  const awayDetector       = awayModule.createAwayDetector(awayOpts || {});
+  // One slow paragraph is not enough to call struggle: a second piece of evidence is needed (see the module).
+  const struggleEvidence   = evidenceModule.createStruggleEvidenceRule(evidenceRuleOpts || {});
+
+  /* Away: the reader is not at the page (tab hidden or window unfocused with no
+   * input, or a long stretch with no input). It is not a reading state and never
+   * a struggle signal. While it lasts nothing is measured and nothing is shown;
+   * when it ends the dwell and pace timers are moved forward by the time away. */
+  let awayActive = false;
+  function handleAway(tr) {
+    if (!tr) return;
+    if (tr.type === 'away_start') {
+      if (awayActive) return;
+      awayActive = true;
+      // Detector output gathered before the reader left is stale now.
+      try { scrollRegression.signal(); scrollDynamics.signal(); progressionEntropy.signal(); cursorTracker.signal(); interactionSignals.signal(); } catch (e) {}
+      stateEngine.update({ reading: [{ type: 'away', assertable: true, since: tr.since }] });
+    } else if (tr.type === 'away_end') {
+      if (!awayActive) return;
+      awayActive = false;
+      try { paragraphTracker.shiftTime(tr.awayMs); } catch (e) {}
+      try { comprehensionMonitor.shiftTime?.(tr.awayMs); } catch (e) {}
+      stateEngine.update({ reading: [] });
+    }
+  }
+  const noteAway = (kind) => {
+    if (!s().comprehensionCheckEnabled) return;
+    try { handleAway(awayDetector.event(kind)); } catch (e) {}
+  };
+
+  let idleTimer = null;
+  let interventionInFlight = false;
+  let lastLoggedLabel = null;
+
+  /* Drains every detector and hands the batch over in one go, so the engine
+   * sees a whole moment rather than a sequence of unrelated nudges. */
+  function pumpSignals(extra) {
+    // The master switch. Nothing accrues while the assistant is off.
+    if (s().assistantEnabled === false) return;
+    // Nothing measured while the reader is away reaches the state engine.
+    if (awayActive) {
+      try { scrollRegression.signal(); scrollDynamics.signal(); progressionEntropy.signal(); cursorTracker.signal(); interactionSignals.signal(); } catch (e) {}
+      return;
+    }
+    const batch = [];
+    for (const sig of [scrollRegression.signal(), scrollDynamics.signal(), progressionEntropy.signal(), cursorTracker.signal()]) {
+      if (sig) batch.push(sig);
+    }
+    const interactions = interactionSignals.signal();
+    if (interactions) {
+      for (const sig of interactions) {
+        // A return after a long absence is its own retrieval check, not evidence of difficulty.
+        if (sig.type === 'blur_return') { try { host.onReturnCheck?.(sig.blurMs); } catch (e) {} continue; }
+        batch.push(sig);
+      }
+    }
+    if (extra) batch.push(extra);
+    if (!batch.length) return;
+    const gated = struggleEvidence.filter(batch);
+    if (!gated.length) return;
+    stateEngine.update({ reading: gated });
+  }
+
+  /* Viewport-driven paragraph tracking. Feeds the comprehension monitor's
+   * reading-rate maths and the regression detector's paragraph indices. */
+  function syncParagraph() {
+    if (!s().comprehensionCheckEnabled) return;
+    // Dwell is not measured while the reader is away.
+    if (awayActive) return;
+    // Every call, not just on a transition — a reader stopped at the end
+    // produces no further transition, and the idle tick catches that case.
+    quizOffer.check();
+    let transition = null;
+    try {
+      // A reader tracking text with the mouse gives a measured reading
+      // position; fall back to the viewport heuristic when they aren't.
+      transition = paragraphTracker.update(cursorTracker.getPointerY());
+    } catch (e) { return; }
+    if (!transition) return;
+
+    let speedSignal = null;
+    if (transition.left) {
+      // Feeds intervention-policy's session cap — content read earns budget.
+      try {
+        interventionPolicy.recordCoverage({
+          words: transition.left.words, dwellMs: transition.left.dwellMs, media: transition.left.media,
+        });
+      } catch (e) {}
+      try { speedSignal = comprehensionMonitor.leaveParagraph(); } catch (e) {}
+      const leftText = transition.left.el
+        ? (transition.left.el.innerText || transition.left.el.textContent || '').trim()
+        : '';
+      if (transition.left.el) {
+        host.setPrevParagraphText(leftText.slice(0, 800));
+        // Session recall needs to know what was read, for how long, and
+        // now (item 13i) its real ordinal — session-recall.js was
+        // text-keyed on purpose (nothing it produced was ever submitted
+        // anywhere before this), and the index is only needed so a quiz
+        // question generated from a candidate it selects can carry a real
+        // paragraph_index when reporting a quiz outcome under assignment
+        // context.
+        if (host.onParagraphRead) {
+          try { host.onParagraphRead(leftText, transition.left.dwellMs, transition.left.index); } catch (e) {}
+        }
+      }
+      // Feeds coverage-gate.js — "read enough to offer the quiz on".
+      try {
+        const key = resolveDocumentKey();
+        if (key) {
+          coverageGate.recordProgress(key, {
+            text: leftText, words: transition.left.words, dwellMs: transition.left.dwellMs,
+            media: transition.left.media,
+            totalParagraphs: paragraphTracker.count({ excludeMedia: true }),
+          });
+        }
+      } catch (e) {}
+    }
+    if (transition.entered?.el) {
+      // Figures, tables and code blocks are tracked so the reading line can
+      // find them, but they were never prose — running WPM-vs-difficulty
+      // maths against one is how a reader studying a chart used to register
+      // as "slow on easy text" (see paragraph-tracker.js). Skip pace
+      // attribution for them; still follow them with the reading band.
+      if (!transition.entered.media) {
+        try { comprehensionMonitor.enterParagraph(transition.entered.el); } catch (e) {}
+      }
+      host.setCurrentParagraph({ type: 'dom', data: transition.entered.el });
+    }
+
+    try { scrollRegression.update(transition); } catch (e) {}
+    try { progressionEntropy.update(transition); } catch (e) {}
+    pumpSignals(speedSignal);
+  }
+
+  // ── The one path to the reader ───────────────────────────────────────────
+  stateEngine.subscribe(async (state) => {
+    host.setCogState(state.label);
+    try { chrome.storage.local.set({ sra_current_state: state.label }); } catch (e) {}
+    try { host.sessionTracker.recordState(state.label); } catch (e) {}
+
+    const currentParagraph = host.getCurrentParagraph();
+    const currentEl = currentParagraph?.type === 'dom' ? currentParagraph.data : null;
+
+    if (state.label === 'struggling' && host.onStruggle) {
+      const t = state.signal?.text || (currentEl && (currentEl.innerText || currentEl.textContent)) || '';
+      // Item S6/E4 follow-up: the active paragraph's real ordinal, read at
+      // the exact moment struggle is decided — struggle text itself is
+      // only ever a truncated key (session-recall's own, separately
+      // computed), never a numeric index, so this is the one place that
+      // index needs capturing fresh rather than reconstructed later.
+      // Passed through regardless of assignment context; host.onStruggle
+      // is a no-op for it outside one (see host.js's own header).
+      //
+      // substate/selfReported, captured here too (13g's server contract,
+      // confirmed by reading alcoiaServer/src/http/routes/outcomes.js
+      // directly). 'unclear' is 13a's own fallback when nothing cleared a
+      // confidence bar (classifySubstate() in state-engine.js) — not a
+      // real classification, so it is reported the same as no substate at
+      // all: null, never a guess dressed up as a measurement. 'confusion'/
+      // 'overload' ARE real, whether from a genuine self-report
+      // (state.signal.type === 'self_report', ground truth) or an
+      // inferred hint that cleared its threshold — selfReported reads
+      // directly off which one actually produced it, not assumed either
+      // way.
+      const substate = state.substate && state.substate !== SUBSTATES.UNCLEAR ? state.substate : null;
+      const selfReported = substate ? state.signal?.type === 'self_report' : null;
+      if (t) {
+        try { host.onStruggle(t.trim(), activeParagraphIndex(), substate, selfReported); } catch (e) {}
+      }
+    }
+    // Step 9A: host.isQuestionCardVisible() is the one callback that
+    // carries ui-controller.js's own openPopups fact across the
+    // orchestrator/host boundary (orchestrator.js never touches `ui`
+    // directly — see host.js's own comment on this callback). Optional-
+    // chained + coerced to a real boolean so a `host` built without it
+    // (existing tests' own stubHost()) behaves exactly as before this item:
+    // `questionCardVisible: false`, never gating anything.
+    const decision  = interventionPolicy.evaluate(state, {
+      currentEl,
+      questionCardVisible: !!host.isQuestionCardVisible?.(),
+      // Stage B: what the learner's own recorded evidence says about THIS paragraph (null when unknown). The
+      // policy may use it to withhold or re-type a question; it can never create an interruption.
+      learnerEstimate: host.learnerEstimateFor?.(currentEl) ?? null,
+    });
+
+    // Local, content-free record of why the tool did or did not interrupt (see shared/decision-log.js).
+    try {
+      if (state.isSelfReported) host.logDecision?.({ kind: 'self_report', state: state.label, previousState: lastLoggedLabel });
+      if (state.label !== 'unknown') {
+        host.logDecision?.({
+          kind: 'decision', state: state.label, confidence: state.confidence, basis: state.detectionBasis ?? null,
+          action: decision.allow ? decision.action : 'hold', policyAction: decision.policyAction ?? null, reason: decision.reason,
+        });
+      }
+      lastLoggedLabel = state.label;
+    } catch (e) { /* logging never affects reading */ }
+
+    if (s().debugEnabled) {
+      host.log(`State: ${state.label} (conf ${state.confidence.toFixed(2)}) — ${decision.allow ? 'ACT: ' + decision.action : 'hold: ' + decision.reason}`);
+    }
+    if (!decision.allow) return;
+    // The handler awaits, so guard against a second state arriving mid-render.
+    if (interventionInFlight) return;
+    interventionInFlight = true;
+
+    try {
+      let target = currentEl;
+      if (!target) {
+        try {
+          const para = await host.findParagraphAt(window.innerWidth / 2, window.innerHeight / 2);
+          if (para?.type === 'dom') { host.setCurrentParagraph(para); target = para.data; }
+        } catch (e) {}
+      }
+
+      // Item S6/E4 follow-up: the active paragraph's index, threaded
+      // through to whatever question ends up asked — see this file's own
+      // comment on the onStruggle call site above for why it has to be
+      // captured here rather than derived later from the question's text.
+      const shown = await host.onIntervention(decision, state, target, activeParagraphIndex());
+
+      // Budget is spent once, and only for something the reader actually saw.
+      if (shown) {
+        try { host.logDecision?.({ kind: 'shown', state: state.label, confidence: state.confidence, basis: state.detectionBasis ?? null, action: decision.action, policyAction: decision.policyAction ?? null }); } catch (e) {}
+        interventionPolicy.record(decision);
+        try {
+          host.sessionTracker.recordSignal(state.label, decision.action, decision.evidence[0] || '');
+        } catch (e) {}
+      } else if (s().debugEnabled) {
+        host.log(`Interruption dropped before render (${state.label}) — budget not spent`);
+      }
+    } finally {
+      interventionInFlight = false;
+    }
+  });
+
+  // ── Event wiring ─────────────────────────────────────────────────────────
+  const activeParagraphIndex = () => paragraphTracker.getActive()?.index ?? null;
+
+  // Master-switch hard off (see content.js's boot()/teardown()): an optional
+  // AbortSignal that detaches every listener below in one shot when the
+  // switch goes off, rather than requiring each anonymous callback to be
+  // converted into a named, individually-removable reference. setInterval
+  // is not covered by AbortSignal — its own teardown stays in stop() below.
+  function installListeners(signal) {
+    // Away detection: visibility, focus and any input. Input is noted only as
+    // "something happened", never what.
+    document.addEventListener('visibilitychange', () => {
+      noteAway(document.visibilityState === 'hidden' ? 'hidden' : 'visible');
+    }, { signal });
+    for (const type of ['mousemove', 'keydown', 'pointerdown', 'wheel', 'touchstart', 'scroll']) {
+      window.addEventListener(type, () => noteAway('input'), { passive: true, signal });
+    }
+    if (document.visibilityState === 'hidden') noteAway('hidden');
+
+    // Cursor as a reading pointer. Most mouse movement is not reading, so the
+    // tracker decides for itself whether the behaviour qualifies.
+    window.addEventListener('mousemove', (e) => {
+      if (!s().comprehensionCheckEnabled) return;
+      try { cursorTracker.update(e.clientX, e.clientY); } catch (err) {}
+    }, { passive: true, signal });
+
+    window.addEventListener('scroll', () => {
+      if (!s().comprehensionCheckEnabled) return;
+      try {
+        scrollDynamics.update(window.scrollY);
+        // Same gate as scrollDynamics above — a reader who turned off
+        // "Notice when I'm struggling" gets no scroll-derived collection of
+        // any kind, not just no detection (item DC-1a).
+        scrollKinematicsTracker.update(window.scrollY);
+        syncParagraph();
+        const signal = comprehensionMonitor.onScroll();
+        if (signal) pumpSignals(signal);
+      } catch (e) {}
+    }, { passive: true, signal });
+
+    // Selection and copy are corroboration, never triggers — the selection
+    // summary feature already responds to the reader's own action, and firing
+    // an interruption on top of it would interrupt twice for one gesture.
+    let selectionDebounce = null;
+    document.addEventListener('selectionchange', () => {
+      if (!s().comprehensionCheckEnabled) return;
+      clearTimeout(selectionDebounce);
+      selectionDebounce = setTimeout(() => {
+        try {
+          const text = String(window.getSelection?.() || '');
+          if (text.trim()) interactionSignals.update({ kind: 'selection', text });
+        } catch (e) {}
+      }, 400);
+    }, { signal });
+
+    document.addEventListener('copy', () => {
+      if (!s().comprehensionCheckEnabled) return;
+      try {
+        const text = String(window.getSelection?.() || '');
+        if (text.trim()) interactionSignals.update({ kind: 'copy', text });
+      } catch (e) {}
+    }, { signal });
+
+    // Blur/return: coming back to the same paragraph after a long absence is a
+    // confirmed loss of the thread. Carrying on forwards is not.
+    window.addEventListener('blur', () => {
+      noteAway('blur');
+      try { interactionSignals.update({ kind: 'blur', paragraphIndex: activeParagraphIndex() }); } catch (e) {}
+    }, { signal });
+    window.addEventListener('focus', () => {
+      if (!s().comprehensionCheckEnabled) return;
+      // End away (and move the timers) before anything else reads them.
+      noteAway('focus');
+      try {
+        syncParagraph();
+        interactionSignals.update({ kind: 'focus', paragraphIndex: activeParagraphIndex() });
+        pumpSignals();
+      } catch (e) {}
+    }, { signal });
+
+    // Slow tick so a reader who has stopped scrolling is still observed —
+    // dwelling on one paragraph produces no events at all.
+    idleTimer = setInterval(() => {
+      if (!s().comprehensionCheckEnabled) return;
+      try { handleAway(awayDetector.poll()); } catch (e) {}
+      try { syncParagraph(); pumpSignals(); } catch (e) {}
+    }, IDLE_TICK_MS);
+  }
+
+  /* Enter the first paragraph now, or nothing is timed until the reader
+   * scrolls — which loses the opening of every article. */
+  function primeParagraph() {
+    try { paragraphTracker.rescan(); syncParagraph(); } catch (e) {}
+    // Once per page: scans for a discourse-marker trigger not yet scrolled
+    // into view. Not wired to the idle tick or a mutation observer — content
+    // added later (infinite scroll) is out of scope for this pass, see
+    // pretest.js's own header.
+    if (s().comprehensionCheckEnabled) { try { pretest.scan(); } catch (e) {} }
+  }
+
+  /* Item 27: a genuine SPA route change (new pathname, per
+   * coverage-gate.js's documentKey()) swaps the DOM out from under every
+   * paragraph-index-keyed piece of state below. Without this, the next
+   * transition would report the OLD document's paragraph as "left" — full
+   * stale dwell time and all — and syncParagraph() would attribute that
+   * dwell to the NEW document's coverage-gate key, since documentKey() is
+   * read live at the point of recording, not captured. scrollRegression,
+   * progressionEntropy, interactionSignals, cursorTracker and scrollDynamics
+   * all already exported a reset() for exactly this purpose — none of them
+   * had ever been called from anywhere in the shipped tree, because nothing
+   * before this item ever detected a route change to call them from. Found
+   * incidentally while wiring this: the same "dead code that reads as
+   * wired" shape the project notes already tracks for cursor_reading, five more
+   * instances of it, all closed by this one call site rather than by
+   * inventing new reset logic.
+   *
+   * interventionPolicy is deliberately NOT touched here — its session cap
+   * is a session-scoped budget by design (the project notes: "cap scales with
+   * content read, not with 'session'... absolute per-session ceiling"), and
+   * resetting it per SPA route would let a reader bypass the ceiling simply
+   * by clicking through many short pages. */
+  function handleRouteChange() {
+    try { paragraphTracker.reset(); } catch (e) {}
+    try { comprehensionMonitor.resetParagraph(); } catch (e) {}
+    try { scrollRegression.reset(); } catch (e) {}
+    try { progressionEntropy.reset(); } catch (e) {}
+    try { interactionSignals.reset(); } catch (e) {}
+    try { awayDetector.reset(); awayActive = false; } catch (e) {}
+    try { cursorTracker.reset(); } catch (e) {}
+    try { scrollDynamics.reset(); } catch (e) {}
+    try { pretest.reset(); } catch (e) {}
+    try { host.setCurrentParagraph(null); } catch (e) {}
+    if (s().debugEnabled) { try { host.log('SPA route change — paragraph tracking reset'); } catch (e) {} }
+    primeParagraph();
+  }
+
+  /* Tear everything down. Not called in the extension today — the content
+   * script lives as long as the page — but the timer is owned here, so the
+   * ability to stop it belongs here too rather than being unreachable. */
+  function stop() {
+    if (idleTimer) clearInterval(idleTimer);
+    idleTimer = null;
+  }
+
+  return {
+    installListeners,
+    primeParagraph,
+    handleRouteChange,
+    awayDetector,
+    handleAway,
+    isAway: () => awayActive,
+    syncParagraph,
+    pumpSignals,
+    stop,
+    getState: () => stateEngine.getState(),
+    // Aggregates for the receipt. Aggregates only — there is deliberately no
+    // accessor here that reaches a raw sample buffer.
+    progressionStats: () => progressionEntropy.stats(),
+    regressionStats: () => scrollRegression.stats(),
+    interactionStats: () => interactionSignals.stats(),
+    // Item DC-1a — null when there isn't enough scroll history to summarise
+    // yet (scroll-kinematics-tracker.js's own threshold, independent of this
+    // session's 30s minimum, which the caller checks separately).
+    kinematicsSummary: () => scrollKinematicsTracker.summary(),
+    getActiveParagraphEl: () => paragraphTracker.getActive()?.el || null,
+    // Exposed for the popup's manual paths and for tests.
+    stateEngine,
+    interventionPolicy,
+    pretest,
+    paragraphTracker,
+    // "Read enough to test" — the popup's quiz button reads this directly.
+    coverageGate,
+    documentKey: resolveDocumentKey,
+  };
+}
