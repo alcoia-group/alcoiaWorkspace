@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/outcomes.js, commit 39d972259e6a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/outcomes.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
 /* outcomes.js — reporting a real reading signal against a specific
  * assignment (item S6/E4 follow-up)
  *
@@ -56,7 +56,7 @@
  * full reasoning: it matches this codebase's own existing pattern for
  * every other outward call (fetchSummary/fetchQuestions are also
  * per-event), and a failed submit() must never visibly affect or block
- * the reading experience (the project notes invariant 8's "every failure
+ * the reading experience (CLAUDE.md invariant 8's "every failure
  * degrades to silence" spirit, extended here to a call that reports
  * OUT rather than reads IN).
  */
@@ -74,7 +74,7 @@ export function createOutcomesManager(opts = {}) {
   async function submit({
     paragraphIndex, struggled, questionId, correct, confidence, reached,
     substate, selfReported, source, selectedAnswer, explanationPrecededAttempt,
-    knowledgeUnitId, interventionId, questionLevel,
+    knowledgeUnitId, interventionId, questionLevel, transferCheck,
   } = {}) {
     if (!Number.isInteger(paragraphIndex) || paragraphIndex < 0) {
       return { ok: false, error: 'invalid_paragraph_index' };
@@ -165,6 +165,12 @@ export function createOutcomesManager(opts = {}) {
       body.question_level = questionLevel;
     }
 
+    // A transfer check (a new application-level question asked to see whether an earlier explanation carried over).
+    // Only asks to be treated as one: the server decides from its own clock and the stored evidence whether it is.
+    if ((transferCheck === 'same_session' || transferCheck === 'delayed') && body.question_id) {
+      body.transfer_check = transferCheck;
+    }
+
     try {
       const resp = await fetchImpl(outcomesUrl, {
         method: 'POST',
@@ -180,7 +186,9 @@ export function createOutcomesManager(opts = {}) {
       // for replayed submissions.
       const data = await resp.json?.().catch(() => null);
       const learnerEstimate = data && data.learnerEstimate && typeof data.learnerEstimate === 'object' ? data.learnerEstimate : null;
-      return learnerEstimate ? { ok: true, learnerEstimate } : { ok: true };
+      // For a transfer check the server also says how it went: 'carried', 'retry' (one more try) or 'did_not_carry'.
+      const transfer = data && ['carried', 'retry', 'did_not_carry'].includes(data.transfer) ? data.transfer : null;
+      return { ok: true, ...(learnerEstimate ? { learnerEstimate } : {}), ...(transfer ? { transfer } : {}) };
     } catch (e) {
       return { ok: false, error: 'network_error' };
     }

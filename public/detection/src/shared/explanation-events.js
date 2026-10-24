@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/explanation-events.js, commit 39d972259e6a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/explanation-events.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
 /* explanation-events.js — logging that an on-demand explanation was
  * requested for a specific selection (item DC-2 follow-up)
  *
@@ -8,7 +8,7 @@
  *
  * Confirmed by reading alcoiaServer's
  * src/http/routes/explanation-events.js directly, not assumed — same
- * bounded-exception shape as scroll_sessions (the project notes §4): pseudonymous,
+ * bounded-exception shape as scroll_sessions (CLAUDE.md §4): pseudonymous,
  * assignment-required, participant-checked, write-only, no read path
  * anywhere in that codebase.
  *
@@ -24,7 +24,7 @@
  *
  * Pseudonym is never sent — derived server-side from the assignment's own
  * salt and the authenticated account, identical mechanism to
- * outcomes.pseudonym (the project notes §4).
+ * outcomes.pseudonym (CLAUDE.md §4).
  *
  * FIRE-AND-FORGET, same pattern as outcomes.js's calls (mid-session, not
  * at unload) — an ordinary fetch() is fine here; unlike kinematics.js's
