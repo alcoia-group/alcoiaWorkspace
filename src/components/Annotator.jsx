@@ -419,7 +419,7 @@ export default function Annotator({ docKey, title, children }) {
         <div className="annotator-doc">{children}</div>
         {panel && (
           <aside className="annotator-panel annotator-ui" aria-label="My marks">
-            <p className="muted small">Saved on this device only. They are never sent to alcoia or your instructor.</p>
+            <p className="muted small">Saved on this device only.</p>
             {count === 0 && <p className="muted">Nothing marked yet.</p>}
             <ul>
               {sortedItems.map((it) => (

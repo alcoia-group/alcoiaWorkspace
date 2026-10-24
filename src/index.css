@@ -590,3 +590,7 @@ html.is-fullscreen .slides-viewer .viewer-toolbar { padding-top: max(8px, env(sa
   a.an-chip { padding: 0 10px; }
   .legal-links a { margin-right: 6px; }
 }
+
+.explain-back-appear { animation: eb-appear 400ms ease-out both; }
+@keyframes eb-appear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .explain-back-appear { animation: none; } }

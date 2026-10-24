@@ -168,7 +168,7 @@ export default function ExamPage() {
   return (
     <section className="page exam-page">
       <h1 className="page-title">Exam Mode</h1>
-      <p className="muted">Private practice. You can stop whenever you like.</p>
+      <p className="muted">You can stop whenever you like.</p>
       {upgrade && <Upgrade />}
       {problem && <p className="alert alert-error" role="alert">{ERROR_COPY[problem]}</p>}
 
@@ -214,7 +214,7 @@ export default function ExamPage() {
             <span>Question {q.number} of up to {total}</span>
             <span>{TYPE_LABEL[q.type] ?? q.type} · {q.levelLabel} · from {exam.sources?.length > 1 ? `${q.source.label}, ` : ''}paragraph {q.paragraph}</span>
             {exam.personalized
-              ? <span className="muted">Using your private learning memory to choose questions.</span>
+              ? <span className="muted">Choosing questions from your earlier answers.</span>
               : <span className="muted">Learning memory is off, so questions are chosen from the reading alone. <a href={`${CONSOLE_URL}/settings#learning-memory`}>Settings</a></span>}
           </div>
           <p className="exam-question">{q.text}</p>

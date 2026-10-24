@@ -106,7 +106,7 @@ function ExplainBackSection({ items }) {
   return (
     <section className="an-section" aria-labelledby="an-explain">
       <h2 id="an-explain">Explain it back</h2>
-      <p className="muted">Key ideas covered in your last explanation of each reading. What you wrote is never kept.</p>
+      <p className="muted">Key ideas covered in your last explanation of each reading.</p>
       <ul className="an-list">
         {shown.map((e, i) => (
           <li key={i}>
@@ -333,8 +333,8 @@ function Recent({ r }) {
 
 function MemoryOff({ status }) {
   const copy = {
-    disabled: ['Your private learning memory is turned off, so analytics cannot be shown.', 'Nothing was deleted. Turn it back on and your analytics resume.'],
-  }[status] ?? ['Your private learning memory is not currently available, so analytics cannot be shown.', ''];
+    disabled: ['Learning memory is turned off, so analytics cannot be shown.', 'Nothing was deleted. Turn it back on and your analytics resume.'],
+  }[status] ?? ['Learning memory is not available right now, so analytics cannot be shown.', ''];
   return (
     <div className="notice">
       <h2>{copy[0]}</h2>
@@ -376,7 +376,6 @@ export default function AnalyticsPage() {
   return (
     <section className="page an-page">
       <h1 className="page-title">Learner analytics</h1>
-      <p className="muted">Private to you. Instructors cannot see it.</p>
       {state.status === 'loading' && <p className="muted">Loading your analytics.</p>}
       {state.status === 'error' && <p className="alert alert-error">Your analytics could not be loaded. Try again in a moment.</p>}
       {result?.kind === 'upgrade' && <Upgrade />}

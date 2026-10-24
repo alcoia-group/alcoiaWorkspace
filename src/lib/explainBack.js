@@ -23,7 +23,7 @@ export function submitExplainBack(assignmentId, text, sessionToken, personal = f
 }
 
 // The last feedback is kept on this device so the panel is not empty after a reload.
-// The reader's own text is never kept anywhere.
+// The reader's own text is not stored.
 export function loadLastFeedback(assignmentId) {
   try { return JSON.parse(localStorage.getItem(KEY(assignmentId)) ?? 'null'); } catch { return null; }
 }
