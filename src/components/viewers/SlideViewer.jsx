@@ -143,7 +143,7 @@ function Thumb({ slide, slideSize, asset, number, current, onSelect }) {
   );
 }
 
-export default function SlideViewer({ content, title, asset, onDownload, marks }) {
+export default function SlideViewer({ content, title, asset, onDownload, marks, onIndex }) {
   const { slides, slideSize } = content;
   const [index, setIndex] = useState(0);
   const [leaving, setLeaving] = useState(null);
@@ -154,6 +154,7 @@ export default function SlideViewer({ content, title, asset, onDownload, marks }
   const outgoingRef = useRef(null);
   const pendingJob = useRef(null);
   const fs = useFullscreen();
+  useEffect(() => { onIndex?.(index, slides.length); }, [index, slides.length, onIndex]);
   const controlsVisible = useIdleControls(fs.active);
   const bankId = asset.assignmentId ?? asset.personalId;
   const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
