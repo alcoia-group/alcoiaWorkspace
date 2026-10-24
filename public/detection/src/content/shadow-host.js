@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/shadow-host.js, commit 39d972259e6a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/shadow-host.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
 /* shadow-host.js — Shadow DOM isolation for every element alcoia injects
  * into the host page.
  *
@@ -14,7 +14,7 @@
  *
  * mode: 'open', not 'closed' — CSS isolation from the host page is
  * identical either way; only JS's ability to reach shadowRoot from outside
- * differs. This repo's own verification practice (the project notes: "a green run
+ * differs. This repo's own verification practice (CLAUDE.md: "a green run
  * is not evidence a feature works — verify in a browser") depends on
  * tests/browser/smoke.mjs being able to inspect rendered UI via
  * element.shadowRoot from Playwright's page.evaluate(); 'closed' would make

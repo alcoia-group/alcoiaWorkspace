@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/intervention-id.js, commit 39d972259e6a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/intervention-id.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
 /* intervention-id.js — a unique identity for one presented intervention
  * (intelligence-architecture audit, step 5)
  *
@@ -21,7 +21,7 @@
  * PRIVACY: contains no account id, email, pseudonym, or any other reader
  * identity — only a timestamp and randomness, both already public in the
  * sense that a request's own arrival time is visible to the server
- * regardless. This value identifies an EVENT, never a person (the project notes §2
+ * regardless. This value identifies an EVENT, never a person (CLAUDE.md §2
  * invariant 2 — no fingerprinting; this is not derived from anything about
  * the reader's device or behaviour either).
  *

@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/grading-client.js, commit 39d972259e6a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/grading-client.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
 /* grading-client.js — free-text answer grading, extracted for reuse (item 43)
  *
  * Pulled out of host.js so quiz.js — a normal extension page, not the
@@ -11,7 +11,7 @@
  * UI layer refuses to ever render "wrong" at scenario, even if every layer
  * below it somehow failed).
  *
- * Returns { verdict: 'correct'|'incorrect'|'unknown', span: string|null }
+ * Returns { verdict: 'correct'|'incorrect'|'unknown', span: string|null, reason?: 'unavailable'|'undecided' }
  * — never anything outside that shape, and never throws. Every failure
  * path (wrong level, oversized answer, rate limit, network failure, a
  * response that fails shape validation) resolves to the same UNGRADED
@@ -25,7 +25,9 @@ const GRADABLE_LEVELS = ['free_recall', 'scenario'];
 // rate-limit budget or network call is spent on an answer that was always
 // going to be refused.
 const MAX_GRADING_ANSWER_CHARS = 500;
-const UNGRADED = Object.freeze({ verdict: 'unknown', span: null });
+// reason: 'unavailable' = no usable verdict was produced (offline, refused, malformed); 'undecided' = the model ran and could not tell.
+const UNGRADED = Object.freeze({ verdict: 'unknown', span: null, reason: 'unavailable' });
+const UNDECIDED = Object.freeze({ verdict: 'unknown', span: null, reason: 'undecided' });
 
 export function createGradingClient({ callBackend, getGradeUrl, checkBudget, log, warn } = {}) {
   async function fetchGrading({ passage, span, spanRole, question, answer, level } = {}) {
@@ -61,8 +63,9 @@ export function createGradingClient({ callBackend, getGradeUrl, checkBudget, log
       if (verdict !== 'correct' && verdict !== 'incorrect' && verdict !== 'unknown') return { ...UNGRADED };
       // Never assert "wrong" at scenario, no matter what came back over the
       // wire — a second, independent gate on top of the server's own.
-      if (level === 'scenario' && verdict === 'incorrect') return { ...UNGRADED };
-      if (verdict === 'unknown') return { ...UNGRADED };
+      if (level === 'scenario' && verdict === 'incorrect') return { ...UNDECIDED };
+      // Older servers send no reason: an unknown verdict then means the model ran and could not tell.
+      if (verdict === 'unknown') return j.reason === 'unavailable' ? { ...UNGRADED } : { ...UNDECIDED };
 
       // correct/incorrect both require a real, verbatim span from the
       // PASSAGE THE CLIENT ITSELF ALREADY HAS — the same invented-evidence
