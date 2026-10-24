@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/response-signals.js, commit 39d972259e6a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/response-signals.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
 /* response-signals.js — what the reader actually answered
  *
  * Top of the signal hierarchy, and the only ground truth in the system.
@@ -180,7 +180,7 @@ export function createResponseSignals(opts = {}) {
    * moment as the answer, not probed afterward. A post-hoc "are you sure?"
    * leaks the result if it appears more often after wrong answers; capturing
    * it at commit time cannot leak, since it is asked identically regardless
-   * of what the answer turns out to be (the project notes, confidence calibration).
+   * of what the answer turns out to be (CLAUDE.md, confidence calibration).
    * Skippable — a reader who didn't rate it gets null here, not a forced
    * guess, and null must never be treated as either 'low' or 'high'.
    *
@@ -251,7 +251,7 @@ export function createResponseSignals(opts = {}) {
    * the same as a dismissal, per invariants 5/9. This file does not decide
    * what confidence a model verdict carries — see this file's own header —
    * that stays entirely state-engine.js's call. */
-  function answerGraded(answerText, verdict, confidence, interventionId) {
+  function answerGraded(answerText, verdict, confidence, interventionId, gradeReason = null) {
     const target = resolvePending(interventionId);
     if (!target) return null;
     const latencyMs = now() - target.askedAt;
@@ -264,6 +264,8 @@ export function createResponseSignals(opts = {}) {
       correct: normalizedVerdict === 'unknown' ? null : normalizedVerdict === 'correct',
       confidence: normalizedConfidence,
       gradingMethod: 'model',
+      // For an unknown verdict only: 'unavailable' (no usable verdict was produced) or 'undecided' (the model ran and could not tell).
+      gradeReason: normalizedVerdict === 'unknown' ? (gradeReason === 'undecided' ? 'undecided' : 'unavailable') : null,
       level: target.level,
       answerText: String(answerText || '').slice(0, MAX_ANSWER_TEXT_CHARS),
       latencyMs,

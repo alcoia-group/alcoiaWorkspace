@@ -1,9 +1,9 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/state-engine.js, commit 39d972259e6a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/state-engine.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
 /* state-engine.js — single reading-state estimate for alcoia
  *
  * Replaces the two independent pipelines that used to each fire their own
  * popups: comprehension-monitor (signals) and a webcam gaze classifier.
- * The gaze classifier is gone — see the project notes' migration note — so
+ * The gaze classifier is gone — see CLAUDE.md's migration note — so
  * signals are now the only input, and this module's job is narrower than
  * its name once implied: turn a batch of reading signals into one state
  * estimate, applying corroboration between signals of that one kind.
