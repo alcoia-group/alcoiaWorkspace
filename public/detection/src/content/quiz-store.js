@@ -1,7 +1,7 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/quiz-store.js, commit 39d972259e6a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/quiz-store.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
 /* quiz-store.js — the quiz record, local-only, persisted, IndexedDB
  *
- * "Local-only, persisted, IndexedDB. Never transmitted." (the project notes, The
+ * "Local-only, persisted, IndexedDB. Never transmitted." (CLAUDE.md, The
  * quiz — decided.) IndexedDB rather than chrome.storage.local, which
  * everything else in this extension uses: a quiz archive can grow across
  * many documents over a long time, and chrome.storage.local's quota is far
@@ -179,7 +179,7 @@ export function createQuizStore(opts = {}) {
     await backend.delete(id);
   }
 
-  /* Deletable per document and all at once — the project notes. Both actually
+  /* Deletable per document and all at once — CLAUDE.md. Both actually
    * delete the records, not mark them; nothing here soft-deletes. */
   async function deleteForDocument(documentKey) {
     if (!backend) return 0;

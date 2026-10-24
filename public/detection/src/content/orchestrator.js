@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/orchestrator.js, commit 39d972259e6a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/orchestrator.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
 /* orchestrator.js — the detection pipeline, wired together
  *
  * Owns everything between "a reader did something" and "the policy says this
@@ -439,12 +439,12 @@ export async function createOrchestrator(deps) {
    * had ever been called from anywhere in the shipped tree, because nothing
    * before this item ever detected a route change to call them from. Found
    * incidentally while wiring this: the same "dead code that reads as
-   * wired" shape the project notes already tracks for cursor_reading, five more
+   * wired" shape CLAUDE.md already tracks for cursor_reading, five more
    * instances of it, all closed by this one call site rather than by
    * inventing new reset logic.
    *
    * interventionPolicy is deliberately NOT touched here — its session cap
-   * is a session-scoped budget by design (the project notes: "cap scales with
+   * is a session-scoped budget by design (CLAUDE.md: "cap scales with
    * content read, not with 'session'... absolute per-session ceiling"), and
    * resetting it per SPA route would let a reader bypass the ceiling simply
    * by clicking through many short pages. */
