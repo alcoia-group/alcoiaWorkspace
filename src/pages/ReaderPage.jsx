@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { formatDue, formatLabel } from '../lib/format.js';
@@ -24,6 +24,8 @@ export default function ReaderPage() {
   const { session, signOut } = useSession();
   const location = useLocation();
   const [state, setState] = useState({ status: 'loading' });
+  const [slideAtEnd, setSlideAtEnd] = useState(false);
+  const onSlide = useCallback((i, n) => setSlideAtEnd(i >= n - 2), []);
   const [downloadError, setDownloadError] = useState(false);
   const [markState, setMarkState] = useState(null); // { optional: Set, canEdit } once loaded
   const [markError, setMarkError] = useState(false);
@@ -112,6 +114,7 @@ export default function ReaderPage() {
         <Annotator docKey={`a:${assignmentId}`} title={assignment.name || assignment.className}>
         <Suspense fallback={<p className="muted pad">Loading.</p>}>
           <Viewer
+            onIndex={onSlide}
             content={doc.content}
             title={assignment.name || assignment.className}
             asset={{ assignmentId, sessionToken: session.sessionToken }}
@@ -122,7 +125,7 @@ export default function ReaderPage() {
         </Annotator>
         <Detection assignmentId={assignmentId} />
         <Connections assignmentId={assignmentId} sessionToken={session.sessionToken} />
-        <ExplainBack assignmentId={assignmentId} sessionToken={session.sessionToken} />
+        <ExplainBack assignmentId={assignmentId} sessionToken={session.sessionToken} format={doc.content.format} slideAtEnd={slideAtEnd} />
         {downloadError && <p className="alert alert-error">The download link could not be created.</p>}
         {markError && <p className="alert alert-error">That change could not be saved. Try again.</p>}
       </section>

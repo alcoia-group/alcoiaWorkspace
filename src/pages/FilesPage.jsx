@@ -66,7 +66,7 @@ export default function FilesPage() {
   return (
     <section className="page">
       <h1 className="page-title">My files</h1>
-      <p className="muted">Your own documents, private to your account. They stay until you delete them.</p>
+      <p className="muted">Your own documents. They stay until you delete them.</p>
       <p className="muted">Single-column documents work best.</p>
       {state.status === 'loading' && <p className="muted">Loading.</p>}
       {state.status === 'error' && <p className="alert alert-error">Your files could not be loaded.</p>}
