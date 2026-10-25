@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { downloadPersonalFile, fetchPersonalContent } from '../lib/personalDocuments.js';
@@ -18,6 +18,8 @@ export default function PersonalFilePage() {
   const { session, signOut } = useSession();
   const location = useLocation();
   const [state, setState] = useState({ status: 'loading' });
+  const [slideAtEnd, setSlideAtEnd] = useState(false);
+  const onSlide = useCallback((i, n) => setSlideAtEnd(i >= n - 2), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,6 +48,7 @@ export default function PersonalFilePage() {
         <Annotator docKey={`f:${id}`} title={doc.name}>
         <Suspense fallback={<p className="muted pad">Loading.</p>}>
           <Viewer
+            onIndex={onSlide}
             content={doc.content}
             title={doc.name}
             asset={{ personalId: id, sessionToken: session.sessionToken }}
@@ -54,7 +57,7 @@ export default function PersonalFilePage() {
         </Suspense>
         </Annotator>
         <Detection />
-        <ExplainBack assignmentId={id} personal sessionToken={session.sessionToken} />
+        <ExplainBack assignmentId={id} personal sessionToken={session.sessionToken} format={doc.content.format} slideAtEnd={slideAtEnd} />
       </section>
     );
   }
