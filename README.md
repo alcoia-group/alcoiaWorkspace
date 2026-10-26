@@ -3,7 +3,7 @@
 The web app where students, and later any general user, open readings. It shows instructor-assigned readings and the user's own files (PDF, Word and PowerPoint) as real web pages, and offers practice and learning summaries for people on a paid plan.
 
 It needs a backend to work. The backend is a separate private project and is not part of this repository. You can point the app at your own backend with `VITE_API_BASE_URL`, as long as it implements the calls the app makes (see `src/lib/api.js` and the other files in `src/lib/`).
-
+ 
 ## What it does
 
 - **Readings and files.** Word pages, PowerPoint slides (with the transitions the file states) and PDF pages, each in its own viewer with full screen, zoom and download.
