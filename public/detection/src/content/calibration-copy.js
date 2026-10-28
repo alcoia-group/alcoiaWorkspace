@@ -1,7 +1,7 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/calibration-copy.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/calibration-copy.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* calibration-copy.js — the four-outcome confidence-calibration table
  *
- * From CLAUDE.md's confidence-calibration table, reworded as reader-facing
+ * From the project notes' confidence-calibration table, reworded as reader-facing
  * copy. Wrong+high gets no harsher tone than wrong+low — confidently wrong
  * is the case learning matters most for, not a case for a scolding tone.
  *

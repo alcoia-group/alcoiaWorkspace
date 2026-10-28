@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/epistemic-engine.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/epistemic-engine.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* epistemic-engine.js — selects the next question type from demonstrated
  * failure, not from a rotation (item 44)
  *
@@ -30,7 +30,7 @@
  * in-memory `history()` for the in-page card, or the same history at
  * quiz-generation time for the quiz. Nothing here persists across documents
  * or across days — there is no schema, no storage key, and no plan to add
- * one. That is Level C and is out of scope by design (CLAUDE.md §5).
+ * one. That is Level C and is out of scope by design (the project notes §5).
  *
  * Adversarial is reached ONLY from `scenario` + a correct grade + a
  * SYSTEMATIC (not one-off) pattern of high-confidence wrong answers
@@ -46,7 +46,7 @@ export const LADDER = Object.freeze(['recognition', 'free_recall', 'scenario', '
 
 // "Systematic" requires more than one data point — a single wrong
 // high-confidence answer is a mistake, not a pattern, and punishing it with
-// a challenge question would just be hostile (CLAUDE.md, item 44's own
+// a challenge question would just be hostile (the project notes, item 44's own
 // warning about tone). Both numbers are deliberately small and session-
 // local: this reads only the handful of answers given so far this session,
 // never anything from a prior day or a prior document.
@@ -74,7 +74,7 @@ export function isSystematicallyOverconfident(sessionAnswers = []) {
  * "unknown" — model grade; only free_recall and scenario can produce this).
  * A dismissal is not an attempt and must never be passed in here — the
  * reader declining to answer says nothing about what they know, and must
- * not move them anywhere on the ladder (CLAUDE.md: "A dismissal asserts
+ * not move them anywhere on the ladder (the project notes: "A dismissal asserts
  * nothing at all").
  *
  * `sessionAnswers`: see isSystematicallyOverconfident above — only consulted

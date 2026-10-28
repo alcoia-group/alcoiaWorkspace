@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/account-sync.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/account-sync.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* account-sync.js — reading settings and the reading-speed baseline follow the signed-in account.
  *
  * When the reader is signed in (sra_session in storage), the closed list of reading settings below is

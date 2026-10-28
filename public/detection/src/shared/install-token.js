@@ -1,8 +1,8 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/install-token.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/install-token.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* install-token.js — the opaque per-install token that gates every AI call
  *
  * "No account is required to use the extension. AI calls are gated by an
- * install token." (CLAUDE.md, Access control.) On first run the extension
+ * install token." (the project notes, Access control.) On first run the extension
  * requests an opaque token from the server and stores it; every AI call
  * carries it; no token, no response. The server counts against the token
  * and enforces the ceiling — the client never decides, it only relays.
@@ -12,7 +12,7 @@
  * from device or network characteristics. If a future change makes this
  * file compute the token from anything other than the server's response
  * body, that is a fingerprinting regression and invariant 1 is being
- * violated; see CLAUDE.md's Access control section before doing that.
+ * violated; see the project notes' Access control section before doing that.
  *
  * Lives in src/shared/ as a real ES module, loaded by content.js's
  * loadModule() (a dynamic import(), same as every other content module) —
@@ -94,7 +94,7 @@ export function createInstallTokenManager(opts = {}) {
   /* Call when the server rejects the token on a real AI call (401/403) — a
    * revoked or expired token, not a network failure. Clearing the stored
    * value means the next getToken() issues a fresh one automatically. This
-   * is also what "the reader can delete it, and deleting it works" (CLAUDE.md)
+   * is also what "the reader can delete it, and deleting it works" (the project notes)
    * relies on: clearing sra_install_token by any means, including a future
    * diagnostics-page control, has exactly this effect. */
   async function invalidate() {

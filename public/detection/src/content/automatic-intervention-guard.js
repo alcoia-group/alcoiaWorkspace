@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/automatic-intervention-guard.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/automatic-intervention-guard.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* automatic-intervention-guard.js — Step 12A: one shared, in-memory lock so
  * the AUTOMATIC (non-reader-initiated) question-generating paths cannot both
  * be inside AI generation/presentation at the same time.
@@ -25,7 +25,7 @@
  * all stay exactly where they already are), nothing about the AI-call rate
  * limiter (checkAiCallBudget), and nothing about the server. Reader-initiated
  * paths (session recall, quiz, manual fetchSummary calls) never touch this —
- * see CLAUDE.md's "reader-initiated actions spend no budget" principle,
+ * see the project notes' "reader-initiated actions spend no budget" principle,
  * unchanged and unaffected by this module.
  */
 export function createAutomaticInterventionGuard() {

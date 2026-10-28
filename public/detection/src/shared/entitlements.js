@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/entitlements.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/entitlements.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* entitlements.js — the one place the extension asks "what can this reader
  * do" (item E1)
  *
@@ -31,7 +31,7 @@
  * profile.
  *
  * TTL: 15 minutes. Chosen because this cache's own staleness is a UX
- * nicety, not the real gate — the server is (CLAUDE.md, "the client never
+ * nicety, not the real gate — the server is (the project notes, "the client never
  * decides entitlement"), and a genuinely enforced action (e.g. a server
  * route requiring the paid tier) checks the CURRENT credential server-side
  * regardless of what this cache believes. Fifteen minutes is short enough
@@ -166,7 +166,7 @@ export function createEntitlementsManager(opts = {}) {
   }
 
   /* "May I do X" — the one interface every other module should use. Never
-   * "does something exist in storage" (CLAUDE.md's own phrasing for this
+   * "does something exist in storage" (the project notes' own phrasing for this
    * exact anti-pattern, applied earlier to sessions — the same rule
    * applies to entitlements). */
   async function hasFeature(name) {

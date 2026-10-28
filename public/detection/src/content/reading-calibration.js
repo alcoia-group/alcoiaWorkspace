@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/reading-calibration.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/reading-calibration.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* reading-calibration.js
  *
  * Measures a reader's words-per-minute baseline: a passage of known word
@@ -8,7 +8,7 @@
  *
  * This used to have a second mode that paced the reader through the passage
  * word-by-word to generate WebGazer training points as a side effect — see
- * CLAUDE.md's migration note on removing the gaze path. That mode is gone.
+ * the project notes' migration note on removing the gaze path. That mode is gone.
  * Everything below is the self-paced measurement, which needs no sensor and
  * was always the number this feature was actually for.
  */

@@ -1,16 +1,16 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/quiz-offer.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/quiz-offer.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* quiz-offer.js — end-of-reading trigger for the *unprompted* quiz offer
  *
  * Separate from coverage-gate.js on purpose: coverage-gate.js's evaluate()
  * answers "has enough of this document been read", and is shared by every
  * caller that needs that answer — this file, the popup's quiz button, and
  * eventually the quiz page itself, all read the same threshold from that
- * one function so they cannot disagree (CLAUDE.md, "The quiz — decided").
+ * one function so they cannot disagree (the project notes, "The quiz — decided").
  *
  * This file answers a narrower, second question specific to the unprompted
  * card: has the reader scrolled to the end, and has this document already
  * had its one offer. Reader-initiated paths (the popup button) never call
- * this — CLAUDE.md: "The end-of-page offer is shown at most once per
+ * this — the project notes: "The end-of-page offer is shown at most once per
  * document and is dismissible" is a rule about the offer, not about the
  * quiz itself, and the popup button has no such limit.
  *

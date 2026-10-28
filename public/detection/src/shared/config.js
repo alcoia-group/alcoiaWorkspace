@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/config.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/config.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* config.js — the one place the backend origin is defined.
  *
  * Loaded as a plain classic script (not an ES module) into all three
@@ -39,7 +39,7 @@
     BACKEND_ORIGIN: BACKEND_ORIGIN,
     SUMMARIZE_URL: BACKEND_ORIGIN + '/api/summarize',
     // Issues the opaque per-install token every AI call must carry. See
-    // src/shared/install-token.js and CLAUDE.md's Access control section.
+    // src/shared/install-token.js and the project notes' Access control section.
     TOKEN_URL: BACKEND_ORIGIN + '/api/token',
     // Item S3 — see src/shared/session.js and background.js's
     // onMessageExternal listener.

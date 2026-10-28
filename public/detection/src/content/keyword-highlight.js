@@ -1,11 +1,11 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/keyword-highlight.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/keyword-highlight.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* keyword-highlight.js — load-bearing terms in a post-failure explanation
  *
  * Only on the failure path: after a wrong answer, on the explanation text
  * itself. Never in the question, never in the options, never in the quoted
  * span (that is the passage, verbatim, and highlighting it would blur the
  * line between "the system's own emphasis" and "words already in the
- * source text") — CLAUDE.md's `--alc-sage` is reserved for moments the
+ * source text") — the project notes' `--alc-sage` is reserved for moments the
  * system itself produced, and a correct answer never reaches this module
  * at all (see item 12: confirmation only, no explanation, no highlighting).
  *
@@ -51,7 +51,7 @@ function escapeRegExp(s) {
 
 /* Returns 2-4 candidate words from `text`, or an empty array if fewer than
  * 2 qualify — a single highlighted word is not "emphasis with signal", per
- * CLAUDE.md's own reasoning against highlighting more than four. */
+ * the project notes' own reasoning against highlighting more than four. */
 export function pickLoadBearingTerms(text) {
   if (!text) return [];
   const words = text.match(/[A-Za-zÀ-ÖØ-öø-ÿ]+(?:['’][A-Za-zÀ-ÖØ-öø-ÿ]+)?/g) || [];

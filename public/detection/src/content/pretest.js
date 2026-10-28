@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/pretest.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/pretest.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* pretest.js — predict-then-reveal: the pretesting effect, as an occlusion
  *
  * Richland, Kornell & Kao (2009): attempting an answer before reading it
@@ -19,7 +19,7 @@
  * element (p/li/blockquote) whose ENTIRE content is a single plain text
  * node — no nested links, emphasis, code, images, or anything else. That is
  * the one shape `range.surroundContents()` can wrap without throwing or
- * silently mangling nested markup (CLAUDE.md's item 39 already documents
+ * silently mangling nested markup (the project notes' item 39 already documents
  * `surroundContents` as unsafe outside that shape, on pdf.js text layers).
  * A paragraph with any nested inline element, or a page rendered inside the
  * PDF/PPTX viewers, is simply never a candidate — not attempted, not a
@@ -32,7 +32,7 @@
  * SAME interruption budget as every other intervention
  * (interventionPolicy.evaluateContentTrigger()/record(), see
  * intervention-policy.js) — never twice on one paragraph, the same session
- * cap, the same three-minute gap — because CLAUDE.md's "reader-initiated
+ * cap, the same three-minute gap — because the project notes' "reader-initiated
  * actions spend no budget" is about actions the reader took; a page-content
  * -triggered prompt they did not ask for is not that.
  *
