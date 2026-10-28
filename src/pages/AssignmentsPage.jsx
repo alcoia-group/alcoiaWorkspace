@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { fetchMyAssignments } from '../lib/assignments.js';
-import { formatDue, formatLabel, isDueSoon } from '../lib/format.js';
+import { formatDue, formatLabel, isDueSoon, readingMinutes, formatLength, longReadingNotice } from '../lib/format.js';
 
 export default function AssignmentsPage() {
   const { session, signOut } = useSession();
@@ -44,10 +44,14 @@ export default function AssignmentsPage() {
                   <Link className="row-link" to={`/a/${a.assignmentId}`} reloadDocument>{a.name || a.className}</Link>
                   {a.name && <div className="muted">{a.className}</div>}
                 </td>
-                <td>{a.documents[0] ? formatLabel(a.documents[0].format) : 'No file yet'}</td>
+                <td>
+                  {a.documents[0] ? formatLabel(a.documents[0].format) : 'No file yet'}
+                  {readingMinutes(a.documents[0]?.wordCount) != null && <div className="muted">{formatLength(readingMinutes(a.documents[0].wordCount))}</div>}
+                </td>
                 <td>
                   {formatDue(a.closesAt)}
                   {isDueSoon(a.closesAt) && <span className="tag">Due soon</span>}
+                  {longReadingNotice(readingMinutes(a.documents[0]?.wordCount), a.closesAt) && <div className="muted">{longReadingNotice(readingMinutes(a.documents[0]?.wordCount), a.closesAt)}</div>}
                 </td>
               </tr>
             ))}
