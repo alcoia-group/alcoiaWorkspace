@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/calibration-copy.js, commit 0932608c5006) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/calibration-copy.js, commit 2f312a679daf) by scripts/sync-detection.mjs. Do not edit here. */
 /* calibration-copy.js — the four-outcome confidence-calibration table
  *
  * From the project notes' confidence-calibration table, reworded as reader-facing

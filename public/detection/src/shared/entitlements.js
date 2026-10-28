@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/entitlements.js, commit 0932608c5006) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/entitlements.js, commit 2f312a679daf) by scripts/sync-detection.mjs. Do not edit here. */
 /* entitlements.js — the one place the extension asks "what can this reader
  * do" (item E1)
  *
