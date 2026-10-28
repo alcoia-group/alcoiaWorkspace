@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/exposure.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/exposure.js, commit 2f312a679daf) by scripts/sync-detection.mjs. Do not edit here. */
 /* exposure.js: tells the server which ideas of an ASSIGNED reading the reader has met, so "has this been encountered"
  * is known from ordinary reading and not only from questions.
  *

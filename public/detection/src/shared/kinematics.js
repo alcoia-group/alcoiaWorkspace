@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/kinematics.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/kinematics.js, commit 2f312a679daf) by scripts/sync-detection.mjs. Do not edit here. */
 /* kinematics.js — reporting a session's scroll-kinematics summary
  * (item DC-1a)
  *
@@ -32,7 +32,7 @@
  *
  * Pseudonym is never sent — derived server-side from the assignment's own
  * salt and the authenticated account, identical mechanism to
- * outcomes.pseudonym, for the identical reason (CLAUDE.md §4).
+ * outcomes.pseudonym, for the identical reason (the project notes §4).
  *
  * FIRE-AND-FORGET, CALLED AT PAGE UNLOAD (this item's own brief): unlike
  * outcomes.js's mid-session calls, this one is always invoked from a

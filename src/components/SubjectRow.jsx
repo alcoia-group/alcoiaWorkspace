@@ -1,4 +1,4 @@
-import { LEVEL_LABEL, LEVEL_TONE, NEXT_STEP, DIM_LABEL, DIM_STATE, joinWords } from '../lib/subjects.js';
+import { LEVEL_LABEL, LEVEL_TONE, NEXT_STEP, DIM_LABEL, DIM_STATE, joinWords, evidenceLine } from '../lib/subjects.js';
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
@@ -27,6 +27,13 @@ export default function SubjectRow({ s, defaultOpen = false }) {
           {s.strongAt.length > 0 && <>Going well: {joinWords(s.strongAt)}. </>}
           {s.needsWorkAt.length > 0 && <>Not yet there: {joinWords(s.needsWorkAt)}.</>}
         </p>
+      )}
+      {Array.isArray(s.evidence) && s.evidence.length > 0 && (
+        <details className="an-evidence">
+          <summary>What this is based on</summary>
+          <ul className="an-list">{s.evidence.map((e, i) => <li key={i}>{evidenceLine(e)}</li>)}</ul>
+          <p className="muted">These are your own recent answers on this idea. A wrong answer can be a misread question or a guess, so one of them alone does not show you misunderstand it.</p>
+        </details>
       )}
       <p className="muted">{NEXT_STEP[s.nextStep]}{s.uncertainty === 'high' && s.level !== 'unknown' ? ' This rests on very few answers.' : ''}</p>
     </details>

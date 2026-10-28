@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/diag-log.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/diag-log.js, commit 2f312a679daf) by scripts/sync-detection.mjs. Do not edit here. */
 /* diag-log.js — a short, local-only record of what silently failed
  *
  * Every failure in this extension degrades to silence for the reader
@@ -18,7 +18,7 @@
  * callers only pass short technical strings ('no_install_token',
  * 'status_500', an exception's .message). Local-only, capped, never
  * transmitted — the same local-persistence-is-not-level-C reasoning as the
- * quiz record (CLAUDE.md, statefulness).
+ * quiz record (the project notes, statefulness).
  */
 
 const STORAGE_KEY = 'sra_diag_log';
@@ -58,7 +58,7 @@ export function createDiagLog(opts = {}) {
   }
 
   /* One click, from the diagnostics page. Same "deleting it works" promise
-   * CLAUDE.md makes for the install token. */
+   * the project notes makes for the install token. */
   async function clear() {
     if (!storage) return;
     await storageSet({ [STORAGE_KEY]: [] });

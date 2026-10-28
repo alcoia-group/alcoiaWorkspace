@@ -204,6 +204,7 @@ button.link-button:hover:not(:disabled) { background: none; }
 .crumbs a { color: var(--lilac-deep); }
 .crumb-sep { margin: 0 8px; color: #8a949b; }
 .crumb-due { color: #5b6770; }
+.crumb-left { margin-left: 0.6rem; font-size: 0.8rem; color: #5b6770; opacity: 0.85; }
 
 /* ── Document viewer (file-reader look) ───────────────────────────────── */
 .app-main.wide { max-width: none; padding: 0; }

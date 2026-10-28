@@ -23,6 +23,11 @@ const EXTENSION_ONLY = [
   ['show_connections', 'Show links to my other documents', null],
 ];
 
+// The reader's own switch for anonymous usage counts, read by the detection code the same way the extension reads it.
+// Kept on this device (not on the account), because it is about what this browser sends.
+const SHARE_STORAGE_KEY = 'alcoia_detection_sra_pool_share';
+const readShare = () => { try { return localStorage.getItem(SHARE_STORAGE_KEY) !== 'false'; } catch { return true; } };
+
 // Settings for reading help. They are saved on your account, so they apply here and in the alcoia extension
 // in every browser where you are signed in.
 export default function SettingsPage() {
@@ -34,6 +39,7 @@ export default function SettingsPage() {
   const [memory, setMemory] = useState(null);
   const [memoryError, setMemoryError] = useState(false);
   const [confirmOff, setConfirmOff] = useState(false);
+  const [share, setShare] = useState(readShare);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,6 +137,21 @@ export default function SettingsPage() {
         </>
       )}
       {memoryError && <p className="alert alert-error">Account-based learning could not be loaded or changed.</p>}
+
+      <h2>Anonymous usage counts</h2>
+      <p>alcoia sends a few daily totals that help show whether it works: how often a question or explanation failed to generate, how often each kind of prompt was answered or closed, which way of explaining readers said helped, and how follow-up checks turned out. Each total is a count with a short label, with no account, page, text or device identifier. Turn this off and nothing is sent from this browser.</p>
+      <label className="setting-row">
+        <input
+          type="checkbox"
+          checked={share}
+          onChange={(e) => {
+            const on = e.target.checked;
+            setShare(on);
+            try { localStorage.setItem(SHARE_STORAGE_KEY, JSON.stringify(on)); if (!on) localStorage.setItem('alcoia_detection_sra_pool_pending', '[]'); } catch { /* storage blocked */ }
+          }}
+        />
+        <span className="setting-label">Send anonymous usage counts</span>
+      </label>
 
     </section>
   );

@@ -9,6 +9,7 @@ import { cloneElement, useEffect, useMemo, useRef, useState } from 'react';
 import AssetImage from './AssetImage.jsx';
 import MarkToggle from '../MarkToggle.jsx';
 import { wordUnit } from '../../lib/sectionMarks.js';
+import { useResume } from '../../lib/resume.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { wordConfig, wordLayout } from '../../lib/proveSkip.js';
 
@@ -93,7 +94,8 @@ function renderBlock(block, i, asset) {
 
 const ZOOM_STEPS = [0.75, 0.9, 1, 1.15, 1.3, 1.5];
 
-export default function DocxViewer({ content, title, asset, onDownload, marks }) {
+export default function DocxViewer({ content, title, asset, onDownload, marks, resume }) {
+  const place = useResume(resume);
   const pages = content.pages;
   const [zoomIndex, setZoomIndex] = useState(2);
   const [current, setCurrent] = useState(1);
@@ -109,7 +111,6 @@ export default function DocxViewer({ content, title, asset, onDownload, marks })
 
   useEffect(() => {
     // The block at the top of the screen: the first one whose bottom edge is below the toolbar.
-    if (!bankId) return undefined;
     let frame = 0;
     const update = () => {
       frame = 0;
@@ -132,9 +133,16 @@ export default function DocxViewer({ content, title, asset, onDownload, marks })
       window.removeEventListener('resize', onScroll);
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [bankId, zoomIndex]);
+  }, [zoomIndex]);
 
   const scrollToBlock = (n) => stageRef.current?.querySelector(`[data-block="${n}"]`)?.scrollIntoView?.({ block: 'start' });
+
+  // Back to the saved block, then start saving once the page has settled (images above it can still shift things).
+  useEffect(() => {
+    if (place.initial > 0) stageRef.current?.querySelector(`[data-block="${place.initial}"]`)?.scrollIntoView?.({ block: 'start' });
+    place.arm(900);
+  }, [place]);
+  useEffect(() => { place.report(block); }, [block, place]);
 
   useEffect(() => {
     // Track which page is most visible for "Page n of N".

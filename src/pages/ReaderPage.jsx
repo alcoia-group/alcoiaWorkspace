@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { formatDue, formatLabel } from '../lib/format.js';
@@ -11,6 +11,10 @@ import Detection from '../detection/Detection.jsx';
 import ExplainBack from '../components/ExplainBack.jsx';
 import Connections from '../components/Connections.jsx';
 import { fetchSectionMarks, saveSectionMarks } from '../lib/sectionMarks.js';
+import { wordLayout } from '../lib/proveSkip.js';
+import { estimateMinutes, minutesLeft, formatMinutes } from '../lib/readingTime.js';
+import { fractionLeft, loadPosition, savePosition } from '../lib/resume.js';
+import { useReadingEstimate } from '../lib/useReadingEstimate.js';
 // pdf.js is large; only load it for a PDF.
 const PdfViewer = lazy(() => import('../components/viewers/PdfViewer.jsx'));
 
@@ -81,6 +85,23 @@ export default function ReaderPage() {
     }
   }
 
+  // Where the reader had got to, kept in this browser (see lib/resume.js), and the time left from there.
+  const account = session.email ?? null;
+  const pace = useReadingEstimate(session.sessionToken);
+  const content = state.status === 'ready' ? state.doc?.content ?? null : null;
+  const total = !content ? 0 : content.format === 'pptx' ? content.slides.length : content.format === 'pdf' ? content.pageCount : wordLayout(content).total;
+  const saved = useRef(null);
+  if (saved.current === null || saved.current.key !== `${account}:${assignmentId}`) {
+    saved.current = { key: `${account}:${assignmentId}`, place: loadPosition(account, assignmentId) };
+  }
+  const startIndex = saved.current.place && saved.current.place.total === total ? saved.current.place.index : 0;
+  const [here, setHere] = useState(null); // index once the viewer reports
+  const onPosition = useCallback((index) => {
+    setHere(index);
+    savePosition(account, assignmentId, index, total);
+  }, [account, assignmentId, total]);
+  const resume = useMemo(() => (total > 0 ? { initial: startIndex, onPosition } : undefined), [total, startIndex, onPosition]);
+
   useEffect(() => {
     if (state.status === 'expired') signOut();
   }, [state.status, signOut]);
@@ -108,7 +129,17 @@ export default function ReaderPage() {
             <span className="crumb-sep" aria-hidden="true">/</span>
             <span>{assignment.className}{assignment.name ? ` / ${assignment.name}` : ''}</span>
           </nav>
-          <span className="crumb-due">Due {formatDue(assignment.closesAt)}</span>
+          <span className="crumb-due">
+            Due {formatDue(assignment.closesAt)}
+            {(() => {
+              if (!pace.ready || total === 0) return null;
+              const est = estimateMinutes({ wordCount: assignment.documents[0]?.wordCount, baseline: pace.baseline, help: pace.help });
+              const left = est ? minutesLeft(est.minutes, fractionLeft(here ?? startIndex, total)) : null;
+              if (left == null) return null;
+              const note = est.basis === 'yours' ? 'at your pace' : 'at a typical pace';
+              return <span className="crumb-left" title={`${note}${est.help ? ', with help cards' : ''}`}>{left < 1 ? 'Nearly done' : `${formatMinutes(left)} left`}</span>;
+            })()}
+          </span>
         </div>
         <BeforeYouRead assignmentId={assignmentId} content={doc.content} sessionToken={session.sessionToken} />
         <Annotator docKey={`a:${assignmentId}`} title={assignment.name || assignment.className}>
@@ -120,6 +151,7 @@ export default function ReaderPage() {
             asset={{ assignmentId, sessionToken: session.sessionToken }}
             onDownload={() => handleDownload(doc.documentId)}
             marks={markState ? { ...markState, toggle: toggleMark } : null}
+            resume={resume}
           />
         </Suspense>
         </Annotator>
