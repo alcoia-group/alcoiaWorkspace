@@ -7,6 +7,7 @@ import Annotator from '../components/Annotator.jsx';
 import Detection from '../detection/Detection.jsx';
 import BeforeYouRead from '../components/BeforeYouRead.jsx';
 import ExplainBack from '../components/ExplainBack.jsx';
+import PersonalConnections from '../components/PersonalConnections.jsx';
 import SlideViewer from '../components/viewers/SlideViewer.jsx';
 const PdfViewer = lazy(() => import('../components/viewers/PdfViewer.jsx'));
 
@@ -57,6 +58,7 @@ export default function PersonalFilePage() {
         </Suspense>
         </Annotator>
         <Detection />
+        <PersonalConnections id={id} sessionToken={session.sessionToken} />
         <ExplainBack assignmentId={id} personal sessionToken={session.sessionToken} format={doc.content.format} slideAtEnd={slideAtEnd} />
       </section>
     );
