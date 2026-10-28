@@ -6,6 +6,7 @@ import MarkToggle, { OptionalBadge } from '../MarkToggle.jsx';
 import { slideUnit } from '../../lib/sectionMarks.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { slideConfig } from '../../lib/proveSkip.js';
+import { useResume } from '../../lib/resume.js';
 
 // PowerPoint-style viewer for the server's slide model. Every slide is drawn
 // at the file's own aspect ratio from fractional geometry, with the file's
@@ -143,18 +144,22 @@ function Thumb({ slide, slideSize, asset, number, current, onSelect }) {
   );
 }
 
-export default function SlideViewer({ content, title, asset, onDownload, marks, onIndex }) {
+export default function SlideViewer({ content, title, asset, onDownload, marks, onIndex, resume }) {
   const { slides, slideSize } = content;
-  const [index, setIndex] = useState(0);
+  const place = useResume(resume);
+  const start = Math.min(Math.max(0, place.initial), Math.max(0, slides.length - 1));
+  const [index, setIndex] = useState(start);
   const [leaving, setLeaving] = useState(null);
   const [onTop, setOnTop] = useState('incoming');
   const [ground, setGround] = useState(null);
-  const indexRef = useRef(0);
+  const indexRef = useRef(start);
   const incomingRef = useRef(null);
   const outgoingRef = useRef(null);
   const pendingJob = useRef(null);
   const fs = useFullscreen();
   useEffect(() => { onIndex?.(index, slides.length); }, [index, slides.length, onIndex]);
+  useEffect(() => { place.arm(300); }, [place]);
+  useEffect(() => { place.report(index); }, [index, place]);
   const controlsVisible = useIdleControls(fs.active);
   const bankId = asset.assignmentId ?? asset.personalId;
   const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));

@@ -209,6 +209,36 @@ function StrugglePattern({ s }) {
   );
 }
 
+// Which help worked for this learner: how they responded to each kind of card, and which way of explaining they said
+// helped. From their own counts only; a result is named after a few tries. Nothing here is about anyone else.
+function HelpWorked({ h }) {
+  if (!h || ((h.cards ?? []).length === 0 && (h.explanations ?? []).length === 0)) return null;
+  return (
+    <section className="an-section" aria-labelledby="an-help">
+      <h2 id="an-help">Which help worked for you</h2>
+      {h.cards.length > 0 && (
+        <ul className="an-list">
+          {h.cards.map((c) => (
+            <li key={c.type}><span>{c.name[0].toUpperCase() + c.name.slice(1)}</span><span className="an-count">{CARD_LEAN[c.lean]} ({plural(c.shown, 'time', 'times')})</span></li>
+          ))}
+        </ul>
+      )}
+      {h.explanations.map((e) => (
+        <div key={e.mode}>
+          <h3 className="an-subhead">{MODE_WORDS[e.mode] ?? e.mode}</h3>
+          <ul className="an-list">
+            {e.styles.map((s) => {
+              const name = s.style.split(':').pop();
+              return <li key={s.style}><span>{STYLE_WORDS[name] ?? name}</span><span className="an-count">{STYLE_LEAN[s.lean]}</span></li>;
+            })}
+          </ul>
+        </div>
+      ))}
+      <p className="muted">This is what you told alcoia and how you answered afterward. It is not a measure of how you learn, and it changes as you use alcoia.</p>
+    </section>
+  );
+}
+
 // Ideas that appear in more than one of the learner's readings.
 function Concepts({ items }) {
   if (!items || items.length === 0) return null;
@@ -233,7 +263,7 @@ function Concepts({ items }) {
 
 
 import SubjectRow from '../components/SubjectRow.jsx';
-import { LEVEL_LABEL, LEVEL_ORDER, LEVEL_TONE, countByLevel } from '../lib/subjects.js';
+import { LEVEL_LABEL, LEVEL_ORDER, LEVEL_TONE, countByLevel, CARD_LEAN, STYLE_LEAN, STYLE_WORDS, MODE_WORDS } from '../lib/subjects.js';
 
 const SUMMARY_TOP = 5;
 const DOC_TOP = 5;
@@ -399,6 +429,7 @@ export default function AnalyticsPage() {
           <Progress p={data.progress} />
           <Revisited r={data.revisited} />
           <Concepts items={data.concepts} />
+          <HelpWorked h={data.helpWorked} />
           <StrugglePattern s={data.strugglePattern} />
           <Recent r={data.recent} />
           {data.truncated && <p className="muted">Showing your most recent passages only.</p>}

@@ -1,10 +1,10 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/rate-limit.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/rate-limit.js, commit 2f312a679daf) by scripts/sync-detection.mjs. Do not edit here. */
 /* rate-limit.js — tiny in-memory burst+ceiling limiter (item 43)
  *
  * Extracted out of host.js's own checkAiCallBudget() so a second context
  * with its own module instance — quiz.js, a normal extension page, not
  * sharing host.js's closure — can give its own AI calls the same "bug
- * backstop, not security control" shape (CLAUDE.md, item 38) without
+ * backstop, not security control" shape (the project notes, item 38) without
  * re-deriving the burst/ceiling math by hand. Each caller that constructs
  * one gets its own independent counters, same as host.js's own
  * aiCallTimestampsByPath always has — this adds no shared state across

@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/snooze.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/snooze.js, commit 2f312a679daf) by scripts/sync-detection.mjs. Do not edit here. */
 /* snooze.js — an explicit, reader-chosen pause on interruptions
  *
  * Worth having before any inferred tolerance adaptation: it is explicit,
@@ -15,7 +15,7 @@
  *     reader's decision anymore, it is the product's, wearing the reader's
  *     choice as cover.
  *   - Persisted in chrome.storage.local, so it does survive a browser
- *     restart — CLAUDE.md's "no silent persistence across restarts" is
+ *     restart — the project notes' "no silent persistence across restarts" is
  *     satisfied by always showing the true remaining time wherever this is
  *     displayed (the popup, the confirmation toast), never a stale label.
  */

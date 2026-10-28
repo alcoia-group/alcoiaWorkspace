@@ -30,3 +30,18 @@ export function filterSubjects(items, { level = 'all', query = '' } = {}) {
   const q = query.trim().toLowerCase();
   return (items ?? []).filter((s) => (level === 'all' || s.level === level) && (!q || s.label.toLowerCase().includes(q)));
 }
+
+// One line for an item of evidence behind a label: the learner's own answer, nothing inferred.
+const KIND_WORD = { recognition: 'a multiple-choice question', recall: 'a question you answered in your own words', application: 'a question about using the idea' };
+export function evidenceLine(e) {
+  const where = `${e.reading}${e.paragraph ? `, paragraph ${e.paragraph}` : ''}`;
+  const sure = e.sure === 'sure' ? ', and you were sure' : e.sure === 'unsure' ? ', and you were not sure' : '';
+  const day = e.at ? new Date(e.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  return `${where}: ${KIND_WORD[e.kind] ?? 'a question'}, answered ${e.result === 'right' ? 'correctly' : 'incorrectly'}${sure}${day ? ` (${day})` : ''}.`;
+}
+
+// Plain words for the "which help worked" section. Each says what happened for this learner, never a trait.
+export const CARD_LEAN = { usually_answered: 'you usually answered these', usually_turned_away: 'you usually turned these away', mixed: 'mixed' };
+export const STYLE_LEAN = { helped: 'helped', did_not_help: 'did not help', mixed: 'mixed' };
+export const STYLE_WORDS = { example_first: 'an example first', analogy: 'an analogy', step_by_step: 'step by step', scenario: 'a situation', plain_definition: 'a plain definition', contrast: 'a contrast' };
+export const MODE_WORDS = { explain_more: 'When you asked for more explanation', simplify: 'When you asked for it simpler', repair: 'After a miss' };

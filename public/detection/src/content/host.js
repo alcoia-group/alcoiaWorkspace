@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 2f312a679daf) by scripts/sync-detection.mjs. Do not edit here. */
 /* host.js — the orchestrator's host, extracted from content.js (item 30a)
  *
  * orchestrator.js depends on a `host` object with callbacks
@@ -10,7 +10,7 @@
  * chrome-extension:// page, so the PDF/PPTX viewers (item 30c) could not
  * construct one. This module is importable from either context.
  *
- * See CLAUDE.md's "Extracting the host from content.js (item 30a)" section
+ * See the project notes' "Extracting the host from content.js (item 30a)" section
  * for the full inventory of what moved here, what stayed in content.js, and
  * why — this header only summarises the two non-obvious design points:
  *
@@ -32,6 +32,8 @@
 
 import { t, uiLang, isRtl } from '../shared/i18n.js';
 import { contextLineFor } from '../shared/context-line.js';
+import { whyFor } from '../shared/why-this.js';
+import { holdClassOf } from '../shared/hold-class.js';
 
 const AI_CALL_BURST_LIMIT       = 6;        // calls
 const AI_CALL_BURST_WINDOW_MS   = 10_000;   // per 10s
@@ -534,6 +536,7 @@ export async function createHost(deps) {
   let adaptationTimer = null;
   let visibilityHandler = null;
   const profileRecord = (e) => { try { policyProfileManager?.record(e); } catch (err) {} };
+  const holdCounted = new Map();
   const poolAdd = (metric, dimension) => { try { poolReporter?.add(metric, dimension, 1); } catch (err) {} };
   function noteCardShown(interventionId, type) {
     if (!interventionId || !type) return;
@@ -651,7 +654,7 @@ export async function createHost(deps) {
     visibilityHandler = null;
   }
 
-  // Item 38: bug backstop, not entitlement enforcement — see CLAUDE.md's
+  // Item 38: bug backstop, not entitlement enforcement — see the project notes'
   // "Client-side AI-call rate limiting" section for the full reasoning.
   const _summaryCache = new Map();
   const aiCallTimestampsByPath = { summarize: [], questions: [] };
@@ -771,7 +774,7 @@ export async function createHost(deps) {
 
   // Levels the connected server can deliver. ALCOIA_CONFIG.QUESTION_LEVELS_SUPPORTED is the single
   // switch: it ships as ['recognition'] because alcoiaServer has no level-aware /api/questions and no
-  // /api/grade route (its CLAUDE.md section 7 keeps the higher rungs unbuilt until a level-dependent
+  // /api/grade route (its the project notes section 7 keeps the higher rungs unbuilt until a level-dependent
   // span validator exists). Add 'free_recall', 'scenario' and 'adversarial' here only together with
   // that server work.
   const supportedQuestionLevels = () => {
@@ -952,7 +955,7 @@ export async function createHost(deps) {
   // Affordance 2: a persistent trigger, always reachable regardless of
   // whether any intervention is currently on screen — in contrast to
   // affordance 3, which only ever appears alongside an actual question.
-  // ui-controller.js owns all rendered chrome (CLAUDE.md: "orchestrator.js
+  // ui-controller.js owns all rendered chrome (the project notes: "orchestrator.js
   // decides, ui-controller.js renders"); this just asks it to ensure the
   // trigger exists and wires what a click does. Optional-chained since a
   // ui built with a stub (e.g. some existing tests' fakeUI()) may not
@@ -1163,6 +1166,10 @@ export async function createHost(deps) {
         questionLevel: record.level,
         ...(transferPending ? { transferCheck: transferPending.tier } : {}),
       });
+      if (transferPending) {
+        // How a transfer check turned out, counted anonymously (carried over, one more try, or did not carry over).
+        Promise.resolve(submitted).then((r) => { if (['carried', 'retry', 'did_not_carry'].includes(r?.transfer)) poolAdd('transfer_result', r.transfer); }).catch(() => {});
+      }
       if (settleAfterSubmit) {
         Promise.resolve(submitted).then((r) => {
           // The server counts attempts per explanation and says when the second one failed to settle; the page also
@@ -1397,6 +1404,7 @@ export async function createHost(deps) {
           knowledgeUnitId: item.knowledgeUnitId,
           interventionId,
           passage: item.text,
+          why: whyFor('session_recall'),
         });
         if (!shown) continue;
         reportIntervention(interventionId, item.knowledgeUnitId, item.paragraphIndex, 'session_recall', item.text);
@@ -1419,7 +1427,7 @@ export async function createHost(deps) {
    * signal exists yet (items 13b/13c/13d build those) — the question card
    * ALSO shows the three self-report options alongside the real question,
    * rather than replacing it. Deliberately additive, not a swap: the
-   * question is still this system's primary intervention (CLAUDE.md
+   * question is still this system's primary intervention (the project notes
    * decision #1), and the self-report options are what "visibly ask rather
    * than infer" actually means here — an honest admission next to the
    * question, not instead of it. Costs no extra budget: it rides the SAME
@@ -1476,6 +1484,7 @@ export async function createHost(deps) {
         showSelfReport: state.substate === 'unclear',
         interventionId,
         passage: text,
+        why: whyFor('ask', { evidence: decision.evidence }),
       });
       if (shown) {
         reportIntervention(interventionId, identity.knowledgeUnitId, Number.isInteger(paragraphIndex) ? paragraphIndex : null, 'ask', text, 'retrieve');
@@ -1562,6 +1571,7 @@ export async function createHost(deps) {
         paragraphKey: identity.paragraphKey,
         knowledgeUnitId: identity.knowledgeUnitId,
         interventionId,
+        why: relate ? null : whyFor(kind === 'repair' ? 'repair' : 'explain'),
         ...(style ? { onFeedback: (helped) => { noteStyleFeedback(mode, style, helped); try { transferTracker?.noteTap(identity.knowledgeUnitId); } catch (e) {} } } : {}),
       });
       if (shown && style) noteStyleShown(mode, style, identity.paragraphKey);
@@ -1589,7 +1599,7 @@ export async function createHost(deps) {
    * an actual interruption only if it matches a paragraph the reader is
    * ALREADY reading (never reconstructed from the hash -- see retention.js's
    * own header) and the intervention policy allows it (due is a candidate,
-   * not an order — CLAUDE.md's own step 7 entry). Called fire-and-forget
+   * not an order — the project notes' own step 7 entry). Called fire-and-forget
    * from onParagraphRead below, mirroring handleAsk's own shape closely but
    * triggered by dueKnowledgeUnits, never by a classified reading state.
    *
@@ -1667,6 +1677,7 @@ export async function createHost(deps) {
         paragraphIndex: Number.isInteger(paragraphIndex) ? paragraphIndex : null,
         interventionId: decision.interventionId,
         passage: text,
+        why: whyFor('retention', { focus: !!isFocus }),
         ...(isFocus ? {} : { contextLine: contextLineFor(text) }), // a scheduled review of an earlier paragraph
       });
       // "Budget spent only on yes" — the same rule orchestrator.js's own
@@ -1786,6 +1797,7 @@ export async function createHost(deps) {
         interventionId: decision.interventionId,
         // The grader checks the cited span against this passage, so a free-text answer can be confirmed at all.
         passage: pick.text,
+        why: whyFor('transfer'),
         ...(pick.hint.tier === 'delayed' ? { contextLine: contextLineFor(pick.text) } : {}),
       });
       if (shown) {
@@ -1861,6 +1873,7 @@ export async function createHost(deps) {
         paragraphIndex: Number.isInteger(paragraphIndex) ? paragraphIndex : null,
         interventionId: decision.interventionId,
         passage: text,
+        why: whyFor('probe'),
         contextLine: contextLineFor(text), // a probe about an earlier paragraph
       });
       if (shown) {
@@ -1907,6 +1920,7 @@ export async function createHost(deps) {
         paragraphIndex: null,
         interventionId: decision.interventionId,
         passage: text,
+        why: whyFor('return_check'),
         contextLine: contextLineFor(text), // a return after an absence
       });
       if (shown) {
@@ -1928,7 +1942,7 @@ export async function createHost(deps) {
 
   // ── Paragraph finder ────────────────────────────────────────────────────
   // pdfHandler/pptxHandler are deliberately not imported or known about
-  // here — see this file's own header and CLAUDE.md's item-30a section.
+  // here — see this file's own header and the project notes' item-30a section.
   // content.js (today) and the PDF/PPTX viewer (item 30c) both inject
   // whatever handler they detected, or nothing at all.
   let pdfHandler = null;
@@ -1973,6 +1987,15 @@ export async function createHost(deps) {
         if (c && !c.logged) { c.logged = true; entry = { ...entry, cardType: c.type }; }
       }
       if (entry?.kind === 'self_report') { try { noteSelfReport(entry.previousState); } catch (e) {} }
+      // A card that was held back, counted anonymously by a closed class of reason, at most once a minute per class so a
+      // reader who stays in one state is not counted on every evaluation.
+      if (entry?.kind === 'decision' && entry.action === 'hold') {
+        try {
+          const cls = holdClassOf(entry.reason);
+          const t = Date.now();
+          if (cls && t - (holdCounted.get(cls) ?? 0) > 60000) { holdCounted.set(cls, t); poolAdd('card_held_back', cls); }
+        } catch (e) {}
+      }
       // The card's own 'shown' entry (with its kind) is written when the card is reported; this one adds the detector's side.
       decisionLog.record(entry);
     },

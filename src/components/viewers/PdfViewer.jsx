@@ -1,3 +1,4 @@
+import { useResume } from '../../lib/resume.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import MarkToggle, { OptionalBadge } from '../MarkToggle.jsx';
 import { pageUnit } from '../../lib/sectionMarks.js';
@@ -121,13 +122,14 @@ function PdfThumb({ pdf, number, base, current, onSelect }) {
   );
 }
 
-export default function PdfViewer({ content, title, asset, onDownload, marks }) {
+export default function PdfViewer({ content, title, asset, onDownload, marks, resume }) {
+  const place = useResume(resume);
   const [pdf, setPdf] = useState(null);
   const [error, setError] = useState(false);
   const [base, setBase] = useState(null); // page 1 at scale 1
   const [zoomIndex, setZoomIndex] = useState(2);
   const [fit, setFit] = useState(1);
-  const [current, setCurrent] = useState(1);
+  const [current, setCurrent] = useState(Math.min(Math.max(1, place.initial + 1), content.pageCount));
   const stageRef = useRef(null);
   const fs = useFullscreen();
   const controlsVisible = useIdleControls(fs.active);
@@ -187,6 +189,15 @@ export default function PdfViewer({ content, title, asset, onDownload, marks }) 
     stageRef.current.querySelectorAll('.pdf-page').forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, [pdf, fit, zoomIndex]);
+
+  // Back to the saved page once the pages exist; saving starts only after that settles.
+  useEffect(() => {
+    if (!pdf || !stageRef.current) return;
+    const n = Math.min(Math.max(1, place.initial + 1), content.pageCount);
+    if (n > 1) stageRef.current.querySelector(`[data-page="${n}"]`)?.scrollIntoView?.({ block: 'start' });
+    place.arm(900);
+  }, [pdf, place, content.pageCount]);
+  useEffect(() => { place.report(current - 1); }, [current, place]);
 
   const scrollTo = (n) => stageRef.current?.querySelector(`[data-page="${n}"]`)?.scrollIntoView?.({ block: 'start' });
 

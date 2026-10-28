@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/pool-counters.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/pool-counters.js, commit 2f312a679daf) by scripts/sync-detection.mjs. Do not edit here. */
 /* pool-counters.js: anonymous daily counters for product-level questions (how often does generation fail, which card
  * types are turned away). A metric, a dimension from a closed list and a number: no account, no page, no text, and
  * nothing that links a count to a person. Sent through the install-token path, like every other anonymous call.
@@ -8,8 +8,10 @@
  * Never throws; a failure just means the counts are sent later or not at all. */
 const PENDING_KEY = 'sra_pool_pending';
 const STATUS_KEY = 'sra_pool_status';
+/* The reader's own switch. Counts are sent unless this is explicitly false; turning it off also drops anything not yet sent. */
+export const SHARE_KEY = 'sra_pool_share';
 const DAY = 86400000;
-export const METRICS = ['generation_failure', 'card_shown', 'card_answered', 'card_dismissed', 'card_quick_dismissed', 'style_shown', 'style_helped', 'style_not_helped'];
+export const METRICS = ['generation_failure', 'card_shown', 'card_answered', 'card_dismissed', 'card_quick_dismissed', 'style_shown', 'style_helped', 'style_not_helped', 'card_held_back', 'transfer_result'];
 
 export function createPoolReporter(opts = {}) {
   const callBackend = opts.callBackend; // (action, url, body) => { ok, data }
@@ -51,6 +53,8 @@ export function createPoolReporter(opts = {}) {
 
   async function enabled() {
     try {
+      // The reader's own choice comes first and is read every time, so turning it off takes effect at once.
+      if (storage && (await sget(SHARE_KEY)) === false) return false;
       if (storage) {
         const cached = await sget(STATUS_KEY);
         if (cached && typeof cached.enabled === 'boolean' && now() - cached.checkedAt < DAY) return cached.enabled;

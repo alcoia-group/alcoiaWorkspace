@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/outcomes.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/outcomes.js, commit 2f312a679daf) by scripts/sync-detection.mjs. Do not edit here. */
 /* outcomes.js — reporting a real reading signal against a specific
  * assignment (item S6/E4 follow-up)
  *
@@ -56,7 +56,7 @@
  * full reasoning: it matches this codebase's own existing pattern for
  * every other outward call (fetchSummary/fetchQuestions are also
  * per-event), and a failed submit() must never visibly affect or block
- * the reading experience (CLAUDE.md invariant 8's "every failure
+ * the reading experience (the project notes invariant 8's "every failure
  * degrades to silence" spirit, extended here to a call that reports
  * OUT rather than reads IN).
  */
