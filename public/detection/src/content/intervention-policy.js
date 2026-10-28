@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/intervention-policy.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/intervention-policy.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* intervention-policy.js — decides whether a reading state earns an interruption
  *
  * The engine says what it observed. This says whether to act on it. Splitting
@@ -6,7 +6,7 @@
  * being spread across a classifier loop and a scroll handler that never knew
  * about each other.
  *
- * Rules are from CLAUDE.md and are not tunable at runtime:
+ * Rules are from the project notes and are not tunable at runtime:
  *   - at most one interruption per 3 minutes
  *   - the session cap (SESSION_CAP_ENABLED, currently off) scales with content
  *     read, not with "session" — a textbook chapter earns more than a news
@@ -109,7 +109,7 @@ export const STATE_ACTIONS = Object.freeze({
  *                      policyActions). Still spends from the shared budget,
  *                      consistent with this module's own existing precedent
  *                      that 'nudge' (unquestionably the lightest existing
- *                      action) already spends it too — CLAUDE.md's budget is
+ *                      action) already spends it too — the project notes' budget is
  *                      about "not reader-initiated," never about visual
  *                      loudness, and this item does not invent a second,
  *                      budget-exempt tier to avoid relitigating that.
@@ -179,7 +179,7 @@ export const STATE_ACTIONS = Object.freeze({
  *                      backs it: epistemic-engine.js's own LADDER is
  *                      `['recognition', 'free_recall', 'scenario',
  *                      'adversarial']` -- no 'apply' rung -- and
- *                      alcoiaServer's own CLAUDE.md (§15, "Open questions")
+ *                      alcoiaServer's own the project notes (§15, "Open questions")
  *                      is explicit that the difficulty-ladder levels beyond
  *                      recall/explain (an "apply this concept" question
  *                      included) need a validator this codebase does not
@@ -356,7 +356,7 @@ function paragraphKey(state, fallbackEl) {
  * only a slower return with real dwell at the earlier point does. But even
  * a GENUINE re-read, taken alone, is exactly as ambiguous to this system as
  * it is unremarkable to a fluent human reader who paused once to check
- * something — CLAUDE.md's own "a wrong interruption costs more than a
+ * something — the project notes' own "a wrong interruption costs more than a
  * missed one" applies with special force here, since re-reading is
  * ordinary, competent behaviour far more often than it is unresolved
  * difficulty. So a lone regression signal is a CANDIDATE, not an
@@ -703,7 +703,7 @@ export function createInterventionPolicy(config = {}) {
    * exactly the same budget as every state-driven interruption — session
    * cap, the three-minute gap, never twice on the same paragraph — sharing
    * `count`/`lastAt`/`seenParagraphs` with evaluate() rather than keeping a
-   * second pool: CLAUDE.md's "reader-initiated actions spend no budget" is
+   * second pool: the project notes' "reader-initiated actions spend no budget" is
    * about actions the reader took, and a page-content-triggered prompt they
    * did not ask for is not that. `record()` below is unchanged and already
    * state-agnostic — it only reads `decision.allow`/`.paragraphKey` — so it
@@ -756,7 +756,7 @@ export function createInterventionPolicy(config = {}) {
    * Spends from the SAME shared budget/cooldown/dedup state as every other
    * path in this module (count/lastAt/seenParagraphs) — a knowledge unit
    * becoming due does not create a second, parallel interruption budget;
-   * see CLAUDE.md's own step 7 entry for why that matters ("due is a
+   * see the project notes' own step 7 entry for why that matters ("due is a
    * candidate, not an order"). `ctx.paragraphKey` is the caller's own
    * computeIdentity(text).paragraphKey for the due paragraph it found a
    * match on — the same dedup key every other path already uses, so a
@@ -924,7 +924,7 @@ export function createInterventionPolicy(config = {}) {
   }
 
   /* The question card was closed without an answer. Declining to be tested
-   * asserts nothing about comprehension (CLAUDE.md, signal hierarchy) — but
+   * asserts nothing about comprehension (the project notes, signal hierarchy) — but
    * it is still the reader's clearest available signal about whether they
    * want to keep being asked, and three in a row is treated as exactly
    * that: an instruction, not an inference. */
@@ -943,7 +943,7 @@ export function createInterventionPolicy(config = {}) {
    *   - consecutiveIncorrectAnswers: reset the moment a correct answer
    *     arrives, incremented on a wrong one, left untouched by an
    *     ungraded/unknown verdict — an ungraded answer asserts nothing about
-   *     performance, the same treatment CLAUDE.md gives it everywhere else
+   *     performance, the same treatment the project notes gives it everywhere else
    *     in this system, so it neither raises nor lowers this counter.
    *   - lastAnswerCorrect: whether the reader's MOST RECENT graded answer
    *     was right — read only by regressionEvidenceStrength()'s call site

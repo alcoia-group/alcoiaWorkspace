@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/cursor-tracking.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/cursor-tracking.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* cursor-tracking.js — the mouse as a reading pointer, when it is one
  *
  * Plenty of readers track text with the cursor. When they do, it is a pointer
@@ -17,7 +17,7 @@
  * exist, emit a `type: 'cursor_reading'` object nothing ever wired up
  * (orchestrator.js never called it; state-engine.js listed the type as
  * corroborating with no `CORROBORATION` entry for it), and was removed
- * outright rather than left as a dead emission path — see CLAUDE.md's
+ * outright rather than left as a dead emission path — see the project notes'
  * "known defects". It is back now, with a deliberately different shape:
  * not the reading-position judgement above, but the mind-wandering
  * kinematics from "Wandering minds, wandering mice" (Computers in Human

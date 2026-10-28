@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/selection-explain.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/selection-explain.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* selection-explain.js — on-demand explanation for content retrieval
  * practice can't reach: equations, figure references, unfamiliar technical
  * terms (this item's own brief).
@@ -6,10 +6,10 @@
  * Not a signals/ detector, the same reasoning scroll-kinematics-tracker.js's
  * own header gives: this asserts nothing about comprehension and feeds
  * nothing into state-engine.js, so the update()/signal() contract and
- * state-engine.js registration (CLAUDE.md §10) do not apply. It lives
+ * state-engine.js registration (the project notes §10) do not apply. It lives
  * directly under src/content/, same as session-tracker.js.
  *
- * Reader responses are still this product's only ground truth (CLAUDE.md
+ * Reader responses are still this product's only ground truth (the project notes
  * §1) — nothing here decides comprehension or spends the interruption
  * budget. This only decides whether a SELECTION looks like the specific
  * kind of content retrieval practice cannot help with (never encoded in
@@ -17,7 +17,7 @@
  *
  * Deliberately narrower than the existing plain-selection summary path
  * (content.js's mouseup handler, MIN_SELECTION_CHARS=15, any selection —
- * see CLAUDE.md §11.3's own "plain select is a summary" note). This module
+ * see the project notes §11.3's own "plain select is a summary" note). This module
  * only classifies; content.js decides which path wins for a given
  * selection (this one takes priority when it matches — see content.js's
  * own comment at the call site).

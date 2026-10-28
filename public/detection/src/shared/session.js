@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/session.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/session.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* session.js — the paid-tier magic-link session (item S3)
  *
  * Mirrors install-token.js's shape and reasoning closely — read that file's
@@ -48,7 +48,7 @@
  * a key exist in storage" — a stale or locally-expired entry reads as
  * signed-out and is cleared as a side effect of being read. This is a
  * self-heal, not the real gate: the server is what actually enforces
- * expiry on the next authenticated call (CLAUDE.md: "the client never
+ * expiry on the next authenticated call (the project notes: "the client never
  * decides entitlement"). Every paid-feature check in this codebase must
  * call getSession() (or something that itself calls it), never read
  * sra_session out of storage directly and treat presence as truth.
@@ -106,7 +106,7 @@ export function createSessionManager(opts = {}) {
    * { ok: false, error } on any failure — expired code, already-used code,
    * network failure, or a response that fails shape validation. Never
    * throws, never retries: a rejected code is reported honestly, once
-   * (CLAUDE.md invariant 8's "every failure degrades to silence" pattern,
+   * (the project notes invariant 8's "every failure degrades to silence" pattern,
    * applied to sign-in — the difference here is a rejection surfaces as an
    * explicit `ok:false`, not silence, since a reader trying to sign in
    * needs to know it failed). */

@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/interventions.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/interventions.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* interventions.js — recording that a specific intervention was presented
  * (intelligence-architecture audit, step 5)
  *
@@ -20,7 +20,7 @@
  * degraded or rejected submission — see alcoiaServer's own interventions
  * route). No client-side length cap is enforced here deliberately: a
  * single paragraph is already naturally far under any reasonable bound,
- * and the server is the authoritative bound-check (CLAUDE.md's own
+ * and the server is the authoritative bound-check (the project notes' own
  * standing "the server never trusts a client-side check" convention,
  * already true for every other field this same submit() sends).
  *
@@ -35,7 +35,7 @@
  * was never even generated."
  *
  * Pseudonym is never sent — same reasoning as outcomes.js/
- * explanation-events.js (CLAUDE.md §4): the server derives it, and this
+ * explanation-events.js (the project notes §4): the server derives it, and this
  * record carries no learner identity of any kind, not even a derivable
  * one (see intervention-id.js's own header — the id itself is pure
  * timestamp+randomness, and nothing else in this body is learner-linked

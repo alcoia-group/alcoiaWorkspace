@@ -1,10 +1,10 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/coverage-gate.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/coverage-gate.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* coverage-gate.js — the one function that decides "read enough to test"
  *
  * The quiz is offered at the end of reading and is triggerable from the
  * popup, and both must read the same threshold from the same place — if
  * they diverge, the end-of-reading overlay says ready while the popup
- * button says no (CLAUDE.md, "The quiz — decided"). `evaluate()` below is
+ * button says no (the project notes, "The quiz — decided"). `evaluate()` below is
  * that one place; item 16 wires it to both surfaces and must not grow a
  * second copy of this decision.
  *
@@ -42,7 +42,7 @@ export const DEFAULT_THRESHOLDS = Object.freeze({
 });
 
 // The one reason string shown to the reader for every not-ready case
-// (CLAUDE.md: "the popup button is disabled with a stated reason ... never
+// (the project notes: "the popup button is disabled with a stated reason ... never
 // a silent no-op"). Deliberately not differentiated by cause — "why not"
 // detail is available via the returned coveragePct/dwellMs for anything
 // that wants it (e.g. a debug overlay), but the reader sees one sentence.

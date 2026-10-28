@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/question-card.js, commit 4ba942ab6ae1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/question-card.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
 /* question-card.js — the retrieval question, in front of the reader
  *
  * The primary intervention. Answering is what produces the only ground truth
@@ -18,12 +18,12 @@
  * 3. Confidence is captured at commit time, alongside the answer — not as a
  *    post-answer "are you sure?" probe. A probe that surfaces more often
  *    after wrong answers leaks the result, and readers learn to read the
- *    interface instead of the passage (CLAUDE.md, confidence calibration).
+ *    interface instead of the passage (the project notes, confidence calibration).
  *    So clicking an option only *selects* it; committing — which grades it
  *    and reveals the result — happens once, in the confidence step below,
  *    with whatever confidence (or none, it is skippable) the reader gave.
  *
- * Item 43 — grading authority now degrades by level (CLAUDE.md, signal
+ * Item 43 — grading authority now degrades by level (the project notes, signal
  * hierarchy). `recognition` keeps the exact flow above: pick one of four
  * options, graded deterministically and instantly. The other three levels
  * cannot be multiple-choice — free_recall and scenario have answers a model
@@ -57,6 +57,32 @@ const FREE_TEXT_LEVELS = ['free_recall', 'scenario', 'adversarial'];
 // the textarea's own maxlength (the reader physically cannot type past it)
 // AND again in commit() below, so nothing bypasses it via a pasted value.
 const MAX_ANSWER_CHARS = 500;
+
+
+/* The optional "Why am I seeing this?" line. context.why = { key, auto }: key is one of the why.* strings in i18n.js,
+ * chosen by shared/why-this.js from the reason the card was shown; auto is true for a card alcoia chose to show on its own
+ * (not one the reader asked for), which adds where to turn those off. It is closed by default, never blocks answering, and
+ * names no card type or internal state. A card with no usable key shows no line at all. */
+function whyBlock(context, L, esc) {
+  const key = context?.why?.key;
+  if (typeof key !== 'string' || !key.startsWith('why.')) return { html: '', wire: () => {} };
+  const reason = L(key);
+  if (!reason || reason === key) return { html: '', wire: () => {} };
+  const text = context.why.auto ? `${reason} ${L('why.off')}` : reason;
+  return {
+    html: `<div class="sra-q-why"><button type="button" class="sra-q-why-toggle" aria-expanded="false">${esc(L('why.toggle'))}</button><div class="sra-q-why-text" hidden>${esc(text)}</div></div>`,
+    wire: (root) => {
+      const btn = root.querySelector('.sra-q-why-toggle');
+      const box = root.querySelector('.sra-q-why-text');
+      if (!btn || !box) return;
+      btn.onclick = () => {
+        const open = box.hasAttribute('hidden');
+        if (open) box.removeAttribute('hidden'); else box.setAttribute('hidden', '');
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+    },
+  };
+}
 
 /* Wrong answers are not scolded. The reader gets the correct option marked,
  * the sentence it came from, and an offer of a fuller explanation. */
@@ -184,6 +210,7 @@ export function createQuestionCard(deps = {}) {
         </div>`
       : '';
 
+    const why = whyBlock(context, L, esc);
     root.innerHTML = `
       <div class="sra-controls">
         <button class="sra-ctrl-btn sra-close-btn" title="${esc(L('card.dismiss'))}">✕</button>
@@ -193,6 +220,7 @@ export function createQuestionCard(deps = {}) {
         <div class="sra-q-text">${esc(question.q)}</div>
         ${bodyInner}
         ${selfReport}
+        ${why.html}
       </div>
       <div class="sra-popup-divider"></div>
       <div class="sra-actions">
@@ -227,12 +255,13 @@ export function createQuestionCard(deps = {}) {
     const body = root.querySelector('.sra-popup-body');
 
     /* The moment a reader most wants to pause reminders is the moment one
-     * has just appeared (CLAUDE.md, snooze) — but it stays offered after
+     * has just appeared (the project notes, snooze) — but it stays offered after
      * answering too, for "stop bothering me for a while" once this one is
      * done. Choosing a duration routes through the same dismiss() path
      * "Skip this" uses: before an answer that records the dismissal (item
      * 10's backoff); after one, dismiss() is a no-op beyond closing the
      * card, since answering already counted as engagement, not evasion. */
+    why.wire(root);
     const snoozeToggle = root.querySelector('.sra-q-snooze-toggle');
     if (snoozeToggle) {
       snoozeToggle.onclick = () => {
@@ -382,7 +411,7 @@ export function createQuestionCard(deps = {}) {
         // check wrong is a reader who reasoned well being told they were
         // wrong — unrecoverable, per this item's own reasoning — so it is
         // checked here too, not assumed from upstream.
-        const verdict = level === 'scenario' && graded.verdict === 'incorrect' ? 'unknown' : graded.verdict;
+        const verdict = level === 'scenario' && graded.verdict === 'incorrect' && graded.basis !== 'contradiction' ? 'unknown' : graded.verdict;
 
         const gradeReason = verdict === 'unknown' ? (graded.reason === 'undecided' ? 'undecided' : 'unavailable') : null;
         const record = responseSignals.answerGraded(answerText, verdict, confidence, interventionId, gradeReason);
@@ -473,12 +502,14 @@ export function createQuestionCard(deps = {}) {
     root.setAttribute?.('role', 'group');
     root.setAttribute?.('aria-label', 'Explanation');
 
+    const why = whyBlock(context, L, esc);
     root.innerHTML = `
       <div class="sra-controls">
         <button class="sra-ctrl-btn sra-close-btn" title="${esc(L('card.dismiss'))}">✕</button>
       </div>
       <div class="sra-popup-body">
         <div class="sra-q-explain sra-explain-text">${renderHighlightedExplanation(text, esc)}</div>
+        ${why.html}
       </div>
       <div class="sra-popup-divider"></div>
       <div class="sra-actions">
@@ -486,6 +517,7 @@ export function createQuestionCard(deps = {}) {
         <button class="sra-btn sra-btn-secondary sra-q-skip">${esc(L('card.close'))}</button>
       </div>`;
 
+    why.wire(root);
     const dismiss = () => ui.closePopup(root, fingerprint);
     root.querySelector('.sra-close-btn').onclick = dismiss;
     root.querySelector('.sra-q-skip').onclick = dismiss;
@@ -516,7 +548,7 @@ export function createQuestionCard(deps = {}) {
  * `question.explanation`, never the quoted span, whether or not confidence
  * was given. Explaining something the reader just demonstrated they know
  * adds load at the exact moment of consolidation and trains them to expect
- * the system to do the closing work (CLAUDE.md, product intent). The
+ * the system to do the closing work (the project notes, product intent). The
  * explanation path is the failure path — reached only below, on a wrong
  * answer — and is never the default, regardless of confidence either.
  *
@@ -564,7 +596,7 @@ function revealAnswer(root, question, chosen, confidence, esc, lang = 'en') {
  * scenario can only ever arrive here as 'correct' or 'unknown' — never
  * 'incorrect' (see commit()'s own comment) — so its "unknown" copy
  * deliberately reads as neutral, not as a near-miss: confirm or say
- * nothing, never a false correction (CLAUDE.md, item 43's whole reason to
+ * nothing, never a false correction (the project notes, item 43's whole reason to
  * exist). free_recall's "unknown" copy is worded the same way, for the same
  * reason — an inconclusive grade is not evidence of a wrong answer either. */
 function revealGraded(root, question, verdict, level, esc, lang = 'en', reason = null) {
