@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/segmentation.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/segmentation.js, commit 0932608c5006) by scripts/sync-detection.mjs. Do not edit here. */
 /* segmentation.js — counting words and sentences in scripts that do not mark
  * their boundaries the way English does.
  *

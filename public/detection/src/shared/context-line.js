@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/context-line.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/context-line.js, commit 0932608c5006) by scripts/sync-detection.mjs. Do not edit here. */
 /* context-line.js — the one short sentence a card may show about WHICH part of the reading it is about.
  *
  * Shown only on cards about something other than the paragraph in view or just read: a scheduled review of an

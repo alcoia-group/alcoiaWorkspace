@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/pool-counters.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/pool-counters.js, commit 0932608c5006) by scripts/sync-detection.mjs. Do not edit here. */
 /* pool-counters.js: anonymous daily counters for product-level questions (how often does generation fail, which card
  * types are turned away). A metric, a dimension from a closed list and a number: no account, no page, no text, and
  * nothing that links a count to a person. Sent through the install-token path, like every other anonymous call.
@@ -9,7 +9,7 @@
 const PENDING_KEY = 'sra_pool_pending';
 const STATUS_KEY = 'sra_pool_status';
 const DAY = 86400000;
-export const METRICS = ['generation_failure', 'card_shown', 'card_answered', 'card_dismissed', 'card_quick_dismissed', 'style_shown', 'style_helped', 'style_not_helped'];
+export const METRICS = ['generation_failure', 'card_shown', 'card_answered', 'card_dismissed', 'card_quick_dismissed', 'style_shown', 'style_helped', 'style_not_helped', 'card_held_back', 'transfer_result'];
 
 export function createPoolReporter(opts = {}) {
   const callBackend = opts.callBackend; // (action, url, body) => { ok, data }

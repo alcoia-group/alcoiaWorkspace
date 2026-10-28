@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/graded-result.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/graded-result.js, commit 0932608c5006) by scripts/sync-detection.mjs. Do not edit here. */
 /* graded-result.js — the fixed copy shown for a model-graded verdict (item 43)
  *
  * Shared between question-card.js's floating card and quiz.js's own page so
