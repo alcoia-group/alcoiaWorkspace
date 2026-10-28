@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { fetchMyAssignments } from '../lib/assignments.js';
-import { formatDue, formatLabel, isDueSoon, readingMinutes, formatLength, longReadingNotice } from '../lib/format.js';
+import { formatDue, formatLabel, isDueSoon, longReadingNotice } from '../lib/format.js';
+import { estimateMinutes, minutesLeft, lengthLine, basisNote } from '../lib/readingTime.js';
+import { fractionLeft, loadPosition } from '../lib/resume.js';
+import { useReadingEstimate } from '../lib/useReadingEstimate.js';
 
 export default function AssignmentsPage() {
   const { session, signOut } = useSession();
   const [state, setState] = useState({ status: 'loading', items: [] });
+  const pace = useReadingEstimate(session.sessionToken);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +42,13 @@ export default function AssignmentsPage() {
             <tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Due</th></tr>
           </thead>
           <tbody>
-            {items.map((a) => (
+            {items.map((a) => {
+              // The reader's own pace, plus help cards when those are on; "left" once they have started (the place is kept in
+              // this browser only). Shown once the pace has loaded, so the number does not change under the reader.
+              const est = pace.ready ? estimateMinutes({ wordCount: a.documents[0]?.wordCount, baseline: pace.baseline, help: pace.help }) : null;
+              const place = loadPosition(session.email ?? null, a.assignmentId);
+              const left = est && place ? minutesLeft(est.minutes, fractionLeft(place.index, place.total)) : null;
+              return (
               <tr key={a.assignmentId}>
                 <td>
                   <Link className="row-link" to={`/a/${a.assignmentId}`} reloadDocument>{a.name || a.className}</Link>
@@ -46,15 +56,16 @@ export default function AssignmentsPage() {
                 </td>
                 <td>
                   {a.documents[0] ? formatLabel(a.documents[0].format) : 'No file yet'}
-                  {readingMinutes(a.documents[0]?.wordCount) != null && <div className="muted">{formatLength(readingMinutes(a.documents[0].wordCount))}</div>}
+                  {est && <div className="muted" title={basisNote(est)}>{lengthLine(est, left)}</div>}
                 </td>
                 <td>
                   {formatDue(a.closesAt)}
                   {isDueSoon(a.closesAt) && <span className="tag">Due soon</span>}
-                  {longReadingNotice(readingMinutes(a.documents[0]?.wordCount), a.closesAt) && <div className="muted">{longReadingNotice(readingMinutes(a.documents[0]?.wordCount), a.closesAt)}</div>}
+                  {longReadingNotice(left ?? est?.minutes ?? null, a.closesAt) && <div className="muted">{longReadingNotice(left ?? est?.minutes ?? null, a.closesAt)}</div>}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       )}
