@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/explanation-events.js, commit 584fa59435d5) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/explanation-events.js, commit 0932608c5006) by scripts/sync-detection.mjs. Do not edit here. */
 /* explanation-events.js — logging that an on-demand explanation was
  * requested for a specific selection (item DC-2 follow-up)
  *
