@@ -17,7 +17,7 @@ export default function AppLayout() {
               <Link to="/assignments">Materials</Link>
               <Link to="/files">My files</Link>
               <Link to="/analytics">Learner analytics</Link>
-              <Link to="/exam">Exam Mode</Link>
+              {/* EXAM MODE OFF FOR LAUNCH (AI cost): <Link to="/exam">Exam Mode</Link> */}
               <Link to="/settings">Settings</Link>
             </nav>
             <div className="global-user">
