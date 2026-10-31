@@ -9,7 +9,9 @@ import InvitePage from './pages/InvitePage.jsx';
 import LtiJoinPage from './pages/LtiJoinPage.jsx';
 import SubjectsPage from './pages/SubjectsPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
-import ExamPage from './pages/ExamPage.jsx';
+// EXAM MODE OFF FOR LAUNCH (AI cost). The page, lib/exam.js and the server routes are all still there; to add it back, restore
+// the import, the route below and the nav link in components/AppLayout.jsx, and set FEATURE_EXAM_MODE=on on the server.
+// import ExamPage from './pages/ExamPage.jsx';
 import FilesPage from './pages/FilesPage.jsx';
 import PersonalFilePage from './pages/PersonalFilePage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
@@ -34,7 +36,7 @@ export default function App() {
           <Route path="/analytics/subjects" element={<SubjectsPage />} />
           <Route path="/files" element={<FilesPage />} />
           <Route path="/f/:id" element={<PersonalFilePage />} />
-          <Route path="/exam" element={<ExamPage />} />
+          {/* EXAM MODE OFF FOR LAUNCH: <Route path="/exam" element={<ExamPage />} /> */}
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
