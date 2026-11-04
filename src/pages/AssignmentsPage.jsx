@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
-import { fetchMyAssignments } from '../lib/assignments.js';
+import { fetchMyAssignments, fetchSeatNotices, seenNoticeIds, markNoticeSeen } from '../lib/assignments.js';
 import { formatDue, formatLabel, isDueSoon, longReadingNotice } from '../lib/format.js';
 import { estimateMinutes, minutesLeft, lengthLine, basisNote } from '../lib/readingTime.js';
 import { fractionLeft, loadPosition } from '../lib/resume.js';
@@ -11,6 +11,17 @@ export default function AssignmentsPage() {
   const { session, signOut } = useSession();
   const [state, setState] = useState({ status: 'loading', items: [] });
   const pace = useReadingEstimate(session.sessionToken);
+  const [notices, setNotices] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSeatNotices(session.sessionToken).then((list) => {
+      if (cancelled) return;
+      const seen = seenNoticeIds();
+      setNotices(list.filter((n) => !seen.has(n.id)));
+    });
+    return () => { cancelled = true; };
+  }, [session.sessionToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,6 +40,12 @@ export default function AssignmentsPage() {
   return (
     <section className="page">
       <h1 className="page-title">Materials</h1>
+      {notices.map((n) => (
+        <p key={n.id} className="alert" role="status">
+          You were removed from {n.className ?? 'a class'} by your instructor{n.reason ? `. Reason given: ${n.reason}` : ''}. If this is a mistake, ask your instructor to add you again.{' '}
+          <button type="button" className="link-button" onClick={() => { markNoticeSeen(n.id); setNotices((l) => l.filter((x) => x.id !== n.id)); }}>Dismiss</button>
+        </p>
+      ))}
       {state.status === 'loading' && <p className="muted">Loading materials.</p>}
       {state.status === 'error' && (
         <p className="alert alert-error">Materials could not be loaded. Try again in a moment.</p>
