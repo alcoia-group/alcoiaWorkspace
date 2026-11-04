@@ -1,5 +1,5 @@
-import darkLetters from '../assets/img/alcoia-logo-dark-letters.png';
-import whiteLetters from '../assets/img/alcoia-logo-white-letters.png';
+import darkLetters from '../assets/img/alcoia-logo-dark-letters.webp';
+import whiteLetters from '../assets/img/alcoia-logo-white-letters.webp';
 
 // Both files have a transparent ground. White letters are for dark surfaces
 // (the top bar is always dark). `adaptive` picks by colour scheme: black
