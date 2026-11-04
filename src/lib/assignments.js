@@ -37,3 +37,22 @@ export async function fetchPdfBytes(base, sessionToken) {
   }
   return new Uint8Array(await res.arrayBuffer());
 }
+
+// GET /api/account/seat-notices -> { notices: [{ id, className, reason, removedAt }] }: classes an instructor removed
+// this account from recently. Best effort: a failure shows nothing.
+export async function fetchSeatNotices(sessionToken) {
+  try {
+    const body = await apiGet('/api/account/seat-notices', { sessionToken });
+    return body.notices ?? [];
+  } catch {
+    return [];
+  }
+}
+
+const SEEN_KEY = 'alcoia_seat_notices_seen';
+export function seenNoticeIds() {
+  try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) ?? '[]')); } catch { return new Set(); }
+}
+export function markNoticeSeen(id) {
+  try { localStorage.setItem(SEEN_KEY, JSON.stringify([...seenNoticeIds(), id].slice(-50))); } catch { /* storage can be unavailable */ }
+}
