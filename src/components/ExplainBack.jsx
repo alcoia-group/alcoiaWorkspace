@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, apiGet } from '../lib/api.js';
 import { MIN_READ_MS, REVEAL_SCREENS, instructorLine, pickVariant, wording } from '../lib/explainBackWording.js';
-import { MAX_CHARS, MIN_CHARS, fetchExplainBackAvailability, loadLastFeedback, saveLastFeedback, submitExplainBack } from '../lib/explainBack.js';
+import { MAX_CHARS, MIN_CHARS, fetchExplainBackAvailability, saveLastFeedback, submitExplainBack, wasUsedHere } from '../lib/explainBack.js';
 
 const LABEL = { covered: 'You covered this', partly: 'Partly covered', missing: 'Not mentioned yet' };
 const MARK = { covered: '✓', partly: '~', missing: '○' };
@@ -12,8 +12,9 @@ const MARK = { covered: '✓', partly: '~', missing: '○' };
 //
 // It is not on the page from the start. It appears once enough time has passed AND the reader is near
 // the end: for Word and PDF, when the end of the document is within a screen or so of the window;
-// for slides, on the last two slides (`slideAtEnd`). Someone who comes back to a reading they already
-// got feedback on sees it straight away. What it asks depends on the evidence the server has for this
+// for slides, on the last two slides (`slideAtEnd`). It is used once: after the reader hands in an
+// explanation, right or wrong, they see the feedback, and when they close it it is gone for good (the
+// server reports `used` on any device, and this device remembers too). What it asks depends on the evidence the server has for this
 // reader (see lib/explainBackWording.js): a plain "what have you understood" when it looks like they
 // understood a lot, the main ideas otherwise.
 export default function ExplainBack({ assignmentId, sessionToken, personal = false, format = 'docx', slideAtEnd = false }) {
@@ -21,7 +22,9 @@ export default function ExplainBack({ assignmentId, sessionToken, personal = fal
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
-  const [feedback, setFeedback] = useState(() => loadLastFeedback(assignmentId)?.ideas ?? null);
+  const [feedback, setFeedback] = useState(null);
+  // Handed in before, on this device or any other: it never shows again.
+  const [used, setUsed] = useState(() => wasUsedHere(assignmentId));
   const [hidden, setHidden] = useState(false);
   const [timeOk, setTimeOk] = useState(false);
   const [nearEnd, setNearEnd] = useState(false);
@@ -39,6 +42,8 @@ export default function ExplainBack({ assignmentId, sessionToken, personal = fal
       const el = sentinel.current;
       if (el && el.getBoundingClientRect().top - window.innerHeight < window.innerHeight * REVEAL_SCREENS) setNearEnd(true);
     };
+    // Also runs when the sentinel first exists and when the time is up: a short reading that fits in the
+    // window never scrolls or resizes, so waiting for those events would never show the panel.
     check();
     window.addEventListener('scroll', check, { passive: true });
     window.addEventListener('resize', check);
@@ -46,20 +51,21 @@ export default function ExplainBack({ assignmentId, sessionToken, personal = fal
       window.removeEventListener('scroll', check);
       window.removeEventListener('resize', check);
     };
-  }, [format, nearEnd]);
+  }, [format, nearEnd, available, timeOk]);
 
   useEffect(() => {
     let cancelled = false;
     fetchExplainBackAvailability(assignmentId, sessionToken, personal).then((r) => {
       if (cancelled) return;
       setAvailable(r.available);
-      if (r.previous) setFeedback((f) => f ?? r.previous);
+      if (r.used) setUsed(true);
     });
     return () => { cancelled = true; };
   }, [assignmentId, sessionToken, personal]);
 
+  // Once feedback is on screen it stays until the reader closes it, even though `used` is now true.
   const returning = Boolean(feedback);
-  const show = available && !hidden && (returning || (timeOk && (format === 'pptx' ? slideAtEnd : nearEnd)));
+  const show = available && !hidden && (returning || (!used && timeOk && (format === 'pptx' ? slideAtEnd : nearEnd)));
 
   // The estimates only decide how hard the question is. Learning memory off, or any failure, means the easier wording.
   useEffect(() => {
@@ -71,7 +77,7 @@ export default function ExplainBack({ assignmentId, sessionToken, personal = fal
     return () => { cancelled = true; };
   }, [show, personal, returning, assignmentId, sessionToken]);
 
-  if (!available || hidden) return null;
+  if (!available || hidden || (used && !returning)) return null;
   if (!show) return <div ref={sentinel} aria-hidden="true" />;
 
   async function check(e) {
@@ -81,12 +87,16 @@ export default function ExplainBack({ assignmentId, sessionToken, personal = fal
     try {
       const res = await submitExplainBack(assignmentId, text, sessionToken, personal);
       setFeedback(res.ideas);
+      setUsed(true);
       saveLastFeedback(assignmentId, res.ideas);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) setUsed(true); // handed in before, somewhere else: it is gone
       setError(
-        err instanceof ApiError && err.status === 429
-          ? 'You have checked this several times in the last hour. Try again later.'
-          : 'The check is not available right now. Your explanation is still here.',
+        err instanceof ApiError && err.status === 409
+          ? 'You have already handed in your explanation for this reading.'
+          : err instanceof ApiError && err.status === 429
+            ? 'You have checked this several times in the last hour. Try again later.'
+            : 'The check is not available right now. Your explanation is still here.',
       );
     } finally {
       setBusy(false);
@@ -124,8 +134,7 @@ export default function ExplainBack({ assignmentId, sessionToken, personal = fal
             ))}
           </ul>
           <div className="explain-back-actions">
-            <button type="button" className="secondary" onClick={() => { setFeedback(null); setText(''); }}>Try again</button>
-            <button type="button" className="secondary" onClick={() => setHidden(true)}>Done</button>
+            <button type="button" onClick={() => setHidden(true)}>Done</button>
           </div>
         </div>
       )}
