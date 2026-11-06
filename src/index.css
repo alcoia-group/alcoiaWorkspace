@@ -515,11 +515,6 @@ a.an-chip { text-decoration: none; }
 .connections ul { margin: 0; padding-left: 18px; }
 
 /* Settings */
-.settings-page .setting-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border, #e3e3e3); }
-.settings-page .setting-row input { margin-top: 3px; }
-.settings-page .setting-sub { padding-left: 26px; align-items: center; }
-.settings-page .setting-label { display: block; }
-.settings-page .setting-hint { display: block; font-size: 13px; }
 
 /* ── Responsive pass: phone (320-430), tablet (600-1024), desktop ─────────────────────────────
    Rules: no horizontal page scroll at any width from 320 up (wide things scroll inside their own
@@ -664,3 +659,48 @@ a.ov-stat:hover { border-color: #8a949b; }
   .global-nav { display: flex; max-width: 100%; overflow-x: auto; scrollbar-width: none; flex: 1 1 100%; order: 3; }
   .global-nav::-webkit-scrollbar { display: none; }
 }
+
+/* ── Settings ─────────────────────────────────────────────────────────── */
+.set-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; border-bottom: 1px solid #c7cdd1; margin-bottom: 8px; }
+.set-head .page-title { border-bottom: 0; margin-bottom: 0; }
+.set-status { margin: 0; min-height: 20px; font-size: 13px; color: #5b6770; white-space: nowrap; }
+.set-status-error { color: #a12c20; }
+.set-intro { margin: 0 0 16px; }
+.set-card { background: #fff; border: 1px solid #c7cdd1; border-radius: 4px; padding: 6px 18px 8px; margin-bottom: 14px; }
+.set-card-title { font-size: 16px; margin: 12px 0 2px; }
+.set-card-note { margin: 4px 0 6px; font-size: 14px; color: #5b6770; max-width: 70ch; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 0; border-top: 1px solid #e5e8ea; min-height: 48px; }
+.set-card-title + .set-row, .set-card-note + .set-row, .set-card-title + div > .set-row:first-child { border-top: 0; }
+.set-row-sub { padding-left: 20px; }
+.set-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.set-label { font-weight: 600; color: #2d3b45; }
+.set-hint { font-size: 13px; color: #5b6770; }
+.set-control { flex: none; }
+.set-control select { min-width: 150px; }
+.set-row-ghost span { display: block; height: 14px; border-radius: 3px; background: #eef0f2; }
+.set-row-ghost span:first-child { width: 45%; }
+.set-row-ghost span:last-child { width: 40px; height: 22px; border-radius: 11px; }
+.set-confirm { margin: 0 0 12px; padding: 12px 14px; background: #f7f8f9; border: 1px solid #e5e8ea; border-radius: 4px; }
+.set-confirm p { margin: 0 0 10px; }
+.set-confirm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ws-switch {
+  position: relative; width: 40px; height: 22px; min-height: 0 !important; padding: 0; border-radius: 11px;
+  border: 1px solid #b6bec4; background: #dfe3e6; cursor: pointer; transition: background 120ms ease, border-color 120ms ease;
+}
+.ws-switch.is-on { background: var(--lilac-deep, #6b4fa3); border-color: var(--lilac-deep, #6b4fa3); }
+.ws-switch:hover:not(:disabled) { background: #d2d7db; }
+.ws-switch.is-on:hover:not(:disabled) { background: #5d4390; }
+.ws-switch:disabled { opacity: 0.55; cursor: default; }
+.ws-switch-knob { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.25); transition: transform 120ms ease; }
+.ws-switch.is-on .ws-switch-knob { transform: translateX(18px); }
+@media (max-width: 560px) {
+  .set-head { flex-direction: column; gap: 4px; }
+  .set-card { padding: 4px 14px 6px; }
+}
+.set-control select {
+  appearance: none; -webkit-appearance: none; height: 34px; padding: 0 32px 0 12px; font: inherit; font-size: 14px;
+  color: #2d3b45; background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235b6770' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: 1px solid #b6bec4; border-radius: 4px; cursor: pointer;
+}
+.set-control select:hover { border-color: #8a949b; }
+.set-row-sub .set-label { font-weight: 500; }
