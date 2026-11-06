@@ -13,7 +13,7 @@ export default function SignInPage() {
   const [state, setState] = useState('idle'); // idle | sending | sent | error
   const [message, setMessage] = useState('');
 
-  if (session) return <Navigate to={location.state?.from ?? '/assignments'} replace />;
+  if (session) return <Navigate to={location.state?.from ?? '/home'} replace />;
 
   async function handleSubmit(e) {
     e.preventDefault();

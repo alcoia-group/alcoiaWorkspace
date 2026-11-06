@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 import SignInPage from './pages/SignInPage.jsx';
 import VerifyPage from './pages/VerifyPage.jsx';
 import AssignmentsPage from './pages/AssignmentsPage.jsx';
+import HomePage from './pages/HomePage.jsx';
 import ReaderGate from './components/ReaderGate.jsx';
 import InvitePage from './pages/InvitePage.jsx';
 import LtiJoinPage from './pages/LtiJoinPage.jsx';
@@ -21,7 +22,7 @@ export default function App() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route path="/" element={<Navigate to="/assignments" replace />} />
+        <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/sign-in" element={<SignInPage />} />
         <Route path="/auth-verify" element={<VerifyPage />} />
         <Route path="/invite/accept" element={<InvitePage />} />
@@ -31,6 +32,7 @@ export default function App() {
             in directly, otherwise it falls back to the sign-in page. */}
         <Route path="/a/:assignmentId" element={<ReaderGate />} />
         <Route element={<ProtectedRoute />}>
+          <Route path="/home" element={<HomePage />} />
           <Route path="/assignments" element={<AssignmentsPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/analytics/subjects" element={<SubjectsPage />} />

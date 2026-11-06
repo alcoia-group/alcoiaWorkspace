@@ -18,7 +18,7 @@ export default function FilesPage() {
   const { session, signOut } = useSession();
   const account = session.email ?? null;
   const [files, setFiles] = useState(null);
-  const [legacy, setLegacy] = useState({ status: 'loading', documents: [], canAdd: false });
+  const [legacy, setLegacy] = useState({ status: 'loading', documents: [] });
   const [estimate, setEstimate] = useState({ usage: null, quota: null, persisted: false });
   const [progress, setProgress] = useState(null);
   const [message, setMessage] = useState(null);
@@ -42,9 +42,9 @@ export default function FilesPage() {
   const loadLegacy = useCallback(async () => {
     try {
       const body = await listPersonalDocuments(session.sessionToken);
-      setLegacy({ status: 'ready', documents: body.documents ?? [], canAdd: body.canUpload === true });
+      setLegacy({ status: 'ready', documents: body.documents ?? [] });
     } catch (err) {
-      setLegacy({ status: err.status === 401 ? 'expired' : 'error', documents: [], canAdd: false });
+      setLegacy({ status: err.status === 401 ? 'expired' : 'error', documents: [] });
     }
   }, [session.sessionToken]);
 
@@ -120,20 +120,17 @@ export default function FilesPage() {
         </div>
       )}
 
-      {legacy.canAdd || legacy.status !== 'ready' ? (
-        <div
-          className="dropzone"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
-        >
-          <p>Drop PDF, Word or PowerPoint files here, or</p>
-          <input ref={inputRef} type="file" multiple accept=".pdf,.docx,.pptx" onChange={(e) => handleFiles(e.target.files)} disabled={Boolean(progress)} aria-label="Choose files" />
-          {progress && <p className="muted">Preparing {progress.name}{progress.fraction > 0 && progress.fraction < 1 ? `: ${Math.round(progress.fraction * 100)}%` : ''}</p>}
-          <p className="muted small">Up to 100 MB each. Word and PowerPoint files are sent to our server once so they can be read and drawn, and are not kept there. PDFs never leave your device.</p>
-        </div>
-      ) : (
-        <p className="alert">Adding your own files is included with the Reader and Student plans. Files already on this device stay and can still be opened.</p>
-      )}
+      {/* Every plan may add files: they stay on this device. Shown at once, never swapped after the server answers. */}
+      <div
+        className="dropzone"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+      >
+        <p>Drop PDF, Word or PowerPoint files here, or</p>
+        <input ref={inputRef} type="file" multiple accept=".pdf,.docx,.pptx" onChange={(e) => handleFiles(e.target.files)} disabled={Boolean(progress)} aria-label="Choose files" />
+        {progress && <p className="muted">Preparing {progress.name}{progress.fraction > 0 && progress.fraction < 1 ? `: ${Math.round(progress.fraction * 100)}%` : ''}</p>}
+        <p className="muted small">Up to 100 MB each. Word and PowerPoint files are sent to our server once so they can be read and drawn, and are not kept there. PDFs never leave your device.</p>
+      </div>
 
       {message && <p className={message.error ? 'alert alert-error' : 'alert'} role="status">{message.text}</p>}
 
