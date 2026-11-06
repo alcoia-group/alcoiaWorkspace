@@ -161,7 +161,8 @@ export default function SlideViewer({ content, title, asset, onDownload, marks, 
   useEffect(() => { place.arm(300); }, [place]);
   useEffect(() => { place.report(index); }, [index, place]);
   const controlsVisible = useIdleControls(fs.active);
-  const bankId = asset.assignmentId ?? asset.personalId;
+  // The question bank is built on the server from a stored file; a file kept on this device has none.
+  const bankId = asset.local ? null : (asset.assignmentId ?? asset.personalId);
   const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
   const skipConfig = useMemo(() => slideConfig(slides.length), [slides.length]);
 

@@ -133,7 +133,8 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
   const stageRef = useRef(null);
   const fs = useFullscreen();
   const controlsVisible = useIdleControls(fs.active);
-  const bankId = asset.assignmentId ?? asset.personalId;
+  // The question bank is built on the server from a stored file; a file kept on this device has none.
+  const bankId = asset.local ? null : (asset.assignmentId ?? asset.personalId);
   const skipConfig = useMemo(() => pdfConfig(content.pageCount), [content.pageCount]);
   const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
 
@@ -141,7 +142,7 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
     let cancelled = false;
     let doc = null;
     let task = null;
-    fetchPdfBytes(assetBase(asset), asset.sessionToken)
+    (asset.local ? asset.local.blob.arrayBuffer().then((b) => new Uint8Array(b)) : fetchPdfBytes(assetBase(asset), asset.sessionToken))
       .then((data) => {
         task = pdfjs.getDocument({ data, isEvalSupported: false });
         return task.promise;
@@ -160,7 +161,7 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
       task?.destroy?.();
       doc?.destroy?.();
     };
-  }, [asset.assignmentId, asset.personalId, asset.sessionToken]);
+  }, [asset.assignmentId, asset.personalId, asset.sessionToken, asset.local]);
 
   // "Fit" is the page filling the stage width (up to a comfortable maximum).
   useEffect(() => {
