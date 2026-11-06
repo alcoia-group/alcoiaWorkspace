@@ -106,7 +106,8 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
   const [block, setBlock] = useState(0); // index (through the whole document) of the block at the top of the screen
   const layout = useMemo(() => wordLayout(content), [content]);
   const skipConfig = useMemo(() => wordConfig(layout), [layout]);
-  const bankId = asset.assignmentId ?? asset.personalId;
+  // The question bank is built on the server from a stored file; a file kept on this device has none.
+  const bankId = asset.local ? null : (asset.assignmentId ?? asset.personalId);
   const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
 
   useEffect(() => {

@@ -20,7 +20,19 @@ function storageGet(chrome, defaults) {
   return new Promise((resolve) => chrome.storage.local.get(defaults, resolve));
 }
 
-export async function startDetection({ assignmentId = null, log = () => {}, warn = (...a) => console.warn('[alcoia]', ...a) } = {}) {
+// observers (optional): { onStruggle(text, paragraphIndex, substate), onParagraphRead(text, dwellMs, paragraphIndex) } are told
+// what the detection decides, before the host handles it, so the workspace can keep a document's own record of
+// where it was hard (src/lib/documentIdentity.js). They only watch: a throw in one is ignored and nothing they
+// do changes the detection.
+function observeHost(host, observers) {
+  const watch = (name) => (...args) => {
+    try { observers[name]?.(...args); } catch { /* an observer never affects the detection */ }
+    return host[name]?.(...args);
+  };
+  return { ...host, onStruggle: watch('onStruggle'), onParagraphRead: watch('onParagraphRead') };
+}
+
+export async function startDetection({ assignmentId = null, observers = null, log = () => {}, warn = (...a) => console.warn('[alcoia]', ...a) } = {}) {
   if (active) await active.stop();
   const controller = new AbortController();
   const { signal } = controller;
@@ -125,7 +137,7 @@ export async function startDetection({ assignmentId = null, log = () => {}, warn
     loadModule,
     comprehensionMonitor: hostApi.comprehensionMonitor,
     settings: () => ({ assistantEnabled: settingsNow.assistantEnabled, comprehensionCheckEnabled: settingsNow.comprehensionCheckEnabled, debugEnabled: false }),
-    host: hostApi.host,
+    host: observers ? observeHost(hostApi.host, observers) : hostApi.host,
     paragraphTrackerOpts: { blockSource: readerBlockSource },
   });
   hostApi.setOrchestrator(orchestrator);
