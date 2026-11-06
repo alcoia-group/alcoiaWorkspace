@@ -595,3 +595,13 @@ html.is-fullscreen .slides-viewer .viewer-toolbar { padding-top: max(8px, env(sa
 .explain-back-appear { animation: eb-appear 400ms ease-out both; }
 @keyframes eb-appear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .explain-back-appear { animation: none; } }
+
+/* The document identity card on a file kept on this device. */
+.identity-card { margin: 8px 16px; padding: 8px 12px; border: 1px solid #d5d9dc; border-radius: 4px; background: #fff; max-width: 880px; }
+.identity-card > summary { cursor: pointer; font-size: 0.9rem; }
+.identity-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #eef0f2; padding: 1px 6px; border-radius: 3px; }
+.identity-body h3 { font-size: 0.95rem; margin: 14px 0 4px; }
+.identity-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 10px 0; }
+.identity-facts dt { color: #5b6770; }
+.identity-facts dd { margin: 0; overflow-wrap: anywhere; }
+.identity-list { margin: 0; padding-left: 18px; }
