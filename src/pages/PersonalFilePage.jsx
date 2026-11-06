@@ -9,13 +9,21 @@ import BeforeYouRead from '../components/BeforeYouRead.jsx';
 import ExplainBack from '../components/ExplainBack.jsx';
 import PersonalConnections from '../components/PersonalConnections.jsx';
 import SlideViewer from '../components/viewers/SlideViewer.jsx';
+import LocalFilePage from './LocalFilePage.jsx';
+import { isLocalId } from '../lib/localFiles.js';
 const PdfViewer = lazy(() => import('../components/viewers/PdfViewer.jsx'));
 
 // A file the user added themselves, shown with the same viewers as an assigned reading.
 // The page is a normal full page load: the alcoia extension works on it like on any web page
 // (assignment reporting does not apply, because there is no class behind it).
+// Two kinds of file share this address. /f/l-... is a file kept on this device (LocalFilePage); any other id is a file
+// stored on the server before uploads moved to the device, which can still be opened until its owner deletes it.
 export default function PersonalFilePage() {
   const { id } = useParams();
+  return isLocalId(id) ? <LocalFilePage id={id} /> : <ServerFilePage id={id} />;
+}
+
+function ServerFilePage({ id }) {
   const { session, signOut } = useSession();
   const location = useLocation();
   const [state, setState] = useState({ status: 'loading' });
