@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import Logo from './Logo.jsx';
 import { useSessionKeepAlive } from '../lib/keepalive.js';
@@ -10,15 +10,16 @@ export default function AppLayout() {
   return (
     <>
       <header className="global-bar">
-        <Link to={session ? '/assignments' : '/sign-in'} className="global-brand" aria-label="alcoia home"><Logo onDark /></Link>
+        <Link to={session ? '/home' : '/sign-in'} className="global-brand" aria-label="alcoia home"><Logo onDark /></Link>
         {session && (
           <>
             <nav className="global-nav" aria-label="Main">
-              <Link to="/assignments">Materials</Link>
-              <Link to="/files">My files</Link>
-              <Link to="/analytics">Learner analytics</Link>
+              <NavLink to="/home">Overview</NavLink>
+              <NavLink to="/assignments">Materials</NavLink>
+              <NavLink to="/files">My files</NavLink>
+              <NavLink to="/analytics">Learner analytics</NavLink>
               {/* EXAM MODE OFF FOR LAUNCH (AI cost): <Link to="/exam">Exam Mode</Link> */}
-              <Link to="/settings">Settings</Link>
+              <NavLink to="/settings">Settings</NavLink>
             </nav>
             <div className="global-user">
               <span className="avatar" aria-hidden="true">{initials(session.email)}</span>
