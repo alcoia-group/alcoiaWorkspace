@@ -137,7 +137,7 @@ export default function ReaderPage() {
               const left = est ? minutesLeft(est.minutes, fractionLeft(here ?? startIndex, total)) : null;
               if (left == null) return null;
               const note = est.basis === 'yours' ? 'at your pace' : 'at a typical pace';
-              return <span className="crumb-left" title={`${note}${est.help ? ', with help cards' : ''}`}>{left < 1 ? 'Nearly done' : `${formatMinutes(left)} left`}</span>;
+              return <span className="crumb-left" title={`${note}${est.help ? ', with help cards' : ''}`}>{left < 1 ? 'Nearly done' : `About ${formatMinutes(left)} of reading left`}</span>;
             })()}
           </span>
         </div>
