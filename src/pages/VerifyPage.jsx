@@ -38,7 +38,7 @@ export default function VerifyPage() {
       // Strip the spent token and navigate imperatively in the same tick;
       // signIn() swaps the layout tree and can remount this page.
       window.history.replaceState({}, '', window.location.pathname);
-      navigate(takeReturnPath() ?? '/assignments', { replace: true });
+      navigate(takeReturnPath() ?? '/home', { replace: true });
     } catch (err) {
       setError(ERROR_MESSAGES[err instanceof ApiError ? err.code : null] ?? 'Could not verify this link.');
       setState('error');

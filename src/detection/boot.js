@@ -46,9 +46,12 @@ export async function startDetection({ assignmentId = null, observers = null, lo
     if (active?.stop === stop) active = null;
   };
   active = { stop };
+  // A teardown registered after stop() already ran (the reader was left while detection was still starting)
+  // runs at once, so nothing it would have removed, such as the "?" button, outlives the reader.
+  const onStop = (fn) => { if (stopped) { try { fn(); } catch { /* best effort */ } } else cleanups.push(fn); };
 
   const platform = createPlatform({ apiBase: API_BASE_URL, getSession, detectionBase: DETECTION_BASE });
-  cleanups.push(installPlatform(platform));
+  onStop(installPlatform(platform));
   const { chrome } = platform;
   globalThis.__ALCOIA_PLATFORM__ = { backendOrigin: new URL(API_BASE_URL).origin, readerOrigin: window.location.origin };
   // config.js reads __ALCOIA_PLATFORM__ once, when it first runs; the origins do not change within a page.
@@ -66,7 +69,7 @@ export async function startDetection({ assignmentId = null, observers = null, lo
   if (sync) {
     const onChange = (changes, area) => { sync.onStorageChanged(changes, area); };
     chrome.storage.onChanged.addListener(onChange);
-    cleanups.push(() => chrome.storage.onChanged.removeListener(onChange));
+    onStop(() => chrome.storage.onChanged.removeListener(onChange));
     await Promise.race([sync.pull({ force: true }).catch(() => {}), new Promise((r) => setTimeout(r, 2500))]);
   }
   if (stopped) return stop;
@@ -104,6 +107,10 @@ export async function startDetection({ assignmentId = null, observers = null, lo
     getSettings: () => ({ highlightEnabled: true, pinDefault: false, autohideEnabled: settingsNow.autohideEnabled, autohideTimeoutSec: settingsNow.autohideTimeoutSec }),
     fetchSummary: (...a) => hostApi.fetchSummary(...a),
     sharedStyles,
+  });
+  onStop(() => {
+    try { ui.removeSelfReportTrigger?.(); } catch { /* none */ }
+    try { shadowHostModule.removeAllShadowHosts(); } catch { /* none */ }
   });
 
   let readerBlockSource = null;
@@ -143,8 +150,8 @@ export async function startDetection({ assignmentId = null, observers = null, lo
   hostApi.setOrchestrator(orchestrator);
 
   if (s.sra_baseline_wpm) hostApi.comprehensionMonitor.seedWpmFromCalibration?.(s.sra_baseline_wpm);
-  if (s.sra_dyslexia) { dyslexiaUtils.applyDyslexiaCSS(s.sra_dyslexia_color); cleanups.push(() => dyslexiaUtils.removeDyslexiaCSS()); }
-  if (s.sra_dark_mode) { uiModule.applyDarkMode(true); cleanups.push(() => uiModule.applyDarkMode(false)); }
+  if (s.sra_dyslexia) { dyslexiaUtils.applyDyslexiaCSS(s.sra_dyslexia_color); onStop(() => dyslexiaUtils.removeDyslexiaCSS()); }
+  if (s.sra_dark_mode) { uiModule.applyDarkMode(true); onStop(() => uiModule.applyDarkMode(false)); }
   if (s.sra_show_self_report === false) hostApi.setShowSelfReportButton(false);
 
   // Settings changed in another tab (the workspace Settings page or a pull from the account) apply here too.
@@ -157,7 +164,7 @@ export async function startDetection({ assignmentId = null, observers = null, lo
     if (changes.sra_dark_mode) uiModule.applyDarkMode(!!changes.sra_dark_mode.newValue);
   };
   chrome.storage.onChanged.addListener(onLive);
-  cleanups.push(() => chrome.storage.onChanged.removeListener(onLive));
+  onStop(() => chrome.storage.onChanged.removeListener(onLive));
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { ui.hidePopup(); return; }
@@ -178,7 +185,7 @@ export async function startDetection({ assignmentId = null, observers = null, lo
   };
   window.addEventListener('pagehide', onUnload, { signal });
 
-  cleanups.push(() => {
+  onStop(() => {
     try { orchestrator.stop(); } catch { /* already stopped */ }
     try { ui.hidePopup(true); } catch { /* nothing open */ }
     try { ui.clearHighlight(); } catch { /* nothing highlighted */ }

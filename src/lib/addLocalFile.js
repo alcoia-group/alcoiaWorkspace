@@ -1,7 +1,8 @@
 // Adding a file to THIS device. The file is read here, fingerprinted here and kept here (lib/localFiles.js).
 // What the server is asked:
-//   GET  /api/personal-documents/local-access   the plan check (403 capability_required without the Reader or
-//                                               Student plan). Nothing is sent about the file.
+//   GET  /api/personal-documents/local-access   a signed-in check; every plan may keep files on the device.
+//                                               Nothing is sent about the file. (An older server answered
+//                                               403 capability_required on the free plan.)
 //   POST /api/personal-documents/convert        Word and PowerPoint only: the bytes are sent once, turned into
 //                                               the model the workspace draws, and not kept by the server.
 // A PDF is read entirely in the browser and sends nothing at all.
