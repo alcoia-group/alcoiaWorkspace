@@ -64,13 +64,24 @@ export default function LocalFilePage({ id }) {
 
   const content = state.status === 'ready' ? state.content : null;
   const total = content ? totalOf(content) : 0;
-  const initial = snap?.identity.position && snap.identity.position.total === total ? snap.identity.position.index : 0;
+  // The saved place is read once, when the file opens. Later saves (every few seconds while reading) must not
+  // hand the viewer a new starting point, or it would jump back and redraw.
+  const startAt = useRef(null);
+  if (startAt.current === null && snap && total > 0) {
+    startAt.current = snap.identity.position && snap.identity.position.total === total ? snap.identity.position.index : 0;
+  }
+  const initial = startAt.current ?? 0;
   const onPosition = useCallback((index) => recorder.current?.position(index, total, null), [total]);
   const resume = useMemo(() => (total > 0 ? { initial, onPosition } : undefined), [total, initial, onPosition]);
   // Opening a file for the first time is a position too (the start), so even a one-page file has a place recorded.
   useEffect(() => {
     if (state.status === 'ready' && total > 0 && !snap?.identity.position) recorder.current?.position(0, total, null);
   }, [state.status, total, snap]);
+  // One stable object for the viewer: a new one each render made the PDF viewer load the file again every time the
+  // identity card refreshed (every few seconds), which showed as a flicker.
+  const blob = state.status === 'ready' ? state.blob : null;
+  const format = content?.format ?? null;
+  const asset = useMemo(() => (blob ? { local: { blob, format }, sessionToken: session.sessionToken } : null), [blob, format, session.sessionToken]);
   const onSlide = useCallback((i, n) => setSlideAtEnd(i >= n - 2), []);
 
   // What the detection decides, kept in this document's own record.
@@ -140,7 +151,7 @@ export default function LocalFilePage({ id }) {
               content={content}
               title={state.record.name}
               resume={resume}
-              asset={{ local: { blob: state.blob, format: content.format }, sessionToken: session.sessionToken }}
+              asset={asset}
               onDownload={handleDownload}
             />
           </Suspense>
