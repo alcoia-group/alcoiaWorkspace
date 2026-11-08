@@ -1,4 +1,4 @@
-# alcoia workspace
+# alcoia workspace 
 
 The web app where students, and later any general user, open readings. It shows instructor-assigned readings and the user's own files (PDF, Word and PowerPoint) as real web pages, and offers practice and learning summaries for people on a paid plan. 
 
