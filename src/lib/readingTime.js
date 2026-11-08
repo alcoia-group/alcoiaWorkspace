@@ -51,7 +51,7 @@ export function formatMinutes(minutes) {
 // The short line on the Materials list.
 export function lengthLine(est, left) {
   if (!est) return null;
-  if (left != null) return left < 1 ? 'Nearly done' : `${formatMinutes(left)} left`;
+  if (left != null) return left < 1 ? 'Nearly done' : `About ${formatMinutes(left)} of reading left`;
   return `~${formatMinutes(est.minutes)} read`;
 }
 

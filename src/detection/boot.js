@@ -14,6 +14,8 @@ import { createPlatform, installPlatform } from './platform.js';
 const DETECTION_BASE = '/detection';
 let active = null; // one detector per page
 
+import { documentBlocks } from './documentBlocks.js';
+
 const loadModule = (p) => import(/* @vite-ignore */ `${DETECTION_BASE}/${p}`);
 
 function storageGet(chrome, defaults) {
@@ -115,7 +117,13 @@ export async function startDetection({ assignmentId = null, observers = null, lo
 
   let readerBlockSource = null;
   const blocksModule = await loadModule('src/content/reader-blocks.js');
-  readerBlockSource = blocksModule.createReaderBlockSource(document);
+  const pdfBlockSource = blocksModule.createReaderBlockSource(document);
+  const segmentation = await loadModule('src/content/signals/segmentation.js');
+  // Only the document itself is reading material. Without this the tracker scans every <p>/<li> on the page, so the
+  // app's own text (the file's record card, notices, prompts) could become "the paragraph being read" and get a
+  // question or an explanation. PDFs come from the text layer; Word pages and the current slide are the elements
+  // the viewers mark with data-anno-scope. Nothing on screen yet means no paragraphs, never the whole page.
+  readerBlockSource = () => documentBlocks(document, pdfBlockSource, segmentation);
   let getSessionFn = null;
   if (assignmentId) {
     const sessionModule = await loadModule('src/shared/session.js');
