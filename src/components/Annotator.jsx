@@ -13,6 +13,7 @@ import { useEditingTools } from '../lib/useEditingTools.js';
 
 const TEXT_TOOLS = { highlight: 'hl', underline: 'ul', wavy: 'wv', strike: 'st' };
 const PEN_WIDTHS = { thin: 2, medium: 4, thick: 8 };
+const COLLAPSE_KEY = 'alcoia_reading_tools_collapsed';
 
 function useScopes(rootRef) {
   const [scopes, setScopes] = useState([]);
@@ -170,6 +171,15 @@ export default function Annotator({ docKey, title, children }) {
   const [color, setColor] = useState('yellow');
   const [penWidth, setPenWidth] = useState('medium');
   const [panelChoice, setPanel] = useState(false);
+  // The tools bar can be folded to one slim row; the choice is kept in this browser.
+  const [collapsed, setCollapsedState] = useState(() => {
+    try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; }
+  });
+  const setCollapsed = (v) => {
+    setCollapsedState(v);
+    try { localStorage.setItem(COLLAPSE_KEY, v ? '1' : '0'); } catch { /* storage blocked: the choice lasts this visit */ }
+    if (v) { setTool('select'); setPopover(null); }
+  };
   const panel = editable && panelChoice;
   const [popover, setPopover] = useState(null); // { x, y, kind: 'new' | 'edit', pieces?, id? }
   const [saveFailed, setSaveFailed] = useState(false);
@@ -192,7 +202,7 @@ export default function Annotator({ docKey, title, children }) {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [editable]);
+  }, [editable, collapsed]);
   useEffect(() => {
     const t = setTimeout(() => setSaveFailed(!saveMarks(docKey, marks)), 300);
     return () => clearTimeout(t);
@@ -385,7 +395,13 @@ export default function Annotator({ docKey, title, children }) {
 
   return (
     <div className="annotator" data-tool={tool} data-editable={editable ? 'true' : 'false'} style={{ '--anno-h': `${barH}px` }} ref={rootRef} onMouseUp={onSelectionEnd} onTouchEnd={onSelectionEnd} onKeyUp={onSelectionEnd} onClick={onClick}>
-      {editable && (
+      {editable && collapsed && (
+      <div className="annotator-bar annotator-ui is-collapsed" role="toolbar" aria-label="Reading tools" ref={barRef}>
+        <button type="button" className={panel ? 'tool on' : 'tool'} onClick={() => setPanel((v) => !v)} aria-expanded={panel}>My marks{count ? ` (${count})` : ''}</button>
+        <button type="button" className="tool tools-toggle" onClick={() => setCollapsed(false)} aria-expanded="false">Show highlight and note tools</button>
+      </div>
+      )}
+      {editable && !collapsed && (
       <div className="annotator-bar annotator-ui" role="toolbar" aria-label="Reading tools" ref={barRef}>
         <button type="button" className={tool === 'select' ? 'tool on' : 'tool'} onClick={() => { setTool('select'); setPopover(null); }} aria-pressed={tool === 'select'} title="Select text; a menu appears">Select</button>
         {supported && textToolButtons.map(([k, label]) => (
@@ -411,6 +427,7 @@ export default function Annotator({ docKey, title, children }) {
         <button type="button" className="tool" onClick={addNote} title="Write a note about this reading">Add note</button>
         <span className="annotator-spacer" />
         <button type="button" className={panel ? 'tool on' : 'tool'} onClick={() => setPanel((v) => !v)} aria-expanded={panel}>My marks{count ? ` (${count})` : ''}</button>
+        <button type="button" className="tool" onClick={() => setCollapsed(true)} aria-expanded="true" title="Fold the tools into one row">Hide tools</button>
       </div>
       )}
       {editable && !supported && <p className="annotator-note annotator-ui muted">Highlighting needs a newer browser. The pen still works.</p>}
