@@ -41,7 +41,7 @@ test('time left follows the share still ahead and never goes below zero or above
 test('the lines say what they rest on and use no em dash', () => {
   const est = estimateMinutes({ wordCount: 10000, baseline: { globalWpm: 250 }, help: true });
   assert.equal(lengthLine(est, null), `~${formatMinutes(est.minutes)} read`);
-  assert.equal(lengthLine(est, 23), '23 min left');
+  assert.equal(lengthLine(est, 23), 'About 23 min of reading left');
   assert.equal(lengthLine(est, 0), 'Nearly done');
   assert.equal(basisNote(est), 'at your pace, with help cards');
   assert.equal(basisNote(estimateMinutes({ wordCount: 1000, help: false })), 'at a typical pace');
