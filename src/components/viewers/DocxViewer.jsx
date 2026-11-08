@@ -1,4 +1,4 @@
-import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
+import { useFullscreen } from '../../lib/fullscreen.js';
 import { cloneElement, useEffect, useMemo, useRef, useState } from 'react';
 
 // Word-style viewer for the server's structured DOCX model. It renders real
@@ -101,7 +101,6 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
   const [current, setCurrent] = useState(1);
   const pageRefs = useRef([]);
   const fs = useFullscreen();
-  const controlsVisible = useIdleControls(fs.active);
   const stageRef = useRef(null);
   const [block, setBlock] = useState(0); // index (through the whole document) of the block at the top of the screen
   const layout = useMemo(() => wordLayout(content), [content]);
@@ -165,7 +164,7 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
   }, [pages.length, zoomIndex]);
 
   return (
-    <div className="viewer" style={{ '--z': ZOOM_STEPS[zoomIndex] }} data-idle={fs.active && !controlsVisible ? 'true' : undefined}>
+    <div className="viewer" style={{ '--z': ZOOM_STEPS[zoomIndex] }}>
       <div className="viewer-toolbar" role="toolbar" aria-label="Document controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Page {current} of {pages.length}</span>
