@@ -7,7 +7,7 @@ import workerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import 'pdfjs-dist/web/pdf_viewer.css';
 import { fetchPdfBytes } from '../../lib/assignments.js';
 import { assetBase } from '../../lib/assets.js';
-import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
+import { useFullscreen } from '../../lib/fullscreen.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { pdfConfig } from '../../lib/proveSkip.js';
 
@@ -132,7 +132,6 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
   const [current, setCurrent] = useState(Math.min(Math.max(1, place.initial + 1), content.pageCount));
   const stageRef = useRef(null);
   const fs = useFullscreen();
-  const controlsVisible = useIdleControls(fs.active);
   // The question bank is built on the server from a stored file; a file kept on this device has none.
   const bankId = asset.local ? null : (asset.assignmentId ?? asset.personalId);
   const skipConfig = useMemo(() => pdfConfig(content.pageCount), [content.pageCount]);
@@ -209,7 +208,7 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
   const pages = Array.from({ length: content.pageCount }, (_, i) => i + 1);
 
   return (
-    <div className="viewer pdf-viewer" data-idle={fs.active && !controlsVisible ? 'true' : undefined}>
+    <div className="viewer pdf-viewer">
       <div className="viewer-toolbar" role="toolbar" aria-label="PDF controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Page {current} of {content.pageCount}</span>

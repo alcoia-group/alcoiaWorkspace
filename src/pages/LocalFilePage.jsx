@@ -5,9 +5,7 @@ import DocxViewer from '../components/viewers/DocxViewer.jsx';
 import SlideViewer from '../components/viewers/SlideViewer.jsx';
 import Annotator from '../components/Annotator.jsx';
 import Detection from '../detection/Detection.jsx';
-import DocumentIdentityCard from '../components/DocumentIdentityCard.jsx';
-import { loadMarks } from '../lib/annotations.js';
-import { createRecorder, exportBundle, importBundle, loadOrCreateIdentity, scopeOfText, summarise } from '../lib/documentIdentity.js';
+import { createRecorder, loadOrCreateIdentity, scopeOfText } from '../lib/documentIdentity.js';
 import { getLocalContent, getLocalFile } from '../lib/localFiles.js';
 import { wordLayout } from '../lib/proveSkip.js';
 const PdfViewer = lazy(() => import('../components/viewers/PdfViewer.jsx'));
@@ -28,7 +26,6 @@ export default function LocalFilePage({ id }) {
   const [state, setState] = useState({ status: 'loading' });
   const [slideAtEnd, setSlideAtEnd] = useState(false); // eslint-disable-line no-unused-vars
   const [snap, setSnap] = useState(null);
-  const [message, setMessage] = useState(null);
   const recorder = useRef(null);
 
   useEffect(() => {
@@ -54,13 +51,6 @@ export default function LocalFilePage({ id }) {
       recorder.current = null;
     };
   }, [id, account]);
-
-  // The card reads the recorder's latest saved identity (and the marks) every few seconds while it is on screen.
-  useEffect(() => {
-    if (state.status !== 'ready') return undefined;
-    const t = setInterval(() => { if (recorder.current) setSnap((s) => ({ ...s, identity: recorder.current.identity })); }, 6000);
-    return () => clearInterval(t);
-  }, [state.status]);
 
   const content = state.status === 'ready' ? state.content : null;
   const total = content ? totalOf(content) : 0;
@@ -96,30 +86,6 @@ export default function LocalFilePage({ id }) {
   }), []);
 
   const docKey = `f:${id}`;
-  const summary = useMemo(() => (snap ? summarise(snap.identity, loadMarks(docKey)) : null), [snap, docKey]);
-
-  async function handleExport() {
-    await recorder.current?.flush();
-    const bundle = exportBundle(recorder.current.identity, docKey);
-    const url = URL.createObjectURL(new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${state.record.name} - alcoia record.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }
-
-  async function handleImport(file) {
-    setMessage(null);
-    try {
-      const bundle = JSON.parse(await file.text());
-      await recorder.current.flush();
-      await importBundle({ id, docKey, current: recorder.current.identity, bundle });
-      window.location.reload(); // the viewers start again from the restored place and marks
-    } catch (err) {
-      setMessage({ error: true, text: err.message === 'different_file' ? 'That record belongs to a different file.' : 'That is not an alcoia record.' });
-    }
-  }
 
   function handleDownload() {
     const url = URL.createObjectURL(state.blob);
@@ -141,9 +107,6 @@ export default function LocalFilePage({ id }) {
             <span>{state.record.name}</span>
           </nav>
         </div>
-        {snap && summary && (
-          <DocumentIdentityCard identity={snap.identity} status={snap.status} summary={summary} onExport={handleExport} onImport={handleImport} message={message} />
-        )}
         <Annotator docKey={docKey} title={state.record.name}>
           <Suspense fallback={<p className="muted pad">Loading.</p>}>
             <Viewer
@@ -168,8 +131,7 @@ export default function LocalFilePage({ id }) {
       {state.status === 'missing' && (
         <p>
           This file is not on this device. Files you add are kept in the browser they were added in, so it may have been removed
-          (clearing the site&rsquo;s data does that) or added on another device. Add the file again from My files; if you exported its
-          record, restore it afterwards and your place and marks come back.
+          (clearing the site&rsquo;s data does that) or added on another device. Add the file again from My files.
         </p>
       )}
     </section>

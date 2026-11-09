@@ -51,6 +51,42 @@ export function useFullscreen() {
     };
   }, [exit]);
 
+  // While full screen, the bars hide when the reader scrolls down (reading) and come back on any
+  // scroll up, at the top of the document, when the pointer goes to the top edge, or when a control
+  // in a bar takes keyboard focus. The state lives on <html data-bars>, which the CSS keys on.
+  useEffect(() => {
+    if (!active) return undefined;
+    const html = root();
+    const last = new WeakMap();
+    let hidden = false;
+    const set = (h) => {
+      if (h === hidden) return;
+      hidden = h;
+      if (h) html.dataset.bars = 'hidden'; else delete html.dataset.bars;
+    };
+    const onScroll = (e) => {
+      const t = e.target === document ? document.scrollingElement : e.target;
+      if (!(t instanceof Element) || t.closest('.annotator-panel, .slides-rail, .annotator-pop')) return;
+      const y = t.scrollTop;
+      const prev = last.has(t) ? last.get(t) : y;
+      last.set(t, y);
+      if (y <= 8) set(false);
+      else if (y - prev > 6) set(true);
+      else if (prev - y > 6) set(false);
+    };
+    const onMove = (e) => { if (e.clientY < 48) set(false); };
+    const onFocus = (e) => { if (e.target instanceof Element && e.target.closest('.annotator-bar, .viewer-toolbar')) set(false); };
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true });
+    window.addEventListener('mousemove', onMove, { passive: true });
+    document.addEventListener('focusin', onFocus);
+    return () => {
+      document.removeEventListener('scroll', onScroll, { capture: true });
+      window.removeEventListener('mousemove', onMove);
+      document.removeEventListener('focusin', onFocus);
+      delete html.dataset.bars;
+    };
+  }, [active]);
+
   return { active, toggle, enter, exit };
 }
 
