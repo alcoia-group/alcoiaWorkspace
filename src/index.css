@@ -300,7 +300,7 @@ html.is-fullscreen .slides-stage { width: min(100vw, calc(var(--vh) * var(--slid
 .pdf-page .textLayer { position: absolute; inset: 0; }
 .pdf-thumb canvas { display: block; width: 100%; height: auto; }
 .pdf-thumb { background: #fff; }
-html.is-fullscreen .pdf-viewer .slides-rail { top: 0; max-height: var(--vh); }
+html.is-fullscreen .pdf-viewer .slides-rail { max-height: calc(var(--vh) - var(--anno-h, 0px) - 60px); overflow: auto; }
 @media (max-width: 800px) { .slides-rail { position: static; } .pdf-body { flex-direction: column; } }
 
 /* sign-in screens follow the system colour scheme; the logo switches with it */
@@ -706,3 +706,21 @@ a.ov-stat:hover { border-color: #8a949b; }
 }
 .set-control select:hover { border-color: #8a949b; }
 .set-row-sub .set-label { font-weight: 500; }
+
+/* Full screen with the reading tools: for documents and PDFs the whole reading area (tools bar,
+   viewer toolbar, pages) is what fills the screen, so highlights and notes stay available. The
+   reading area is the one thing that scrolls. Slides keep their own black stage. */
+html.is-fullscreen .annotator:has(.viewer:not(.slides-viewer)) {
+  position: fixed; inset: 0; z-index: 40; overflow: auto; background: var(--paper-sunk, #e9ebed);
+}
+html.is-fullscreen .annotator:has(.viewer:not(.slides-viewer)) .viewer { position: static; overflow: visible; z-index: auto; }
+/* Bars slide away while reading (scrolling down) and come back on scroll up. */
+.annotator-bar, .viewer-toolbar { transition: transform 0.2s ease; }
+html.is-fullscreen[data-bars='hidden'] .annotator-bar { transform: translateY(-100%); }
+html.is-fullscreen[data-bars='hidden'] .viewer:not(.slides-viewer) .viewer-toolbar { transform: translateY(calc(-100% - var(--anno-h, 0px))); }
+@media (prefers-reduced-motion: reduce) { .annotator-bar, .viewer-toolbar { transition: none; } }
+/* Collapsed reading tools: one slim row. */
+.annotator-bar.is-collapsed { padding: 4px 12px; }
+.annotator-bar .tools-toggle { margin-left: auto; }
+html.is-fullscreen .pdf-viewer .slides-rail { transition: top 0.2s ease; }
+html.is-fullscreen[data-bars='hidden'] .pdf-viewer .slides-rail { top: 0; max-height: var(--vh); }
