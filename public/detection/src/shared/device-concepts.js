@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/device-concepts.js, commit d8a0cb568438) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/device-concepts.js, commit a59bc9e05fe4) by scripts/sync-detection.mjs. Do not edit here. */
 /* device-concepts.js — what this browser has learned about the reader's grasp of IDEAS on ordinary web pages
  * (arXiv papers, articles, documentation). Kept on the device only.
  *
