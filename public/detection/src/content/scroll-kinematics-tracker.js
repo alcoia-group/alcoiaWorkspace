@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/scroll-kinematics-tracker.js, commit a59bc9e05fe4) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/scroll-kinematics-tracker.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
 /* scroll-kinematics-tracker.js — session-wide scroll-motion summary
  * (item DC-1a)
  *

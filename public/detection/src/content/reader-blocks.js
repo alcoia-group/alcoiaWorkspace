@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/reader-blocks.js, commit a59bc9e05fe4) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/reader-blocks.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
 /* reader-blocks.js — paragraph source for the alcoia workspace's PDFs.
  *
  * On the workspace app (workspace.alcoia.app) Word and PowerPoint documents
