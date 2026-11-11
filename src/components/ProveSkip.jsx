@@ -66,6 +66,15 @@ export default function ProveSkip({ assignmentId, sessionToken, items, start, co
     }
   }
 
+  // A section the prior-knowledge check showed the reader already knows: skip with no new questions.
+  if (offer.held && !open) {
+    return (
+      <button type="button" className="secondary" title="You showed you already know this part in the check before reading." onClick={() => onSkip(offer.target)}>
+        Skip to {offer.goesTo}
+      </button>
+    );
+  }
+
   if (!open) {
     return (
       <button
