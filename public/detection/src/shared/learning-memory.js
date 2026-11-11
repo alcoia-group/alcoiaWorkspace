@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/learning-memory.js, commit a59bc9e05fe4) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/learning-memory.js, commit 12869be61e78) by scripts/sync-detection.mjs. Do not edit here. */
 /* learning-memory.js -- the Account-based learning setting (client half)
  *
  * The SERVER is the only authority on whether account-based learning is on

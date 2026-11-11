@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/orchestrator.js, commit a59bc9e05fe4) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/orchestrator.js, commit 12869be61e78) by scripts/sync-detection.mjs. Do not edit here. */
 /* orchestrator.js — the detection pipeline, wired together
  *
  * Owns everything between "a reader did something" and "the policy says this
