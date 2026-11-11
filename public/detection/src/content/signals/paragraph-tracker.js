@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/paragraph-tracker.js, commit 12869be61e78) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/paragraph-tracker.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
 /* paragraph-tracker.js — which paragraph is being read, from the viewport alone
  *
  * Why this exists: enterParagraph/leaveParagraph used to be called only from

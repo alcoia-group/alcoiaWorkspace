@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/selection-explain.js, commit 12869be61e78) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/selection-explain.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
 /* selection-explain.js — on-demand explanation for content retrieval
  * practice can't reach: equations, figure references, unfamiliar technical
  * terms (this item's own brief).

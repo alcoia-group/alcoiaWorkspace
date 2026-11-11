@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/automatic-intervention-guard.js, commit 12869be61e78) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/automatic-intervention-guard.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
 /* automatic-intervention-guard.js — Step 12A: one shared, in-memory lock so
  * the AUTOMATIC (non-reader-initiated) question-generating paths cannot both
  * be inside AI generation/presentation at the same time.
