@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/assignments.js, commit a59bc9e05fe4) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/assignments.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
 /* assignments.js — a signed-in student's own assignments (item S6/E4
  * follow-up)
  *

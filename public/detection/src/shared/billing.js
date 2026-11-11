@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/billing.js, commit a59bc9e05fe4) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/billing.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
 /* billing.js — checkout and the manage/cancel portal (item E3)
  *
  * Same shape as install-token.js/session.js/entitlements.js: small,
