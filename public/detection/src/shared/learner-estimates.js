@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/learner-estimates.js, commit b982233c3b2a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/learner-estimates.js, commit 78f6af0637c0) by scripts/sync-detection.mjs. Do not edit here. */
 /* learner-estimates.js — the learner's own estimates for one assignment (Stage B).
  *
  *   GET {ASSIGNMENTS_URL}/:assignmentId/knowledge-state/estimates -> 200

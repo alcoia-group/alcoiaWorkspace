@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/why-this.js, commit b982233c3b2a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/why-this.js, commit 78f6af0637c0) by scripts/sync-detection.mjs. Do not edit here. */
 /* why-this.js — the one plain reason a card may give for appearing, as a key into the why.* strings in i18n.js.
  *
  * Every automatic card (a question, an explanation, a repair, a scheduled review, a transfer check, a quick check, a check

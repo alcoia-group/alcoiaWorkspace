@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit b982233c3b2a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 78f6af0637c0) by scripts/sync-detection.mjs. Do not edit here. */
 /* host.js — the orchestrator's host, extracted from content.js (item 30a)
  *
  * orchestrator.js depends on a `host` object with callbacks
@@ -114,6 +114,8 @@ export async function createHost(deps) {
       // What the learner has shown on the CONCEPT this paragraph belongs to, across every reading (labels only).
       ...(e.light === true ? { light: true } : {}),
       ...(e.concept && typeof e.concept === 'object' ? { concept: e.concept } : {}),
+      // Where the question ladder starts on this paragraph when nothing was answered on it this session.
+      ...(['free_recall', 'scenario'].includes(e.startLevel) ? { startLevel: e.startLevel } : {}),
     });
   }
   let submitOutcome = () => {};
@@ -1115,7 +1117,10 @@ export async function createHost(deps) {
   // that decision, only supplies the merged history to decide it against.
   async function pickLevel(identity) {
     const quizEvidence = await readQuizEvidence(orchestratorRef?.documentKey?.() || null);
-    let wanted = engineModule.pickLevelForConcept(identity, [...responseSignals.history(), ...quizEvidence]);
+    // What the learner has already shown on this paragraph or its concept (server estimate) sets where a paragraph with
+    // no answer this session starts, instead of always restarting at recognition.
+    const startLevel = identity?.knowledgeUnitId ? learnerEstimates.get(identity.knowledgeUnitId)?.startLevel ?? null : null;
+    let wanted = engineModule.pickLevelForConcept(identity, [...responseSignals.history(), ...quizEvidence], { startLevel });
     // Teaching Intent depth (assigned readings): the instructor can cap the ladder at recall or prefer scenario questions,
     // but never lifts a learner past what their own answers earned (free_recall only becomes scenario).
     if (focusLevelBias === 'recall' && (wanted === 'scenario' || wanted === 'adversarial')) wanted = 'free_recall';

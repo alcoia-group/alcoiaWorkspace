@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/reading-calibration.js, commit b982233c3b2a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/reading-calibration.js, commit 78f6af0637c0) by scripts/sync-detection.mjs. Do not edit here. */
 /* reading-calibration.js
  *
  * Measures a reader's words-per-minute baseline: a passage of known word

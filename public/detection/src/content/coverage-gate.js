@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/coverage-gate.js, commit b982233c3b2a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/coverage-gate.js, commit 78f6af0637c0) by scripts/sync-detection.mjs. Do not edit here. */
 /* coverage-gate.js — the one function that decides "read enough to test"
  *
  * The quiz is offered at the end of reading and is triggerable from the
