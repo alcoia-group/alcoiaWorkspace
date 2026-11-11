@@ -94,7 +94,8 @@ function pick(items, start, cfg, excluded) {
   return chosen;
 }
 
-// The offer for the part in view, or null for no offer. `seen` maps item id -> 'c' (answered right),
+// The offer for the part in view, or null for no offer. `seen` maps item id -> 'c' (answered right and sure),
+// 'u' (right but not sure: asked again, never counted toward a skip),
 // 'w' (answered wrong) or 'x' (closed by a missed attempt).
 // Returns { start, end, target, items (all in the stretch), fresh (to ask now), proved (already right),
 //           tried (this part was closed: show it disabled), range, goesTo }.
