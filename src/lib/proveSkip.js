@@ -95,12 +95,22 @@ function pick(items, start, cfg, excluded) {
 }
 
 // The offer for the part in view, or null for no offer. `seen` maps item id -> 'c' (answered right and sure),
-// 'u' (right but not sure: asked again, never counted toward a skip),
+// 'u' (right but not sure: asked again, never counted toward a skip), 'h' (part of a section the prior-knowledge
+// check showed the reader already knows),
 // 'w' (answered wrong) or 'x' (closed by a missed attempt).
 // Returns { start, end, target, items (all in the stretch), fresh (to ask now), proved (already right),
 //           tried (this part was closed: show it disabled), range, goesTo }.
 export function stretchFrom(items, start, cfg, seen = {}) {
   const raw = pick(items, start, cfg, () => false);
+  // Every question here belongs to a section the prior-knowledge check showed the reader already knows ('h'):
+  // offer the skip straight away, with no new questions.
+  if (raw.length >= 1 && raw.every((p) => seen[p.it.id] === 'h')) {
+    const end = raw[raw.length - 1].ord;
+    const target = cfg.targetOf(end);
+    if (target !== null) {
+      return { start: raw[0].ord, end, target, items: raw.map((p) => p.it), fresh: [], proved: raw.length, tried: false, held: true, range: cfg.range(raw[0].ord, end), goesTo: cfg.goesTo(target) };
+    }
+  }
   if (raw.length < MIN_QUESTIONS) return null;
   const closed = (id) => seen[id] === 'w' || seen[id] === 'x';
   const tried = closed(raw[0].it.id);
@@ -111,7 +121,7 @@ export function stretchFrom(items, start, cfg, seen = {}) {
   const target = cfg.targetOf(end);
   if (target === null) return null;
   const list = basis.map((p) => p.it);
-  const fresh = tried ? list : list.filter((it) => seen[it.id] !== 'c');
+  const fresh = tried ? list : list.filter((it) => seen[it.id] !== 'c' && seen[it.id] !== 'h');
   if (fresh.length < 1) return null;
   return {
     start: basis[0].ord,
