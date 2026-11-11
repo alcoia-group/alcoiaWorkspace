@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/state-engine.js, commit a59bc9e05fe4) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/state-engine.js, commit 12869be61e78) by scripts/sync-detection.mjs. Do not edit here. */
 /* state-engine.js — single reading-state estimate for alcoia
  *
  * Replaces the two independent pipelines that used to each fire their own
