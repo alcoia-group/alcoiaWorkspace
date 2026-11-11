@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/transfer-check.js, commit b982233c3b2a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/transfer-check.js, commit 78f6af0637c0) by scripts/sync-detection.mjs. Do not edit here. */
 /* transfer-check.js: remembers, for this page session only, which paragraphs were explained and in which style, so a
  * follow-up question can check whether the explanation carried over to using the idea.
  *

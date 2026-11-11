@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/site-access.js, commit b982233c3b2a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/site-access.js, commit 78f6af0637c0) by scripts/sync-detection.mjs. Do not edit here. */
 /* site-access.js: which sites alcoia runs on.
  *
  * Install-time permissions cover only the alcoia sites. Everything else is opt-in:
