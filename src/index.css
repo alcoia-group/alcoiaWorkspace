@@ -724,3 +724,6 @@ html.is-fullscreen[data-bars='hidden'] .viewer:not(.slides-viewer) .viewer-toolb
 .annotator-bar .tools-toggle { margin-left: auto; }
 html.is-fullscreen .pdf-viewer .slides-rail { transition: top 0.2s ease; }
 html.is-fullscreen[data-bars='hidden'] .pdf-viewer .slides-rail { top: 0; max-height: var(--vh); }
+
+/* Prove it to skip and the prior-knowledge check: the "how sure are you" step after picking an option. */
+.prep-sure { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
