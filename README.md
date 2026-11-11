@@ -10,7 +10,8 @@ It needs a backend to work. The backend is a separate private project and is not
 
 - **Readings and files.** Word pages, PowerPoint slides (with the transitions the file states) and PDF pages, each in its own viewer with full screen, zoom and download.
 - **Reading detection.** On a reading page the app runs the same detection code as the alcoia browser extension, copied into `public/detection` by `scripts/sync-detection.mjs`. Do not edit those files by hand; change the extension and run the script again.
-- **Practice and summaries.** Exam Mode and a learning summary page for people on a paid plan.
+- **Check what you already know.** Before an assigned reading, one or two questions per section. Sections you already know can be skipped and interrupt you less; nothing is sent to your instructor.
+- **Practice and summaries.** Exam Mode (switched off for now) and a learning summary page for people on a paid plan.
 - **Reading tools.** Highlighters, underlines, notes and a pen. Marks are stored only on your device.
 - **Account settings.** Reading preferences and the account-based learning switch.
 
