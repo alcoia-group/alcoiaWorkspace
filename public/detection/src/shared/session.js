@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/session.js, commit 12869be61e78) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/session.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
 /* session.js — the paid-tier magic-link session (item S3)
  *
  * Mirrors install-token.js's shape and reasoning closely — read that file's

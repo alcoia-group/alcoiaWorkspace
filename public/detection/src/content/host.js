@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 12869be61e78) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
 /* host.js — the orchestrator's host, extracted from content.js (item 30a)
  *
  * orchestrator.js depends on a `host` object with callbacks
@@ -781,7 +781,8 @@ export async function createHost(deps) {
 
   async function fetchSummary(text, mode = 'tldr', context = '', opts = {}) {
     const style = typeof opts.style === 'string' && opts.style ? opts.style : null;
-    const cacheKey = `${mode}${style ? ':' + style : ''}:${text.slice(0, 80).trim()}`;
+    const focus = typeof opts.focus === 'string' && opts.focus.trim() ? opts.focus.trim().slice(0, 400) : null;
+    const cacheKey = `${mode}${style ? ':' + style : ''}${focus ? ':f:' + focus.slice(0, 60) : ''}:${text.slice(0, 80).trim()}`;
     if (_summaryCache.has(cacheKey)) {
       log(`Cache hit: ${mode}`);
       const cached = _summaryCache.get(cacheKey);
@@ -795,6 +796,7 @@ export async function createHost(deps) {
       const body = { text: text.slice(0, 3500), mode };
       if (context) body.context = context.slice(0, 800);
       if (style) body.style = style;
+      if (focus) body.focus = focus;
       // In an assigned reading the server keeps the answer for the whole class until the assignment closes (it checks
       // that the passage is part of that reading). Never sent for any other page.
       if (assignmentId) body.assignment_id = assignmentId;
@@ -1601,7 +1603,12 @@ export async function createHost(deps) {
       // The way of explaining is chosen from THIS learner's own results (their account profile), mostly the best so far and
       // sometimes another so the order can change. Only explain and repair have styles; with no profile there is none.
       const style = mode === 'relate' ? null : pickExplanationStyle(mode, identity.knowledgeUnitId);
-      const generated = await fetchSummary(text, mode, '', { paragraphKey: identity.paragraphKey, style });
+      // Sometimes one sentence carries the paragraph; then the explanation is about that sentence, which is marked on
+      // the page, and the card marks no words (key-terms.js says when). Only for a plain explanation of a paragraph on
+      // the page, and only while "Mark key words when explaining" is on.
+      const focusSentence = (mode === 'explain_more' && el && s().autoKeyTerms !== false)
+        ? keyTermsModule.centralSentence(text) : null;
+      const generated = await fetchSummary(text, mode, '', { paragraphKey: identity.paragraphKey, style, focus: focusSentence });
       if (!generated) return false;
 
       let anchorRect = null;
@@ -1619,13 +1626,17 @@ export async function createHost(deps) {
         knowledgeUnitId: identity.knowledgeUnitId,
         interventionId,
         why: relate ? null : whyFor(kind === 'repair' ? 'repair' : 'explain'),
+        ...(focusSentence ? { focusSentence } : {}),
         ...(style ? { onFeedback: (helped) => { noteStyleFeedback(mode, style, helped); try { transferTracker?.noteTap(identity.knowledgeUnitId); } catch (e) {} } } : {}),
       });
       if (shown && style) noteStyleShown(mode, style, identity.paragraphKey);
       // The passage's key words stay marked on the page while the reader works through it (Settings can turn this off;
       // hover shows an x and a click removes a mark). Only when the card is about a paragraph element on the page.
       if (shown && el && s().autoKeyTerms !== false) {
-        try { keyTermsModule.markKeyTerms(el, keyTermsModule.pickKeyTerms(text, generated)); } catch (e) { /* marking is optional */ }
+        try {
+          const sentenceMarked = focusSentence ? keyTermsModule.markSentence(el, focusSentence) : false;
+          if (!sentenceMarked) keyTermsModule.markKeyTerms(el, keyTermsModule.pickKeyTerms(text, generated));
+        } catch (e) { /* marking is optional */ }
       }
       // Remembered so a later transfer check can say whether this explanation carried over (assigned readings only).
       if (shown) { try { transferTracker?.noteExplained(identity.knowledgeUnitId, { text, mode, style, paragraphIndex }); } catch (e) {} }

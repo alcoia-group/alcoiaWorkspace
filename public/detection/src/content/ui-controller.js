@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/ui-controller.js, commit 12869be61e78) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/ui-controller.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
 /* ui-controller.js — everything the reader actually sees
  *
  * Extracted from content.js, which was a single 1982-line IIFE. This owns the

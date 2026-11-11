@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/proxy-fetch.js, commit 12869be61e78) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/proxy-fetch.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
 /* proxy-fetch.js — a fetchImpl that routes through background.js instead of
  * calling fetch() directly from content-script (or extension-page) context.
  *
