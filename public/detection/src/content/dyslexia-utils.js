@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/dyslexia-utils.js, commit 78f6af0637c0) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/dyslexia-utils.js, commit 2e6681160a59) by scripts/sync-detection.mjs. Do not edit here. */
 /* dyslexia-utils.js
    Dyslexia-friendly reading mode.
 

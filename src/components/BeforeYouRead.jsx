@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { checkBankAnswer, fetchQuestionBank, outlineOf, pickWarmup } from '../lib/questionBank.js';
 import { markSeen, readSeen } from '../lib/proveSkip.js';
+import PriorCheck from './PriorCheck.jsx';
 
 // Shown above an assigned reading: a map of the reading (from the file's own headings or slide
 // titles) and, when the reading has questions, two or three to try BEFORE reading. Nothing here is
@@ -19,7 +20,8 @@ export default function BeforeYouRead({ assignmentId, content, sessionToken, per
   const outline = outlineOf(content);
 
   useEffect(() => {
-    if (!open) return undefined;
+    // Assigned readings get the prior-knowledge check below instead of warm-up questions.
+    if (!open || !personal) return undefined;
     let cancelled = false;
     fetchQuestionBank(assignmentId, sessionToken, { personal }).then((bank) => {
       if (!cancelled) setItems(bank ? pickWarmup(bank.items) : []);
@@ -47,7 +49,7 @@ export default function BeforeYouRead({ assignmentId, content, sessionToken, per
       </div>
     );
   }
-  if (outline.length === 0 && Array.isArray(items) && items.length === 0) return null;
+  if (personal && outline.length === 0 && Array.isArray(items) && items.length === 0) return null;
 
   return (
     <section className="prep" aria-label="Before you read">
@@ -65,7 +67,8 @@ export default function BeforeYouRead({ assignmentId, content, sessionToken, per
           </ol>
         </details>
       )}
-      {items === null && <p className="muted">Looking for warm-up questions.</p>}
+      {!personal && <PriorCheck assignmentId={assignmentId} sessionToken={sessionToken} />}
+      {personal && items === null && <p className="muted">Looking for warm-up questions.</p>}
       {Array.isArray(items) && items.length > 0 && (
         <div className="prep-questions">
           <p className="muted">A guess is fine. Nothing here is scored or sent to anyone.</p>
