@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit c2d9774b3fa9) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit ee2d1c47767a) by scripts/sync-detection.mjs. Do not edit here. */
 /* host.js — the orchestrator's host, extracted from content.js (item 30a)
  *
  * orchestrator.js depends on a `host` object with callbacks
@@ -118,6 +118,8 @@ export async function createHost(deps) {
       ...(typeof e.heldIdea === 'string' && e.heldIdea.trim() ? { heldIdea: e.heldIdea.trim().slice(0, 400) } : {}),
       ...(typeof e.prerequisiteIdea === 'string' && e.prerequisiteIdea.trim() ? { prerequisiteIdea: e.prerequisiteIdea.trim().slice(0, 400) } : {}),
       ...(e.concept && typeof e.concept === 'object' ? { concept: e.concept } : {}),
+      // Where the question ladder starts on this paragraph when nothing was answered on it this session.
+      ...(['free_recall', 'scenario'].includes(e.startLevel) ? { startLevel: e.startLevel } : {}),
     });
   }
   let submitOutcome = () => {};
@@ -241,6 +243,46 @@ export async function createHost(deps) {
   }
 
   let lastNormalCardAt = 0; // when a help / retention / focus card last appeared; read by the quick-check logic
+  // Smooth reading (assigned readings only). A paragraph the reader leaves with no struggle signal and no card on it
+  // is recorded once per session as a "read without difficulty" outcome (struggled: false, no question). Without it a
+  // student who reads well leaves no trace, and the instructor cannot tell them from someone who never opened the
+  // reading. It carries no text, only the paragraph number and its content hash, like every other outcome.
+  const struggledUnits = new Set();
+  const helpedUnits = new Set();
+  const smoothSent = new Set();
+  const SMOOTH_MIN_WORDS = 20;
+  const SMOOTH_MAX_WPM = 900; // faster than this is skimming, not reading, so it is not recorded as smooth
+  // Variety on shared questions (assigned readings). The server keeps the questions for a passage for the whole class
+  // (the class cache), so every student would otherwise see the same first question with the options in the same
+  // order. Here each student gets one they have not seen yet this session, chosen at random from the set, with the
+  // options shuffled. The answer is still reported by the option's ORIGINAL position (optionOrders), so the class
+  // view's "same wrong answer" clustering means the same option for everyone. Outside an assigned reading nothing
+  // changes: the first question, options as sent.
+  const seenQuestionIds = new Set();
+  const optionOrders = new Map();
+  // Same id question-card.js gives the record (its "fingerprint"), so the answer can be mapped back.
+  const cardQuestionId = (q) => 'q-' + String(q?.span || q?.q || '').slice(0, 80).trim();
+  function pickVariant(questions) {
+    if (!Array.isArray(questions) || !questions.length) return undefined;
+    if (!assignmentId) return questions[0];
+    const seenKey = (q) => q?.id || cardQuestionId(q);
+    const fresh = questions.filter((q) => !seenQuestionIds.has(seenKey(q)));
+    const pool = fresh.length ? fresh : questions;
+    const q = pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
+    if (q) seenQuestionIds.add(seenKey(q));
+    if (!q || !Array.isArray(q.options) || q.options.length < 2 || !Number.isInteger(q.answerIndex)) return q;
+    const order = q.options.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i -= 1) {
+      const j = i - Math.min(i, Math.floor(random() * (i + 1))); // random() = 0 keeps the order (tests)
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    optionOrders.set(cardQuestionId(q), order);
+    return { ...q, options: order.map((i) => q.options[i]), answerIndex: order.indexOf(q.answerIndex) };
+  }
+  const originalOption = (questionId, chosen) => {
+    const order = questionId ? optionOrders.get(questionId) : null;
+    return order && Number.isInteger(order[chosen]) ? order[chosen] : chosen;
+  };
   // Any intervention reported (a question, an explanation, a review) means the reader has just had help or been
   // checked, so the scheduled quick-check window restarts (probeCovered is defined with the probe below).
   {
@@ -252,6 +294,7 @@ export async function createHost(deps) {
       // The card's kind, for this learner's own profile and the local log. args[6] names a kind the wire type cannot
       // (a 'focus' card is an ordinary 'ask' on the wire).
       try { noteCardShown(args[0], args[6] || (args[3] === 'ask' ? (args[5] === 'repair' ? 'repair' : args[5] === 'explain' ? 'explain' : 'ask') : args[3])); } catch (e) { /* never blocks reporting */ }
+      try { if (args[1]) helpedUnits.add(args[1]); } catch (e) { /* never blocks reporting */ }
       return baseReport(...args);
     };
   }
@@ -676,6 +719,21 @@ export async function createHost(deps) {
   // Item 38: bug backstop, not entitlement enforcement — see the project notes'
   // "Client-side AI-call rate limiting" section for the full reasoning.
   const _summaryCache = new Map();
+  // In an assigned reading the explaining modes ask for three versions of the same explanation in one call (the class
+  // shares the stored answer). Each student's device shows one it has not shown yet, at random, so two students who need
+  // the same passage in the same style do not read the same words, and a second explanation of a passage reads differently.
+  const VERSIONED_MODES = new Set(['explain_more', 'simplify', 'repair', 'relate']);
+  const _versionsShown = new Map(); // cacheKey -> Set of version indexes already shown
+  function pickSummaryVersion(cacheKey, entry) {
+    if (!entry || typeof entry === 'string' || !Array.isArray(entry.versions)) return entry || null;
+    const { versions } = entry;
+    let shown = _versionsShown.get(cacheKey);
+    if (!shown || shown.size >= versions.length) { shown = new Set(); _versionsShown.set(cacheKey, shown); }
+    const unseen = versions.map((_, i) => i).filter((i) => !shown.has(i));
+    const i = unseen[Math.min(unseen.length - 1, Math.floor(random() * unseen.length))];
+    shown.add(i);
+    return versions[i];
+  }
   const aiCallTimestampsByPath = { summarize: [], questions: [] };
   function checkAiCallBudget(path, mode) {
     const now = Date.now();
@@ -760,14 +818,15 @@ export async function createHost(deps) {
   async function fetchSummary(text, mode = 'tldr', context = '', opts = {}) {
     const style = typeof opts.style === 'string' && opts.style ? opts.style : null;
     // Optional, explanation modes only (the server ignores them elsewhere): the misunderstanding a wrong option stands
-    // for, and an idea from the same document the reader already holds.
+    // for, an idea from the same document the reader already holds, and an earlier idea the passage rests on.
     const misconception = typeof opts.misconception === 'string' && opts.misconception.trim() ? opts.misconception.trim().slice(0, 200) : null;
     const held = typeof opts.held === 'string' && opts.held.trim() ? opts.held.trim().slice(0, 400) : null;
     const prerequisite = typeof opts.prerequisite === 'string' && opts.prerequisite.trim() ? opts.prerequisite.trim().slice(0, 400) : null;
-    const cacheKey = `${mode}${style ? ':' + style : ''}${misconception ? ':m=' + misconception : ''}${held ? ':h=' + held.slice(0, 40) : ''}${prerequisite ? ':p=' + prerequisite.slice(0, 40) : ''}:${text.slice(0, 80).trim()}`;
+    const focus = typeof opts.focus === 'string' && opts.focus.trim() ? opts.focus.trim().slice(0, 400) : null;
+    const cacheKey = `${mode}${style ? ':' + style : ''}${focus ? ':f:' + focus.slice(0, 60) : ''}${misconception ? ':m=' + misconception : ''}${held ? ':h=' + held.slice(0, 40) : ''}${prerequisite ? ':p=' + prerequisite.slice(0, 40) : ''}:${text.slice(0, 80).trim()}`;
     if (_summaryCache.has(cacheKey)) {
       log(`Cache hit: ${mode}`);
-      const cached = _summaryCache.get(cacheKey);
+      const cached = pickSummaryVersion(cacheKey, _summaryCache.get(cacheKey));
       if (cached) noteAssistance(text, opts.paragraphKey);
       return cached;
     }
@@ -781,15 +840,22 @@ export async function createHost(deps) {
       if (misconception) body.misconception = misconception;
       if (held) body.held = held;
       if (prerequisite) body.prerequisite = prerequisite;
+      if (focus) body.focus = focus;
+      // In an assigned reading the server keeps the answer for the whole class until the assignment closes (it checks
+      // that the passage is part of that reading). Never sent for any other page.
+      if (assignmentId) body.assignment_id = assignmentId;
+      if (assignmentId && VERSIONED_MODES.has(mode)) body.variants = 3;
       const resp = await callBackend('summarize', url, body);
       if (!resp.ok) { warn(`Server ${resp.status || ''} ${resp.error || ''}`); if (resp.status !== 429) noteGenerationFailure(mode === 'repair' ? 'repair' : mode === 'relate' ? 'relate' : mode === 'explain_more' ? 'explain' : 'summarize'); return null; }
       const j = resp.data;
       if (!j) return null;
-      const result = j.summary || j.result || null;
+      const versions = Array.isArray(j.variants) ? j.variants.filter((v) => typeof v === 'string' && v.trim()) : [];
+      const entry = versions.length > 1 ? { versions } : (j.summary || j.result || null);
+      const result = pickSummaryVersion(cacheKey, entry);
       if (!result) noteGenerationFailure(mode === 'repair' ? 'repair' : mode === 'relate' ? 'relate' : mode === 'explain_more' ? 'explain' : 'summarize');
       if (result) {
         noteAssistance(text, opts.paragraphKey);
-        _summaryCache.set(cacheKey, result);
+        _summaryCache.set(cacheKey, entry);
         if (_summaryCache.size > 100) _summaryCache.delete(_summaryCache.keys().next().value);
       }
       return result;
@@ -799,11 +865,9 @@ export async function createHost(deps) {
     }
   }
 
-  // Levels the connected server can deliver. ALCOIA_CONFIG.QUESTION_LEVELS_SUPPORTED is the single
-  // switch: it ships as ['recognition'] because alcoiaServer has no level-aware /api/questions and no
-  // /api/grade route (its the project notes section 7 keeps the higher rungs unbuilt until a level-dependent
-  // span validator exists). Add 'free_recall', 'scenario' and 'adversarial' here only together with
-  // that server work.
+  // Levels the connected server can deliver. ALCOIA_CONFIG.QUESTION_LEVELS_SUPPORTED is the single switch. It now lists
+  // all four rungs (recognition, free_recall, scenario, adversarial): the server builds each level and checks free-text
+  // answers at /api/check-answer. A level missing from the list is asked for as recognition instead.
   const supportedQuestionLevels = () => {
     const configured = self.ALCOIA_CONFIG && self.ALCOIA_CONFIG.QUESTION_LEVELS_SUPPORTED;
     return Array.isArray(configured) && configured.length ? configured : ['recognition'];
@@ -817,13 +881,15 @@ export async function createHost(deps) {
     const body = {
       text: text.slice(0, 3500),
       language: (document.documentElement.lang || '').slice(0, 5),
-      count: opts.count || 1,
+      // An assigned reading asks for three, kept for the whole class, so students can each get a different one.
+      count: opts.count || (assignmentId ? 3 : 1),
       kind: opts.kind || 'recall',
     };
     // Item 42/44: one level per call, decided by the caller — omitted
     // entirely rather than defaulted here, so a server that has never heard
     // of levels sees exactly the request shape it always has.
     if (opts.level && supportedQuestionLevels().includes(opts.level)) body.level = opts.level;
+    if (assignmentId) body.assignment_id = assignmentId; // class cache, see fetchSummary
     const resp = await callBackend('apiPost', questionsUrl(), body);
     if (!resp.ok) {
       log(`Questions unavailable (${resp.status || resp.error || 'error'})`);
@@ -1032,6 +1098,7 @@ export async function createHost(deps) {
   // to paragraphKey," never a crash.
   const knowledgeUnitModule = await loadModule('src/content/signals/knowledge-unit.js');
   const { hasRelationCues } = await loadModule('src/content/relation-cues.js');
+  const keyTermsModule = await loadModule('src/content/key-terms.js');
   // Intelligence-architecture audit, step 5 — same shared id generator
   // intervention-policy.js itself uses for a policy-triggered 'ask', reused
   // here for the reader-initiated paths (runSessionRecall) that have no
@@ -1077,7 +1144,10 @@ export async function createHost(deps) {
   // that decision, only supplies the merged history to decide it against.
   async function pickLevel(identity) {
     const quizEvidence = await readQuizEvidence(orchestratorRef?.documentKey?.() || null);
-    let wanted = engineModule.pickLevelForConcept(identity, [...responseSignals.history(), ...quizEvidence]);
+    // What the learner has already shown on this paragraph or its concept (server estimate) sets where a paragraph with
+    // no answer this session starts, instead of always restarting at recognition.
+    const startLevel = identity?.knowledgeUnitId ? learnerEstimates.get(identity.knowledgeUnitId)?.startLevel ?? null : null;
+    let wanted = engineModule.pickLevelForConcept(identity, [...responseSignals.history(), ...quizEvidence], { startLevel });
     // Teaching Intent depth (assigned readings): the instructor can cap the ladder at recall or prefer scenario questions,
     // but never lifts a learner past what their own answers earned (free_recall only becomes scenario).
     if (focusLevelBias === 'recall' && (wanted === 'scenario' || wanted === 'adversarial')) wanted = 'free_recall';
@@ -1175,7 +1245,7 @@ export async function createHost(deps) {
         // chosenIndex — answerGraded()/respond() (free_recall/scenario/
         // adversarial) never set it, so this correctly sends an explicit
         // null for those rather than fabricating an option id.
-        selectedAnswer: typeof record.chosenIndex === 'number' ? record.chosenIndex : null,
+        selectedAnswer: typeof record.chosenIndex === 'number' ? originalOption(record.questionId, record.chosenIndex) : null,
         // Item DC-2 — same paragraph-key lookup as onStruggle above.
         explanationPrecededAttempt: explanationPreceded(record.paragraphKey),
         // Knowledge-unit identity (step 3): additive, sent whenever the
@@ -1506,7 +1576,7 @@ export async function createHost(deps) {
       // chain) — reused here as-is, not regenerated, so the id genuinely
       // identifies the decision that led to this presentation.
       const interventionId = decision.interventionId;
-      const shown = questionCard.show(questions[0], {
+      const shown = questionCard.show(pickVariant(questions), {
         evidence: evidenceOverride ? [evidenceOverride] : decision.evidence,
         anchorRect,
         paragraphKey: identity.paragraphKey,
@@ -1590,7 +1660,12 @@ export async function createHost(deps) {
       // they have shown they hold. Neither is sent for 'relate', which has its own shape.
       const est = learnerEstimates.get(identity.knowledgeUnitId);
       const ideaOpts = mode === 'relate' ? {} : est?.prerequisiteIdea ? { prerequisite: est.prerequisiteIdea } : est?.heldIdea ? { held: est.heldIdea } : {};
-      const generated = await fetchSummary(text, mode, '', { paragraphKey: identity.paragraphKey, style, ...ideaOpts });
+      // Sometimes one sentence carries the paragraph; then the explanation is about that sentence, which is marked on
+      // the page, and the card marks no words (key-terms.js says when). Only for a plain explanation of a paragraph on
+      // the page, and only while "Mark key words when explaining" is on.
+      const focusSentence = (mode === 'explain_more' && el && s().autoKeyTerms !== false)
+        ? keyTermsModule.centralSentence(text) : null;
+      const generated = await fetchSummary(text, mode, '', { paragraphKey: identity.paragraphKey, style, focus: focusSentence, ...ideaOpts });
       if (!generated) return false;
 
       let anchorRect = null;
@@ -1608,9 +1683,18 @@ export async function createHost(deps) {
         knowledgeUnitId: identity.knowledgeUnitId,
         interventionId,
         why: relate ? null : whyFor(kind === 'repair' ? 'repair' : 'explain'),
+        ...(focusSentence ? { focusSentence } : {}),
         ...(style ? { onFeedback: (helped) => { noteStyleFeedback(mode, style, helped); try { transferTracker?.noteTap(identity.knowledgeUnitId); } catch (e) {} } } : {}),
       });
       if (shown && style) noteStyleShown(mode, style, identity.paragraphKey);
+      // The passage's key words stay marked on the page while the reader works through it (Settings can turn this off;
+      // hover shows an x and a click removes a mark). Only when the card is about a paragraph element on the page.
+      if (shown && el && s().autoKeyTerms !== false) {
+        try {
+          const sentenceMarked = focusSentence ? keyTermsModule.markSentence(el, focusSentence) : false;
+          if (!sentenceMarked) keyTermsModule.markKeyTerms(el, keyTermsModule.pickKeyTerms(text, generated));
+        } catch (e) { /* marking is optional */ }
+      }
       // Remembered so a later transfer check can say whether this explanation carried over (assigned readings only).
       if (shown) { try { transferTracker?.noteExplained(identity.knowledgeUnitId, { text, mode, style, paragraphIndex }); } catch (e) {} }
       if (shown) {
@@ -1706,7 +1790,7 @@ export async function createHost(deps) {
       const questions = await fetchQuestions(text, opts);
       if (!questions.length) return;
 
-      const shown = questionCard.show(questions[0], {
+      const shown = questionCard.show(pickVariant(questions), {
         evidence: decision.evidence,
         paragraphKey: identity.paragraphKey,
         knowledgeUnitId: identity.knowledgeUnitId,
@@ -1825,7 +1909,8 @@ export async function createHost(deps) {
       // Each try is a different question: one already asked about this paragraph is passed over.
       const questions = fetched.filter((q) => !transferTracker.askedBefore(pick.unitId, q?.q));
       if (!questions.length) return;
-      const shown = questionCard.show(questions[0], {
+      const chosen = pickVariant(questions);
+      const shown = questionCard.show(chosen, {
         evidence: decision.evidence,
         paragraphKey: identity.paragraphKey,
         knowledgeUnitId: pick.unitId,
@@ -1839,7 +1924,7 @@ export async function createHost(deps) {
       if (shown) {
         orchestratorRef.interventionPolicy.record(decision);
         pendingTransfer.set(decision.interventionId, { unitId: pick.unitId, tier: pick.hint.tier });
-        transferTracker.noteAsked(pick.unitId, questions[0].q);
+        transferTracker.noteAsked(pick.unitId, chosen.q);
         transferHints.delete(pick.unitId);
         reportIntervention(decision.interventionId, pick.unitId, pick.paragraphIndex, 'ask', pick.text, 'retrieve', 'transfer');
       }
@@ -1849,6 +1934,17 @@ export async function createHost(deps) {
   }
 
   const probeProfile = () => policyProfileManager?.getProfile?.().cards?.probe;
+  function noteSmoothReading(text, dwellMs, paragraphIndex) {
+    if (!assignmentId || !Number.isInteger(paragraphIndex) || paragraphIndex < 0) return;
+    if (lastCogState === 'struggling' || lastCogState === 'drifting' || lastCogState === 'away') return;
+    const words = wordCount(text);
+    if (words < SMOOTH_MIN_WORDS || !(dwellMs > 0)) return;
+    if (words / (dwellMs / 60000) > SMOOTH_MAX_WPM) return;
+    const unit = knowledgeUnitModule.computeKnowledgeUnitId(text);
+    if (!unit || smoothSent.has(unit) || struggledUnits.has(unit) || helpedUnits.has(unit)) return;
+    smoothSent.add(unit);
+    submitOutcome({ paragraphIndex, struggled: false, reached: true, source: 'inline', knowledgeUnitId: unit });
+  }
   function probeCovered() { probe.words = 0; probe.read = []; probe.nextAt = Math.round(PROBE_EVERY_WORDS * (probeProfile()?.cooldownFactor ?? 1)); }
 
   /* "Before you read on" (LearnHarness's predict-then-teach, kept to the reading): once the reader has read every
@@ -1924,7 +2020,7 @@ export async function createHost(deps) {
       if (!questions.length) return;
       // Fetching took time: a normal card may have appeared meanwhile. It has priority, so drop the check.
       if (probeBlocked()) return;
-      const shown = questionCard.show(questions[0], {
+      const shown = questionCard.show(pickVariant(questions), {
         evidence: decision.evidence,
         paragraphKey: identity.paragraphKey,
         knowledgeUnitId: identity.knowledgeUnitId,
@@ -1971,7 +2067,7 @@ export async function createHost(deps) {
     try {
       const questions = await fetchQuestions(text, { kind: 'recall' });
       if (!questions.length || probeBlocked()) return;
-      const shown = questionCard.show(questions[0], {
+      const shown = questionCard.show(pickVariant(questions), {
         evidence: decision.evidence,
         paragraphKey: identity.paragraphKey,
         knowledgeUnitId: identity.knowledgeUnitId,
@@ -2088,10 +2184,12 @@ export async function createHost(deps) {
       if (!transferPreferred) checkTransferCandidate(text, paragraphIndex).catch(() => {});
       checkProbe(text, paragraphIndex).catch(() => {});
       checkPrediction(text).catch(() => {});
+      try { noteSmoothReading(text, dwellMs, paragraphIndex); } catch (e) { /* never blocks reading */ }
     },
     onReturnCheck: (blurMs) => { checkReturnCheck(blurMs).catch(() => {}); },
     onStruggle: (text, paragraphIndex, substate, selfReported) => {
       sessionRecall.recordStruggle(text);
+      try { const unit = knowledgeUnitModule.computeKnowledgeUnitId(text); if (unit) struggledUnits.add(unit); } catch (e) { /* never blocks */ }
       // Item S6/E4 follow-up — see submitOutcome's own header just above.
       // substate/selfReported: already resolved by orchestrator.js at the
       // moment struggle was decided (13a's 'unclear' default translated to

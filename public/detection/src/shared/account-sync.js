@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/account-sync.js, commit c2d9774b3fa9) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/account-sync.js, commit ee2d1c47767a) by scripts/sync-detection.mjs. Do not edit here. */
 /* account-sync.js — reading settings and the reading-speed baseline follow the signed-in account.
  *
  * When the reader is signed in (sra_session in storage), the closed list of reading settings below is
@@ -23,6 +23,7 @@
     enabled: 'sra_enabled',
     show_interventions: 'sra_show_interventions',
     explain_on_highlight: 'sra_explain_on_highlight',
+    auto_key_terms: 'sra_auto_key_terms',
     show_self_report: 'sra_show_self_report',
     show_connections: 'sra_show_connections',
     dyslexia: 'sra_dyslexia',

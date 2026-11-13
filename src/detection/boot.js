@@ -101,6 +101,7 @@ export async function startDetection({ assignmentId = null, observers = null, lo
   const settingsNow = {
     assistantEnabled: true,
     showInterventions: s.sra_show_interventions !== false,
+    autoKeyTerms: s.sra_auto_key_terms !== false,
     autohideEnabled: !!s.sra_autohide,
     autohideTimeoutSec: Number(s.sra_autohide_timeout) || 12,
     comprehensionCheckEnabled: s.sra_comprehension !== false,
@@ -143,6 +144,7 @@ export async function startDetection({ assignmentId = null, observers = null, lo
       assistantEnabled: settingsNow.assistantEnabled,
       backendUrl: globalThis.ALCOIA_CONFIG.SUMMARIZE_URL,
       showInterventions: settingsNow.showInterventions,
+      autoKeyTerms: settingsNow.autoKeyTerms,
       showConnections: false,
     }),
   });
@@ -164,6 +166,7 @@ export async function startDetection({ assignmentId = null, observers = null, lo
 
   // Settings changed in another tab (the workspace Settings page or a pull from the account) apply here too.
   const onLive = (changes) => {
+    if (changes.sra_auto_key_terms) settingsNow.autoKeyTerms = changes.sra_auto_key_terms.newValue !== false;
     if (changes.sra_show_interventions) settingsNow.showInterventions = changes.sra_show_interventions.newValue !== false;
     if (changes.sra_autohide) settingsNow.autohideEnabled = !!changes.sra_autohide.newValue;
     if (changes.sra_autohide_timeout) settingsNow.autohideTimeoutSec = Number(changes.sra_autohide_timeout.newValue) || 12;
