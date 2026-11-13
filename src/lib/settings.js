@@ -7,6 +7,7 @@ export const SETTING_TO_STORAGE = Object.freeze({
   enabled: 'sra_enabled',
   show_interventions: 'sra_show_interventions',
   explain_on_highlight: 'sra_explain_on_highlight',
+  auto_key_terms: 'sra_auto_key_terms',
   show_self_report: 'sra_show_self_report',
   show_connections: 'sra_show_connections',
   dyslexia: 'sra_dyslexia',

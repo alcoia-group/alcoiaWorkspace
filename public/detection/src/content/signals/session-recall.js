@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/session-recall.js, commit c2d9774b3fa9) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/session-recall.js, commit ee2d1c47767a) by scripts/sync-detection.mjs. Do not edit here. */
 /* session-recall.js — what to ask about at the end
  *
  * Retrieval practice is the one intervention in this product with an actual

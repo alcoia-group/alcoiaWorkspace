@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/question-card.js, commit c2d9774b3fa9) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/question-card.js, commit ee2d1c47767a) by scripts/sync-detection.mjs. Do not edit here. */
 /* question-card.js — the retrieval question, in front of the reader
  *
  * The primary intervention. Answering is what produces the only ground truth
@@ -540,7 +540,8 @@ export function createQuestionCard(deps = {}) {
         <button class="sra-ctrl-btn sra-close-btn" title="${esc(L('card.dismiss'))}">✕</button>
       </div>
       <div class="sra-popup-body">
-        <div class="sra-q-explain sra-explain-text">${renderHighlightedExplanation(text, esc)}</div>
+        ${context.focusSentence ? `<div class="sra-q-about">${esc(L('card.aboutSentence'))}</div>` : ''}
+        <div class="sra-q-explain sra-explain-text">${context.focusSentence ? esc(text) : renderHighlightedExplanation(text, esc)}</div>
         ${why.html}
       </div>
       <div class="sra-popup-divider"></div>

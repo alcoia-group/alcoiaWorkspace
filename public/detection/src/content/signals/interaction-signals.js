@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/interaction-signals.js, commit c2d9774b3fa9) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/interaction-signals.js, commit ee2d1c47767a) by scripts/sync-detection.mjs. Do not edit here. */
 /* interaction-signals.js — selection, copy, and the blur/return signature
  *
  * Selection and copy are the highest-precision events available: the reader

@@ -12,6 +12,7 @@ const COLORS = [
 const HERE = [
   ['enabled', 'Reading help', 'Notice when a passage is hard and offer help with it.'],
   ['show_interventions', 'Show help cards', 'Questions and explanations that appear while you read.'],
+  ['auto_key_terms', 'Mark key words when explaining', 'When an explanation opens, the key words stay marked in the reading. Point at one and click to remove it.'],
   ['show_self_report', 'Show the “How is it going?” button', 'Lets you say a passage is hard yourself.'],
   ['autohide', 'Hide cards after a while', 'Cards close by themselves if you leave them.'],
   ['dark_mode', 'Dark cards', 'Help cards use a dark background.'],
