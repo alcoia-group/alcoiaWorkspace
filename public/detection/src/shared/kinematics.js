@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/kinematics.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/kinematics.js, commit 8052b8c2798a) by scripts/sync-detection.mjs. Do not edit here. */
 /* kinematics.js — reporting a session's scroll-kinematics summary
  * (item DC-1a)
  *

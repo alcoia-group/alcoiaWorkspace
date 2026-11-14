@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/key-terms.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/key-terms.js, commit 8052b8c2798a) by scripts/sync-detection.mjs. Do not edit here. */
 /* key-terms.js — mark the passage's key words while an explanation is shown
  *
  * When an explain or repair card opens for a paragraph, up to three words or two-word phrases from that
@@ -20,7 +20,7 @@
 const MAX_TERMS = 3;
 const MIN_LEN = 4;
 const MAX_LEN = 40;
-const STOP = new Set([
+export const STOP = new Set([
   'this', 'that', 'these', 'those', 'with', 'from', 'have', 'has', 'had', 'will', 'would', 'could', 'should',
   'about', 'into', 'onto', 'over', 'under', 'after', 'before', 'while', 'because', 'since', 'than', 'then',
   'were', 'been', 'being', 'they', 'them', 'their', 'there', 'where', 'when', 'what', 'which', 'whom', 'whose',

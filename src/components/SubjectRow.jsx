@@ -28,6 +28,7 @@ export default function SubjectRow({ s, defaultOpen = false }) {
           {s.needsWorkAt.length > 0 && <>Not yet there: {joinWords(s.needsWorkAt)}.</>}
         </p>
       )}
+      {Array.isArray(s.restsOn) && s.restsOn.length > 0 && <p>Builds on: {joinWords(s.restsOn)}.</p>}
       {Array.isArray(s.evidence) && s.evidence.length > 0 && (
         <details className="an-evidence">
           <summary>What this is based on</summary>

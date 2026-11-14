@@ -9,6 +9,7 @@ import { useReadingEstimate } from '../lib/useReadingEstimate.js';
 import { loadMarks } from '../lib/annotations.js';
 import { getIdentityRecord, listLocalFiles } from '../lib/localFiles.js';
 import { summarise } from '../lib/documentIdentity.js';
+import KeptAndReviews from '../components/KeptAndReviews.jsx';
 
 // Overview: where to pick up. Built only from what the workspace already has: the open materials the server lists,
 // and what this browser keeps (where you were, your marks, your own files). Nothing new is sent or stored.
@@ -173,6 +174,7 @@ export default function HomePage() {
             </p>
           </details>
         </section>
+        <KeptAndReviews sessionToken={session.sessionToken} />
 
         <section className="ov-card" aria-labelledby="ov-continue">
           <div className="ov-card-head">

@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/calibration-copy.js, commit 8ce29f5b34e1) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/calibration-copy.js, commit 8052b8c2798a) by scripts/sync-detection.mjs. Do not edit here. */
 /* calibration-copy.js — the four-outcome confidence-calibration table
  *
  * From the project notes' confidence-calibration table, reworded as reader-facing
@@ -26,6 +26,8 @@ export const CALIBRATION_COPY = Object.freeze({
  * confidence was given — callers fall back to their own bare copy, since a
  * skipped rating must not be treated as either 'low' or 'high'. */
 export function calibratedLine(correct, confidence, lang = 'en') {
+  // A guess is said as a guess: right by luck is not knowledge, wrong is no surprise.
+  if (confidence === 'guess') return t(correct ? 'res.rightGuess' : 'res.wrongGuess', lang);
   if (confidence !== 'low' && confidence !== 'high') return null;
   if (lang !== 'en') return t(`res.${correct ? 'right' : 'wrong'}${confidence === 'high' ? 'High' : 'Low'}`, lang);
   return CALIBRATION_COPY[correct ? 'correct' : 'incorrect'][confidence];

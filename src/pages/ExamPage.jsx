@@ -2,20 +2,17 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
 import { fetchMyAssignments } from '../lib/assignments.js';
-import { startExam, answerExam, nextExam, finishExam, examErrorKind } from '../lib/exam.js';
+import { startExam, answerExam, nextExam, finishExam, hintExam, rephraseExam, concludeExam, examErrorKind } from '../lib/exam.js';
 import { listPersonalDocuments } from '../lib/personalDocuments.js';
 import { MARKETING_URL, CONSOLE_URL } from '../lib/analytics.js';
 
-// Exam Mode: a private practice session on one or several readings (up to six). One question at a time, free-text answer,
-// feedback, then the next. You can stop at any time, with no penalty. No score, no ranking, no
-// prediction of any result. The server decides access, questions, correctness and what is
-// remembered; this page only shows them.
+// Exam Mode: private practice on one or several readings (up to six), one problem at a time. A wrong answer gets where
+// the reasoning breaks and a small nudge, never the solution, so you can try again; hints come one at a time; the
+// solution is shown when you solve it, ask for it or move on. You can stop at any time, with no penalty. No score, no
+// ranking, no prediction of any result. The server decides access, problems, correctness and what is remembered.
 
-const TYPE_LABEL = {
-  explain: 'Explain', apply: 'Apply', predict: 'Predict', diagnose: 'Diagnose', scenario: 'Scenario',
-  compare: 'Compare', distinguish: 'Distinguish', identify_error: 'Find the error', defend: 'Defend',
-};
-const VERDICT = { correct: 'Correct', partial: 'Partly there', incorrect: 'Not quite', skipped: 'Skipped' };
+const VERDICT = { correct: 'Solved', partial: 'Solved with help', incorrect: 'Not solved', skipped: 'Skipped' };
+const TRY_AGAIN = { partial: 'Part of this holds.', incorrect: 'Not yet.' };
 
 const ERROR_COPY = {
   network: 'The request could not be completed. Check your connection and try again.',
@@ -45,11 +42,14 @@ function Summary({ s, onAgain }) {
       <h2 id="exam-sum">Session summary</h2>
       <ul className="an-list">
         <li><span>Questions answered</span><span className="an-count">{s.questionsAnswered}</span></li>
-        <li><span>Correct / partly / not quite</span><span className="an-count">{s.correct} / {s.partial} / {s.incorrect}</span></li>
+        <li><span>Solved / solved with help / not solved</span><span className="an-count">{s.correct} / {s.partial} / {s.incorrect}</span></li>
+        {s.retests?.asked > 0 && <li><span>Second tries solved</span><span className="an-count">{s.retests.solved} of {s.retests.asked}</span></li>}
         {s.skipped > 0 && <li><span>Skipped</span><span className="an-count">{s.skipped}</span></li>}
         <li><span>Highest level shown</span><span className="an-count">{s.highestLevelDemonstrated ? s.highestLevelDemonstrated.label : 'None yet'}</span></li>
       </ul>
-      {s.strengths.length > 0 && <p><strong>Went well:</strong> {s.strengths.map((x) => `${x.source ? `${x.source}, ` : ''}paragraph ${x.paragraph}`).join('; ')}.</p>}
+      {s.cameToMind?.length > 0 && <p><strong>Came to mind on your own:</strong> {s.cameToMind.map((x) => `${x.source ? `${x.source}, ` : ''}paragraph ${x.paragraph}`).join('; ')}.</p>}
+      {s.neededNamedIdea?.length > 0 && <p><strong>Needed the idea named:</strong> {s.neededNamedIdea.map((x) => `${x.source ? `${x.source}, ` : ''}paragraph ${x.paragraph}`).join('; ')}.</p>}
+      {s.strengths.length > 0 && !s.cameToMind && <p><strong>Went well:</strong> {s.strengths.map((x) => `${x.source ? `${x.source}, ` : ''}paragraph ${x.paragraph}`).join('; ')}.</p>}
       {s.bySource?.length > 1 && <ul className="an-list">{s.bySource.map((b) => <li key={b.source}><span>{b.source}</span><span className="an-count">{b.asked} asked, {b.correct} correct</span></li>)}</ul>}
       {s.needsReview.length > 0 && (
         <>
@@ -73,6 +73,7 @@ export default function ExamPage() {
   const token = session.sessionToken;
   const [assignments, setAssignments] = useState(null);
   const [phase, setPhase] = useState('choose'); // choose | question | feedback | summary
+  const [attempt, setAttempt] = useState(null); // the last wrong or partial attempt on the open problem
   const [exam, setExam] = useState(null);
   const [result, setResult] = useState(null);
   const [text, setText] = useState('');
@@ -129,15 +130,37 @@ export default function ExamPage() {
     setText('');
     setResult(null);
     setSummary(null);
+    setAttempt(null);
     setPhase('question');
   };
-  const submit = async (skip = false) => {
-    const r = await run(() => answerExam(exam.sessionId, token, skip ? { skip: true } : { answer: text }));
-    if (!r) return;
+  // An answer either ends the problem (solved, or skipped) or comes back with a nudge and the problem stays open.
+  const settle = (r) => {
+    if (r.state === 'awaiting_answer') {
+      setExam((prev) => ({ ...prev, ...r }));
+      setAttempt(r.result);
+      return;
+    }
     setLastQ(exam.question);
     setExam((prev) => ({ ...prev, ...r }));
     setResult(r);
+    setAttempt(null);
     setPhase('feedback');
+  };
+  const submit = async (skip = false) => {
+    const r = await run(() => answerExam(exam.sessionId, token, skip ? { skip: true } : { answer: text }));
+    if (r) settle(r);
+  };
+  const hint = async () => {
+    const r = await run(() => hintExam(exam.sessionId, token));
+    if (r) setExam((prev) => ({ ...prev, ...r }));
+  };
+  const rephrase = async () => {
+    const r = await run(() => rephraseExam(exam.sessionId, token));
+    if (r) setExam((prev) => ({ ...prev, ...r }));
+  };
+  const giveUp = async (outcome) => {
+    const r = await run(() => concludeExam(exam.sessionId, token, outcome));
+    if (r) settle(r);
   };
   const advance = async () => {
     const r = await run(() => nextExam(exam.sessionId, token));
@@ -152,6 +175,7 @@ export default function ExamPage() {
     setExam(r);
     setText('');
     setResult(null);
+    setAttempt(null);
     setPhase('question');
   };
   const stop = async () => {
@@ -211,13 +235,18 @@ export default function ExamPage() {
       {!upgrade && (phase === 'question' || phase === 'feedback') && q && (
         <div className="exam-card">
           <div className="exam-meta">
-            <span>Question {q.number} of up to {total}</span>
-            <span>{TYPE_LABEL[q.type] ?? q.type} · {q.levelLabel} · from {exam.sources?.length > 1 ? `${q.source.label}, ` : ''}paragraph {q.paragraph}</span>
+            <span>Problem {q.number} of up to {total}{q.retest ? ' · another try at an earlier one' : ''}</span>
+            <span>{q.modeLabel ?? q.levelLabel} · from {exam.sources?.length > 1 ? `${q.source.label}, ` : ''}paragraph {q.paragraph}</span>
             {exam.personalized
               ? <span className="muted">Choosing questions from your earlier answers.</span>
               : <span className="muted">Learning memory is off, so questions are chosen from the reading alone. <a href={`${CONSOLE_URL}/settings#learning-memory`}>Settings</a></span>}
           </div>
           <p className="exam-question">{q.text}</p>
+          {phase === 'question' && q.hints?.length > 0 && (
+            <ol className="exam-hints" aria-label="Hints so far">
+              {q.hints.map((h) => <li key={h.rung}>{h.text}</li>)}
+            </ol>
+          )}
         </div>
       )}
       
@@ -225,9 +254,19 @@ export default function ExamPage() {
         <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) submit(); }}>
           <label htmlFor="exam-answer">Your answer</label>
           <textarea id="exam-answer" rows={6} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} disabled={busy} />
+          {attempt && (
+            <div className="exam-attempt" role="status">
+              <p><strong>{TRY_AGAIN[attempt.verdict] ?? 'Not yet.'}</strong> {attempt.firstBreak}</p>
+              {attempt.nudge && <p>{attempt.nudge}</p>}
+              <p className="muted">Change your answer and submit again. There is no limit on tries.</p>
+            </div>
+          )}
           <div className="exam-actions">
-            <button type="submit" className="button" disabled={busy || !text.trim()}>{busy ? 'Checking…' : 'Submit answer'}</button>
-            <button type="button" className="link-button" disabled={busy} onClick={() => submit(true)}>Skip</button>
+            <button type="submit" className="button" disabled={busy || !text.trim()}>{busy ? 'Checking…' : attempt ? 'Submit again' : 'Submit answer'}</button>
+            {exam.question?.hintsLeft > 0 && <button type="button" className="secondary" disabled={busy} onClick={hint}>Hint</button>}
+            {exam.question?.canRephrase && <button type="button" className="link-button" disabled={busy} onClick={rephrase}>I don&apos;t understand the question</button>}
+            <button type="button" className="link-button" disabled={busy} onClick={() => giveUp('surrendered')}>Show the solution</button>
+            <button type="button" className="link-button" disabled={busy} onClick={() => (exam.question?.attempts ? giveUp('movedOn') : submit(true))}>Move on</button>
             <button type="button" className="link-button" disabled={busy} onClick={stop}>End session</button>
           </div>
           {problem === 'unavailable' && <p className="muted">Your answer is kept above. Press Submit answer to try again.</p>}
@@ -237,8 +276,8 @@ export default function ExamPage() {
       {!upgrade && phase === 'feedback' && result && (
         <div className="exam-feedback" role="status">
           <h2>{VERDICT[result.result.verdict]}</h2>
-          {result.result.feedback && <p>{result.result.feedback}</p>}
-          {result.result.modelAnswer && <p className="muted"><strong>A good answer:</strong> {result.result.modelAnswer}</p>}
+          {result.result.modelSolution && <p className="muted"><strong>A worked solution:</strong> {result.result.modelSolution}</p>}
+          <p className="muted">Ask about anything in it before you go on.</p>
           <div className="exam-actions">
             {result.canContinue && <button type="button" className="button" disabled={busy} onClick={advance}>{busy ? 'Preparing…' : 'Next question'}</button>}
             <button type="button" className={result.canContinue ? 'link-button' : 'button'} disabled={busy} onClick={stop}>{result.canContinue ? 'End session' : 'See summary'}</button>
