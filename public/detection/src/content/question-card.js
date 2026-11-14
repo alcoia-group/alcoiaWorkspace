@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/question-card.js, commit ee2d1c47767a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/question-card.js, commit 5a8ecadd7ff2) by scripts/sync-detection.mjs. Do not edit here. */
 /* question-card.js — the retrieval question, in front of the reader
  *
  * The primary intervention. Answering is what produces the only ground truth
@@ -99,7 +99,7 @@ export function createQuestionCard(deps = {}) {
     onSelfReport,       // (subtype) => void — item 13a, affordance 3 (active surfacing)
   } = deps;
 
-  /* question: { q, options[4], answerIndex, explanation, span, level?, span_role? }
+  /* question: { q, options[3 or 4] (the stored question bank has three), answerIndex, explanation, span, level?, span_role? }
    * context: { evidence[], anchorRect, paragraphKey, knowledgeUnitId, interventionId,
    *            passage?, showSelfReport?, contextLine? } — item 13a:
    *            showSelfReport renders the self-report options alongside this
@@ -137,10 +137,10 @@ export function createQuestionCard(deps = {}) {
     const level = FREE_TEXT_LEVELS.includes(question.level) ? question.level : 'recognition';
 
     if (level === 'recognition') {
-      if (!Array.isArray(question.options) || question.options.length !== 4
+      if (!Array.isArray(question.options) || question.options.length < 3 || question.options.length > 4
         || question.options.some((o) => typeof o !== 'string' || !o.trim())
         || !Number.isInteger(question.answerIndex)
-        || question.answerIndex < 0 || question.answerIndex > 3
+        || question.answerIndex < 0 || question.answerIndex >= question.options.length
       ) return false;
     } else if (typeof question.span !== 'string' || !question.span.trim()) {
       return false;

@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit ee2d1c47767a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 5a8ecadd7ff2) by scripts/sync-detection.mjs. Do not edit here. */
 /* host.js — the orchestrator's host, extracted from content.js (item 30a)
  *
  * orchestrator.js depends on a `host` object with callbacks
@@ -148,7 +148,11 @@ export async function createHost(deps) {
       // memory-off submission simply leaves the unit without an estimate, i.e. the normal behaviour.
       if (fields.knowledgeUnitId && fields.questionId) learnerEstimates.delete(fields.knowledgeUnitId);
       return outcomesManager.submit(fields)
-        .then((r) => { if (r && r.learnerEstimate) noteLearnerEstimate(r.learnerEstimate); return r; })
+        .then((r) => {
+          if (r && r.learnerEstimate) noteLearnerEstimate(r.learnerEstimate);
+          if (r && r.thenAndNow && r.thenAndNow.missedAt) { try { ui.addNoteToQuestionCard(t('then.line', uiLang(), { date: r.thenAndNow.missedAt })); } catch (e) { /* the note is optional */ } }
+          return r;
+        })
         .catch(() => null);
     };
   }

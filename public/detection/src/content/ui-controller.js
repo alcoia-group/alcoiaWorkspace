@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/ui-controller.js, commit ee2d1c47767a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/ui-controller.js, commit 5a8ecadd7ff2) by scripts/sync-detection.mjs. Do not edit here. */
 /* ui-controller.js — everything the reader actually sees
  *
  * Extracted from content.js, which was a single 1982-line IIFE. This owns the
@@ -608,6 +608,20 @@ export function createUIController(deps = {}) {
     });
   }
 
+  /* A plain line under the open question card (the then-and-now note). Quiet: serif, muted, no motion. */
+  function addNoteToQuestionCard(text) {
+    for (const { el, kind } of openPopups.values()) {
+      if (kind !== 'question' || !el?.isConnected) continue;
+      const p = document.createElement('p');
+      p.className = 'sra-then-now';
+      p.style.cssText = 'margin:10px 0 0;font:14px/1.45 Georgia,serif;color:inherit;opacity:.8';
+      p.textContent = text;
+      el.appendChild(p);
+      return true;
+    }
+    return false;
+  }
+
   return {
     openPopups,
     installResizeWatcher,
@@ -615,6 +629,7 @@ export function createUIController(deps = {}) {
     placePopup, closePopup, flashPopup, hidePopup,
     reservePopup, showPopup, resetAutohide,
     hasVisibleQuestionCard,
+    addNoteToQuestionCard,
     renderPopup,
     showNudge, showSimulateToast, showStatusToast,
     ensureSelfReportTrigger,
