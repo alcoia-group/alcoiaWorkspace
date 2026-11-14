@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/intervention-policy.js, commit 671aa0d459e6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/intervention-policy.js, commit 695eebe56d77) by scripts/sync-detection.mjs. Do not edit here. */
 /* intervention-policy.js — decides whether a reading state earns an interruption
  *
  * The engine says what it observed. This says whether to act on it. Splitting
@@ -486,6 +486,7 @@ export function createInterventionPolicy(config = {}) {
     // Step 23: the new 8-value vocabulary, derived from `action` and refined
     // below as more evidence is examined -- see POLICY_ACTIONS' own header
     // comment for the full meaning of each value.
+    let summaryMode = null;
     let policyAction = action === 'ask' ? POLICY_ACTIONS.RETRIEVE
       : action === 'nudge' ? POLICY_ACTIONS.NUDGE
       : POLICY_ACTIONS.NONE;
@@ -603,6 +604,14 @@ export function createInterventionPolicy(config = {}) {
         }
       }
 
+      // Response table, overload row: a reader who is overloaded (too much at once) does not need a question; they need
+      // less to carry. Applies only while the learner's own evidence has not already chosen a response (the estimate
+      // above keeps priority), and turns a fresh RETRIEVE into a shorter, plainer EXPLAIN (summarize mode 'simplify').
+      if (state.substate === 'overload' && policyAction === POLICY_ACTIONS.RETRIEVE && !(est && est.action === 'intervene')) {
+        policyAction = POLICY_ACTIONS.EXPLAIN;
+        summaryMode = 'simplify';
+      }
+
       // Step 9A (active intervention awareness): a candidate that has
       // already cleared every evidence/adaptation check above is still not
       // promoted to a decision if the reader is already dealing with a
@@ -692,6 +701,7 @@ export function createInterventionPolicy(config = {}) {
       // must keep passing unmodified).
       interventionId: action === 'ask' ? generateId(now, random) : null,
       // A concept the learner knows but has not yet shown they retain: one short check, never an explanation.
+      ...(summaryMode ? { summaryMode } : {}),
       ...(ctx.learnerEstimate && ctx.learnerEstimate.light === true && policyAction === POLICY_ACTIONS.RETRIEVE ? { light: true } : {}),
     };
   }

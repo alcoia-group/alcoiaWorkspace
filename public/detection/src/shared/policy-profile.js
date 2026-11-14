@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/policy-profile.js, commit 671aa0d459e6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/policy-profile.js, commit 695eebe56d77) by scripts/sync-detection.mjs. Do not edit here. */
 /* policy-profile.js: the learner's OWN adaptive profile, kept on their account so it follows them across devices.
  *
  *   GET  {profileUrl}  -> { cards: {type: {n, cooldownFactor, withhold}}, detectors: {key: {n, confidenceFactor}}, sensitivity, styles: {mode: [{style, n, trials, rate}]} }

@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/epistemic-engine.js, commit 671aa0d459e6) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/epistemic-engine.js, commit 695eebe56d77) by scripts/sync-detection.mjs. Do not edit here. */
 /* epistemic-engine.js — selects the next question type from demonstrated
  * failure, not from a rotation (item 44)
  *
