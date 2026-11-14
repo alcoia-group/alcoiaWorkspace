@@ -22,6 +22,12 @@ export const startExam = (assignmentIds, sessionToken, questionCount, personalDo
 export const answerExam = (id, sessionToken, payload) => apiPost(`${base}/${encodeURIComponent(id)}/answer`, payload, { sessionToken });
 export const nextExam = (id, sessionToken) => apiPost(`${base}/${encodeURIComponent(id)}/next`, {}, { sessionToken });
 export const finishExam = (id, sessionToken) => apiPost(`${base}/${encodeURIComponent(id)}/finish`, {}, { sessionToken });
+// The practitioner flow: a hint is the next rung of the problem's committed ladder; a rephrase restates the problem;
+// conclude ends it ('surrendered' shows the solution, 'movedOn' moves on). The solution is never in an answer's
+// response unless the problem was solved.
+export const hintExam = (id, sessionToken) => apiPost(`${base}/${encodeURIComponent(id)}/hint`, {}, { sessionToken });
+export const rephraseExam = (id, sessionToken) => apiPost(`${base}/${encodeURIComponent(id)}/rephrase`, {}, { sessionToken });
+export const concludeExam = (id, sessionToken, outcome) => apiPost(`${base}/${encodeURIComponent(id)}/conclude`, { outcome }, { sessionToken });
 export const getExam = (id, sessionToken) => apiGet(`${base}/${encodeURIComponent(id)}`, { sessionToken });
 
 // Maps a failed call to what the page should show.
