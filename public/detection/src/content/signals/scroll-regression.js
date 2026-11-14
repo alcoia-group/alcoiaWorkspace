@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/scroll-regression.js, commit f4638196097c) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/scroll-regression.js, commit 00dabf699544) by scripts/sync-detection.mjs. Do not edit here. */
 /* scroll-regression.js — going back to re-read, and what it means when they stay
  *
  * Replaces gaze-features' line_reread_count, which bands raw viewport y by 20px
