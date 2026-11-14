@@ -75,7 +75,7 @@
   --paper-sunk: #F2EFE8;
   --ink: #333333;
   --ink-muted: #6B6862;
-  --ink-faint: #9A968E;
+  --ink-faint: #726D64;
 
   /* lilac -- the brand, spent once per page, never a repeating data colour */
   --lilac: #7E60AE;
@@ -731,3 +731,29 @@ html.is-fullscreen[data-bars='hidden'] .pdf-viewer .slides-rail { top: 0; max-he
 .prior-summary { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .exam-hints { margin: 8px 0 0; padding-left: 20px; color: #4b5560; }
 .exam-attempt { border: 1px solid #e0d3a4; background: #fbf8ee; border-radius: 6px; padding: 6px 12px; margin: 8px 0; }
+
+/* Layout pass (placement, space, phones). Same colours, fonts and controls as before; nothing here changes the look. */
+:root { --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; }
+.page { padding: 32px 24px 64px; }
+.an-section { margin: 32px 0; padding: 16px 24px; }
+.an-section h3 { margin: 24px 0 12px; }
+@media (max-width: 899px) { .page { padding: 24px 16px 56px; } }
+@media (max-width: 599px) {
+  .page { padding: 16px 12px calc(48px + env(safe-area-inset-bottom)); }
+  .an-section { margin: 24px 0; padding: 16px; }
+  body { line-height: 1.5; }
+  .muted.small, .small { font-size: 14px; }
+  .docx-page { padding-left: 16px; padding-right: 16px; padding-top: 20px; }
+  .lms-table, .lms-table tbody, .lms-table tr, .lms-table td { display: block; width: 100%; box-sizing: border-box; }
+  .lms-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .lms-table tr { padding: 12px 0; border-bottom: 1px solid #e5e8ea; }
+  .lms-table td { padding: 2px 12px; border: 0; }
+  .lms-table td:first-child { font-size: 16px; font-weight: 600; }
+}
+@media (max-width: 479px) { .ov-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } }
+@media (pointer: coarse) { .set-control select { height: 44px; } }
+.skip-panel { overscroll-behavior: contain; }
+
+/* Kept: one line on the overview, the list behind it. */
+.ov-kept summary { cursor: pointer; list-style-position: inside; }
+.ov-kept[open] summary { margin-bottom: 8px; }
