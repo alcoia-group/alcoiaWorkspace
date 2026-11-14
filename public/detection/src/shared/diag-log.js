@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/diag-log.js, commit cac35ac3402a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/diag-log.js, commit 09512cbfe3e7) by scripts/sync-detection.mjs. Do not edit here. */
 /* diag-log.js — a short, local-only record of what silently failed
  *
  * Every failure in this extension degrades to silence for the reader

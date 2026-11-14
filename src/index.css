@@ -349,6 +349,7 @@ html.is-fullscreen .pdf-viewer .slides-rail { max-height: calc(var(--vh) - var(-
 .an-how summary { cursor: pointer; }
 .an-subjects { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 12px; }
 .an-subject { padding: 12px 0; border-top: 1px solid #e5e8ea; }
+.an-subject-head strong { margin-right: auto; }
 .an-subject-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; }
 .an-subject p { margin: 6px 0 0; }
 .an-pill { font-size: 13px; padding: 2px 8px; border-radius: 10px; color: #fff; }
@@ -503,7 +504,8 @@ table.list th, table.list td { text-align: left; padding: 8px 12px; border-botto
 .an-hint { font-size: 13px; flex-basis: 100%; }
 .an-subhead { font-size: 15px; margin: 16px 0 0; }
 .an-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-.an-filter { border: 1px solid #c7cdd1; background: #fff; border-radius: 3px; padding: 6px 12px; cursor: pointer; font: inherit; }
+.an-filter { border: 1px solid #c7cdd1; background: #fff; color: #2d3b45; border-radius: 3px; padding: 6px 12px; cursor: pointer; font: inherit; }
+.an-filter:hover:not(:disabled):not(.is-on) { background: #f0f2f3; }
 .an-filter.is-on { background: #2d3b45; color: #fff; border-color: #2d3b45; }
 .an-search { display: grid; gap: 4px; max-width: 360px; margin: 8px 0 12px; }
 .an-search input { font: inherit; padding: 8px 10px; border: 1px solid #c7cdd1; border-radius: 3px; }

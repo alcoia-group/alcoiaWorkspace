@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/screen-timing.js, commit cac35ac3402a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/screen-timing.js, commit 09512cbfe3e7) by scripts/sync-detection.mjs. Do not edit here. */
 /* screen-timing.js: time on a screen, for readers who move a whole screen at a time.
  *
  * Paragraph timing assumes the reader's eyes follow a reading line down the page. Someone who presses
