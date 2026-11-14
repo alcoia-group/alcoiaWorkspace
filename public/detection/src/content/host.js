@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 5a8ecadd7ff2) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit f4638196097c) by scripts/sync-detection.mjs. Do not edit here. */
 /* host.js — the orchestrator's host, extracted from content.js (item 30a)
  *
  * orchestrator.js depends on a `host` object with callbacks
@@ -1293,6 +1293,9 @@ export async function createHost(deps) {
       try { dismissedCard = noteCardDismissed(record); } catch (e) {}
       try { decisionLog.record({ kind: 'dismissed', basis: lastShownBasis, cardType: dismissedCard }); } catch (e) {}
       try { orchestratorRef?.interventionPolicy.recordDismissal(); } catch (e) {}
+    },
+    onKnown: (record) => {
+      try { decisionLog.record({ kind: 'flag_known', basis: lastShownBasis, cardType: record?.interventionId ? noteCardDismissed(record) : null }); } catch (e) {}
     },
     onSnooze: (durationMs, label) => { startSnooze(durationMs, label); },
   });

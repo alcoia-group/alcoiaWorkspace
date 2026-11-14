@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/pretest.js, commit 5a8ecadd7ff2) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/pretest.js, commit f4638196097c) by scripts/sync-detection.mjs. Do not edit here. */
 /* pretest.js — predict-then-reveal: the pretesting effect, as an occlusion
  *
  * Richland, Kornell & Kao (2009): attempting an answer before reading it
