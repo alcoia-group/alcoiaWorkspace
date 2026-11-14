@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/text-difficulty.js, commit 09512cbfe3e7) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/text-difficulty.js, commit 8052b8c2798a) by scripts/sync-detection.mjs. Do not edit here. */
 /* text-difficulty.js — how hard a paragraph is to parse
  *
  * Flesch-Kincaid is a 1940s syllable-counting formula. It correlates with
