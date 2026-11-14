@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/rate-limit.js, commit f4638196097c) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/rate-limit.js, commit 00dabf699544) by scripts/sync-detection.mjs. Do not edit here. */
 /* rate-limit.js — tiny in-memory burst+ceiling limiter (item 43)
  *
  * Extracted out of host.js's own checkAiCallBudget() so a second context

@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/key-terms.js, commit f4638196097c) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/key-terms.js, commit 00dabf699544) by scripts/sync-detection.mjs. Do not edit here. */
 /* key-terms.js — mark the passage's key words while an explanation is shown
  *
  * When an explain or repair card opens for a paragraph, up to three words or two-word phrases from that
