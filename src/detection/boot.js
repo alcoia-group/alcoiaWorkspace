@@ -136,6 +136,7 @@ export async function startDetection({ assignmentId = null, observers = null, lo
     loadModule,
     assignmentId,
     getSession: getSessionFn,
+    surface: 'workspace', // BETA-FEEDBACK: beta answers say which product asked
     ui,
     esc: uiModule.esc,
     log,

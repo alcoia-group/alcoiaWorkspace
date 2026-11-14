@@ -11,6 +11,8 @@ export default function AppLayout() {
     <>
       <header className="global-bar">
         <Link to={session ? '/home' : '/sign-in'} className="global-brand" aria-label="alcoia home"><Logo onDark /></Link>
+        {/* BETA-FEEDBACK: remove with the beta */}
+        <span className="beta-badge" title="Alcoia is in beta. You may be asked a short question after a reading; you can turn these off in Settings.">Beta</span>
         {session && (
           <>
             <nav className="global-nav" aria-label="Main">

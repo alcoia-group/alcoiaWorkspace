@@ -759,3 +759,10 @@ html.is-fullscreen[data-bars='hidden'] .pdf-viewer .slides-rail { top: 0; max-he
 /* Kept: one line on the overview, the list behind it. */
 .ov-kept summary { cursor: pointer; list-style-position: inside; }
 .ov-kept[open] summary { margin-bottom: 8px; }
+
+/* BETA-FEEDBACK (start): remove with the beta. */
+.beta-badge { align-self: center; margin-left: -8px; margin-right: 8px; padding: 1px 7px; border: 1px solid rgba(255,255,255,0.45); border-radius: 10px; font-size: 11px; letter-spacing: 0.04em; color: #fff; }
+.beta-q { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0; font-size: 14px; }
+.beta-q-choices { display: inline-flex; gap: 6px; }
+.beta-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5a8e; }
+/* BETA-FEEDBACK (end) */
