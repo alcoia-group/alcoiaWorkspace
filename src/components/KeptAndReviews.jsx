@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { apiGet, apiPost } from '../lib/api.js';
+import { useBetaQuestions } from '../lib/beta.js'; // BETA-FEEDBACK
+import BetaRemembered from './BetaRemembered.jsx'; // BETA-FEEDBACK
 
 // "Ready to check again" and "Kept" (folded to one line, since what to read next matters more). Both are read from the account (private learner memory). Each part stays out of the way
 // when there is nothing to show, and both stay hidden when account-based learning is off (the server answers 403).
@@ -13,6 +15,8 @@ export default function KeptAndReviews({ sessionToken }) {
   const [open, setOpen] = useState(null); // the review being answered
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
+  const betaOn = useBetaQuestions(sessionToken); // BETA-FEEDBACK
+  const [betaAsked, setBetaAsked] = useState(false); // BETA-FEEDBACK: once per visit
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +40,7 @@ export default function KeptAndReviews({ sessionToken }) {
   function next() {
     setDue((d) => d.filter((x) => x.reviewId !== result.review.reviewId));
     setOpen(null); setResult(null);
+    if (betaOn) setBetaAsked(true); // BETA-FEEDBACK: the beta question comes with the first review only
   }
 
   if (!kept.length && !due.length) return null;
@@ -68,6 +73,8 @@ export default function KeptAndReviews({ sessionToken }) {
                 <>
                   <p><strong>{result.correct ? 'Right.' : 'Not this time.'}</strong> {result.explanation}</p>
                   {result.thenAndNow?.missedAt && <p className="muted">On {dayLong(result.thenAndNow.missedAt)} this was hard for you. Today you got it without help.</p>}
+                  {/* BETA-FEEDBACK */}
+                  {betaOn && !betaAsked && <BetaRemembered sessionToken={sessionToken} />}
                 </>
               )}
               <button type="button" className="button secondary" onClick={next}>{due.length > 1 ? 'Next' : 'Done'}</button>

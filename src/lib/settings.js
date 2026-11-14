@@ -16,6 +16,7 @@ export const SETTING_TO_STORAGE = Object.freeze({
   autohide: 'sra_autohide',
   autohide_timeout: 'sra_autohide_timeout',
   highlight_color: 'sra_highlight_color',
+  beta_questions: 'sra_beta_questions', // BETA-FEEDBACK
 });
 const SNAPSHOT_KEY = 'sra_account_sync_snapshot';
 
