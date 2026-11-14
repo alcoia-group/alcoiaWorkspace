@@ -4,7 +4,7 @@ import { apiGet, apiPost } from '../lib/api.js';
 // "Ready to check again" and "Kept" (folded to one line, since what to read next matters more). Both are read from the account (private learner memory). Each part stays out of the way
 // when there is nothing to show, and both stay hidden when account-based learning is off (the server answers 403).
 
-const dayLong = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'long', timeZone: 'UTC' });
+const dayLong = (iso) => new Date(`${String(iso).slice(0, 10)}T12:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'long', timeZone: 'UTC' });
 const day = (iso) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
 export default function KeptAndReviews({ sessionToken }) {

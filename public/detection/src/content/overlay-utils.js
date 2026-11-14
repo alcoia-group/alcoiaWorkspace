@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/overlay-utils.js, commit cac35ac3402a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/overlay-utils.js, commit 09512cbfe3e7) by scripts/sync-detection.mjs. Do not edit here. */
 /* overlay-utils.js
    Responsibilities:
    - Place floating popup elements near target rect or client coords
