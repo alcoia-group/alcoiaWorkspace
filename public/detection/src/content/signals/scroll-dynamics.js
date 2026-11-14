@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/scroll-dynamics.js, commit 8052b8c2798a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/scroll-dynamics.js, commit 56216a5abac7) by scripts/sync-detection.mjs. Do not edit here. */
 /* scroll-dynamics.js — how the scrolling is being done, not where it went
  *
  * Second derivative of scroll position. Reading produces smooth, repetitive

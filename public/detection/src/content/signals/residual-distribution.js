@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/residual-distribution.js, commit 8052b8c2798a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/residual-distribution.js, commit 56216a5abac7) by scripts/sync-detection.mjs. Do not edit here. */
 /* residual-distribution.js — is this paragraph unusual *for this reader*
  *
  * Fixed thresholds ("under 30% of expected is too fast") assume every reader

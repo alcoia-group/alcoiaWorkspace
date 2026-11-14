@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/account-sync.js, commit 8052b8c2798a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/account-sync.js, commit 56216a5abac7) by scripts/sync-detection.mjs. Do not edit here. */
 /* account-sync.js — reading settings and the reading-speed baseline follow the signed-in account.
  *
  * When the reader is signed in (sra_session in storage), the closed list of reading settings below is
@@ -32,6 +32,7 @@
     autohide: 'sra_autohide',
     autohide_timeout: 'sra_autohide_timeout',
     highlight_color: 'sra_highlight_color',
+    beta_questions: 'sra_beta_questions', // BETA-FEEDBACK
   });
   const STORAGE_TO_SETTING = Object.fromEntries(Object.entries(SETTING_KEYS).map(([a, b]) => [b, a]));
   const BASELINE_KEYS = ['sra_baseline_wpm', 'sra_baseline_wpm_by_lang'];

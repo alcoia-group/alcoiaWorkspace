@@ -17,6 +17,8 @@ const HERE = [
   ['autohide', 'Hide cards after a while', 'Cards close by themselves if you leave them.'],
   ['dark_mode', 'Dark cards', 'Help cards use a dark background.'],
   ['dyslexia', 'Dyslexia-friendly text', 'A readable font, wider spacing and a tinted background.'],
+  // BETA-FEEDBACK: remove with the beta.
+  ['beta_questions', 'Beta questions', 'Alcoia is in beta. Now and then, after a reading or a review, it asks one short question. Answers are stored without your name or account.'],
 ];
 const EXTENSION_ONLY = [
   ['explain_on_highlight', 'Explain what I highlight', 'Select text on a web page to get a short explanation.'],
