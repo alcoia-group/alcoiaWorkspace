@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/sensitive-sites.js, commit 8052b8c2798a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/sensitive-sites.js, commit 56216a5abac7) by scripts/sync-detection.mjs. Do not edit here. */
 /* sensitive-sites.js: pages where alcoia never runs.
  *
  * Detection and every feature that sends text to the server stay off on banking, payment, webmail,
