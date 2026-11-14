@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/struggle-evidence-rule.js, commit 09512cbfe3e7) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/struggle-evidence-rule.js, commit 8052b8c2798a) by scripts/sync-detection.mjs. Do not edit here. */
 /* struggle-evidence-rule.js: one slow paragraph is not enough to call struggle.
  *
  * Reading slowly through one paragraph has plenty of innocent causes: it was dense but fine, the reader

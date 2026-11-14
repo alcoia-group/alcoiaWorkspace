@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/outcomes.js, commit 09512cbfe3e7) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/outcomes.js, commit 8052b8c2798a) by scripts/sync-detection.mjs. Do not edit here. */
 /* outcomes.js — reporting a real reading signal against a specific
  * assignment (item S6/E4 follow-up)
  *

@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/invites.js, commit 09512cbfe3e7) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/invites.js, commit 8052b8c2798a) by scripts/sync-detection.mjs. Do not edit here. */
 /* invites.js — accepting a class invite, and releasing a held seat (item S6)
  *
  * Same shape as install-token.js/session.js/entitlements.js/billing.js:
