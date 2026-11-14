@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 00dabf699544) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 671aa0d459e6) by scripts/sync-detection.mjs. Do not edit here. */
 /* host.js — the orchestrator's host, extracted from content.js (item 30a)
  *
  * orchestrator.js depends on a `host` object with callbacks
@@ -2141,6 +2141,18 @@ export async function createHost(deps) {
     findParagraphAt,
     // Stage B: the server's estimate for the knowledge unit of this paragraph element, or null when there is
     // none (no assignment, no account, learner memory off, or simply no evidence yet).
+    // Alt+M: the reader marks the paragraph they are on as hard. No card now; it is weighted up for the end-of-session
+    // check (the same recall path struggles use) and counted locally. Returns true when there was a paragraph to mark.
+    markParagraph: () => {
+      try {
+        const text = currentParagraphText();
+        if (!text) return false;
+        sessionRecall.recordStruggle(text);
+        try { decisionLog.record({ kind: 'marked' }); } catch (e) {}
+        try { ui.showStatusToast(t('mark.done', uiLang())); } catch (e) {}
+        return true;
+      } catch (e) { return false; }
+    },
     learnerEstimateFor: (el) => {
       try {
         const text = el ? (el.innerText || el.textContent || '').trim() : '';
