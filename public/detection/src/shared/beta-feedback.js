@@ -1,7 +1,9 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/beta-feedback.js, commit 56216a5abac7) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/beta-feedback.js, commit 53abad287d43) by scripts/sync-detection.mjs. Do not edit here. */
 /* BETA-FEEDBACK: this whole file goes when the beta ends (alcoiaServer docs/beta-feedback-plan.md, "Removing it").
  *
- * The beta question asked once at the end of a reading: "Did Alcoia interrupt you at a bad time?" and, if yes,
+ * The beta questions asked once at the end of a reading: "How often did Alcoia interrupt you on this page?" (sent with
+ * counts only: cards shown, cards closed without an answer, snoozes, and whether the page moved to fewer cards or
+ * none), then "Did Alcoia interrupt you at a bad time?" and, if yes,
  * which card and what was going on. It keeps, in memory only, the cards shown on this page and what triggered each
  * one (card type, the detector's state and basis, the policy action, time since the previous card). When the reader
  * picks a card, that trigger is sent with the answer. The first words of each card are shown on this device to help
@@ -25,6 +27,11 @@ const CARD_TYPE = {
 export const CARD_LABEL = {
   question: 'Question', explanation: 'Explanation', review: 'Review question', probe: 'Quick check', return_check: 'Welcome-back question', other: 'Card',
 };
+export const FREQUENCY = [
+  ['too_often', 'Too often'],
+  ['about_right', 'About right'],
+  ['too_rarely', 'Not often enough'],
+];
 export const SITUATIONS = [
   ['reading_fine', 'I was reading fine'],
   ['thinking', 'I was thinking it over'],
@@ -52,6 +59,15 @@ export function createBetaFeedback(opts = {}) {
   const cards = []; // { id, type, policyAction, unitId, words, at, state, basis }
   let status = null; // { open, at }
   let askedThisPage = false;
+  let closed = 0;
+  let snoozes = 0;
+  let quietStage = 'normal';
+
+  // How the reader treated the cards on this page, for the "how often" question. Counts only.
+  function noteClosed() { closed += 1; }
+  function noteSnooze() { snoozes += 1; }
+  function noteQuietStage(stage) { if (stage === 'reduced' || stage === 'stopped') quietStage = stage; }
+  const interruptionCounts = () => ({ cardsShown: cards.length, cardsClosed: closed, snoozes, quietStage });
 
   function noteCard(id, { type, policyAction, unitId, text } = {}) {
     if (!id) return;
@@ -113,7 +129,8 @@ export function createBetaFeedback(opts = {}) {
     try {
       const s = await session();
       if (!s || !postUrl || !fetchImpl) return false;
-      const details = kind === 'wrong_moment' ? { ...triggerOf(card), ...(situation ? { situation } : {}) } : {};
+      const details = kind === 'wrong_moment' ? { ...triggerOf(card), ...(situation ? { situation } : {}) }
+        : kind === 'interruptions' ? interruptionCounts() : {};
       Object.keys(details).forEach((k) => details[k] === undefined && delete details[k]);
       const body = {
         surface, kind, answer, details,
@@ -130,5 +147,5 @@ export function createBetaFeedback(opts = {}) {
     } catch (e) { return false; }
   }
 
-  return { noteCard, noteDetector, list, shouldAsk, markAsked, turnOff, send, triggerOf };
+  return { noteCard, noteDetector, noteClosed, noteSnooze, noteQuietStage, interruptionCounts, list, shouldAsk, markAsked, turnOff, send, triggerOf };
 }
