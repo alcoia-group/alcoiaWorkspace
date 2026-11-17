@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/decision-log.js, commit 56216a5abac7) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/decision-log.js, commit 53abad287d43) by scripts/sync-detection.mjs. Do not edit here. */
 /* decision-log.js — a short, local-only record of WHY the extension did or did not interrupt
  *
  * Same promises as diag-log.js: on the device only, capped, never transmitted, cleared in one click from the
@@ -15,7 +15,7 @@
 
 const STORAGE_KEY = 'sra_decision_log';
 const MAX_ENTRIES = 300;
-const KINDS = new Set(['decision', 'shown', 'answered', 'dismissed', 'self_report', 'flag_known', 'marked']);
+const KINDS = new Set(['decision', 'shown', 'answered', 'dismissed', 'self_report', 'flag_known', 'marked', 'cards_reduced', 'cards_stopped']);
 const URL_PATTERN = /https?:\/\/\S+/gi;
 const tag = (v, n = 40) => (v == null ? null : String(v).replace(URL_PATTERN, '').slice(0, n));
 const round2 = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 100) / 100 : null);
