@@ -607,7 +607,6 @@ html.is-fullscreen .slides-viewer .viewer-toolbar { padding-top: max(8px, env(sa
 
 /* ── Overview (/home) ─────────────────────────────────────────────────── */
 .ov-head { margin-bottom: 18px; }
-.ov-eyebrow { margin: 0 0 2px; font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--lilac-deep, #6b4fa3); }
 .ov-title { margin: 0 0 4px; }
 .ov-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .ov-stat { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; background: #fff; border: 1px solid #c7cdd1; border-radius: 4px; color: inherit; text-decoration: none; min-height: 78px; }
