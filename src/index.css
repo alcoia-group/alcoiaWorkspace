@@ -661,7 +661,7 @@ a.ov-stat:hover { border-color: #8a949b; }
      included) is visible without having to discover a hidden scroll. */
   .global-nav { display: flex; flex-wrap: wrap; column-gap: 16px; max-width: 100%; flex: 1 1 100%; order: 3; }
   .global-nav a + a { margin-left: 0; }
-  .global-nav a { min-height: 40px; }
+  .global-nav a { min-height: 44px; display: inline-flex; align-items: center; }
 }
 
 /* ── Settings ─────────────────────────────────────────────────────────── */
