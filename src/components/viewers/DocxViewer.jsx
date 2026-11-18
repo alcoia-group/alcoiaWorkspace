@@ -1,5 +1,5 @@
 import { useFullscreen } from '../../lib/fullscreen.js';
-import { cloneElement, useEffect, useMemo, useRef, useState } from 'react';
+import { cloneElement, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 // Word-style viewer for the server's structured DOCX model. It renders real
 // <h*>/<p>/<ul>/<table> elements inside page frames, so the alcoia extension
@@ -12,18 +12,23 @@ import { wordUnit } from '../../lib/sectionMarks.js';
 import { useResume } from '../../lib/resume.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { wordConfig, wordLayout } from '../../lib/proveSkip.js';
+import { anchorIndex, safeHref } from '../../lib/docLinks.js';
 
-const SAFE_HREF = /^(https?:|mailto:)/i;
+// Moves the reader to a place in the document (a table of contents entry, "see chapter 3").
+const AnchorContext = createContext(null);
 
 function Runs({ runs }) {
+  const goToAnchor = useContext(AnchorContext);
   return runs.map((run, i) => {
     let node = run.text;
     if (run.bold) node = <strong>{node}</strong>;
     if (run.italic) node = <em>{node}</em>;
     if (run.underline) node = <u>{node}</u>;
     if (run.strike) node = <s>{node}</s>;
-    if (run.href && SAFE_HREF.test(run.href)) {
+    if (safeHref(run.href)) {
       node = <a href={run.href} target="_blank" rel="noopener noreferrer">{node}</a>;
+    } else if (run.anchor && goToAnchor) {
+      node = <a href="#" className="docx-internal-link" onClick={(e) => { e.preventDefault(); goToAnchor(run.anchor); }}>{node}</a>;
     }
     return <span key={i} className="docx-run">{node}</span>;
   });
@@ -137,6 +142,17 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
 
   const scrollToBlock = (n) => stageRef.current?.querySelector(`[data-block="${n}"]`)?.scrollIntoView?.({ block: 'start' });
 
+  // Links inside the document: jump to the block holding the place, and offer a way back.
+  const anchors = useMemo(() => anchorIndex(pages, layout.offsets), [pages, layout]);
+  const [backTo, setBackTo] = useState(null);
+  const goToAnchor = (name) => {
+    const at = anchors.get(name);
+    if (!at) return;
+    setBackTo(block);
+    const el = stageRef.current?.querySelector(`[data-block="${at.block}"]`) ?? stageRef.current?.querySelector(`[data-page="${at.page + 1}"]`);
+    el?.scrollIntoView?.({ block: 'start' });
+  };
+
   // Back to the saved block, then start saving once the page has settled (images above it can still shift things).
   useEffect(() => {
     if (place.initial > 0) stageRef.current?.querySelector(`[data-block="${place.initial}"]`)?.scrollIntoView?.({ block: 'start' });
@@ -169,6 +185,9 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Page {current} of {pages.length}</span>
         <span className="viewer-controls">
+          {backTo !== null && (
+            <button type="button" className="secondary" onClick={() => { scrollToBlock(backTo); setBackTo(null); }}>Back to where you were</button>
+          )}
           {bankId && bankItems && (
             <ProveSkip personal={Boolean(asset.personalId)} assignmentId={bankId} sessionToken={asset.sessionToken} items={bankItems} start={block} config={skipConfig} onSkip={scrollToBlock} />
           )}
@@ -179,6 +198,7 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
           {onDownload && <button type="button" className="secondary" onClick={onDownload}>Download</button>}
         </span>
       </div>
+      <AnchorContext.Provider value={anchors.size ? goToAnchor : null}>
       <div className="viewer-stage" ref={stageRef}>
         {pages.map((page, i) => (
           <article
@@ -193,6 +213,7 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
           </article>
         ))}
       </div>
+      </AnchorContext.Provider>
     </div>
   );
 }
