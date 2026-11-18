@@ -791,3 +791,5 @@ html.is-fullscreen[data-bars='hidden'] .pdf-viewer .slides-rail { top: 0; max-he
 }
 @keyframes link-return-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 0.85; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .link-return { animation: none; } }
+/* A Word file with its own fonts and colours: headings take them from the page and their runs, not Alcoia's serif. */
+.docx-page.has-own-look .docx-heading { font-family: inherit; color: inherit; }
