@@ -13,6 +13,7 @@ import { useResume } from '../../lib/resume.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { wordConfig, wordLayout } from '../../lib/proveSkip.js';
 import { anchorIndex, safeHref } from '../../lib/docLinks.js';
+import { useReturnPoint } from '../../lib/returnPoint.js';
 
 // Moves the reader to a place in the document (a table of contents entry, "see chapter 3").
 const AnchorContext = createContext(null);
@@ -144,13 +145,13 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
 
   // Links inside the document: jump to the block holding the place, and offer a way back.
   const anchors = useMemo(() => anchorIndex(pages, layout.offsets), [pages, layout]);
-  const [backTo, setBackTo] = useState(null);
+  const back = useReturnPoint();
   const goToAnchor = (name) => {
     const at = anchors.get(name);
     if (!at) return;
-    setBackTo(block);
-    const el = stageRef.current?.querySelector(`[data-block="${at.block}"]`) ?? stageRef.current?.querySelector(`[data-page="${at.page + 1}"]`);
-    el?.scrollIntoView?.({ block: 'start' });
+    const find = () => stageRef.current?.querySelector(`[data-block="${at.block}"]`) ?? stageRef.current?.querySelector(`[data-page="${at.page + 1}"]`);
+    find()?.scrollIntoView?.({ block: 'start' });
+    back.remember(block, find);
   };
 
   // Back to the saved block, then start saving once the page has settled (images above it can still shift things).
@@ -181,13 +182,13 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
 
   return (
     <div className="viewer" style={{ '--z': ZOOM_STEPS[zoomIndex] }}>
+      {back.point !== null && (
+        <button type="button" className="link-return" onClick={() => { scrollToBlock(back.point); back.clear(); }}>Back to where you were</button>
+      )}
       <div className="viewer-toolbar" role="toolbar" aria-label="Document controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Page {current} of {pages.length}</span>
         <span className="viewer-controls">
-          {backTo !== null && (
-            <button type="button" className="secondary" onClick={() => { scrollToBlock(backTo); setBackTo(null); }}>Back to where you were</button>
-          )}
           {bankId && bankItems && (
             <ProveSkip personal={Boolean(asset.personalId)} assignmentId={bankId} sessionToken={asset.sessionToken} items={bankItems} start={block} config={skipConfig} onSkip={scrollToBlock} />
           )}

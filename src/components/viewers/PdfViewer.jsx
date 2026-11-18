@@ -11,6 +11,7 @@ import { useFullscreen } from '../../lib/fullscreen.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { pdfConfig } from '../../lib/proveSkip.js';
 import { pdfLinkTarget, resolvePdfDest } from '../../lib/docLinks.js';
+import { useReturnPoint } from '../../lib/returnPoint.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -251,10 +252,15 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
 
   const scrollTo = (n) => stageRef.current?.querySelector(`[data-page="${n}"]`)?.scrollIntoView?.({ block: 'start' });
   // A link to another page of the file: go there, and offer a way back.
-  const [backTo, setBackTo] = useState(null);
+  const back = useReturnPoint();
+  const remember = back.remember;
   const currentRef = useRef(current);
   useEffect(() => { currentRef.current = current; }, [current]);
-  const followLink = useCallback((n) => { setBackTo(currentRef.current); scrollTo(n); }, []);
+  const followLink = useCallback((n) => {
+    const from = currentRef.current;
+    scrollTo(n);
+    remember(from, () => stageRef.current?.querySelector(`[data-page="${n}"]`));
+  }, [remember]);
 
   if (error) return <p className="alert alert-error">This PDF could not be opened. You can still download it.</p>;
   if (!pdf || !base) return <p className="muted pad">Loading.</p>;
@@ -264,14 +270,14 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
 
   return (
     <div className="viewer pdf-viewer">
+      {back.point !== null && (
+        <button type="button" className="link-return" onClick={() => { scrollTo(back.point); back.clear(); }}>Back to page {back.point}</button>
+      )}
       <div className="viewer-toolbar" role="toolbar" aria-label="PDF controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Page {current} of {content.pageCount}</span>
         <OptionalBadge marks={marks} unit={pageUnit(current)} />
         <span className="viewer-controls">
-          {backTo !== null && (
-            <button type="button" className="secondary" onClick={() => { scrollTo(backTo); setBackTo(null); }}>Back to page {backTo}</button>
-          )}
           <MarkToggle marks={marks} unit={pageUnit(current)} />
           {bankId && bankItems && (
             <ProveSkip personal={Boolean(asset.personalId)} assignmentId={bankId} sessionToken={asset.sessionToken} items={bankItems} start={current} config={skipConfig} onSkip={scrollTo} />

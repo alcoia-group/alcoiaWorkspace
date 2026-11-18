@@ -8,6 +8,7 @@ import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { slideConfig } from '../../lib/proveSkip.js';
 import { useResume } from '../../lib/resume.js';
 import { safeHref } from '../../lib/docLinks.js';
+import { useReturnPoint } from '../../lib/returnPoint.js';
 
 // Moves to a slide when a link in the deck asks for one (go(index), 0-based). Null in thumbnails.
 const SlideLinkContext = createContext(null);
@@ -202,6 +203,13 @@ export default function SlideViewer({ content, title, asset, onDownload, marks, 
   const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
   const skipConfig = useMemo(() => slideConfig(slides.length), [slides.length]);
 
+  const back = useReturnPoint();
+  const rememberSlide = back.remember;
+  const goRef = useRef(null);
+  // A link in the deck: remember this slide so the reader can come back.
+  const landedOn = useRef(null);
+  const followSlideLink = useCallback((next) => { rememberSlide(indexRef.current); landedOn.current = next; goRef.current?.(next); }, [rememberSlide]);
+
   const go = useCallback((next) => {
     const current = indexRef.current;
     if (next < 0 || next >= slides.length || next === current) return;
@@ -217,6 +225,10 @@ export default function SlideViewer({ content, title, asset, onDownload, marks, 
     setLeaving(current);
     setIndex(next);
   }, [slides]);
+  useEffect(() => { goRef.current = go; }, [go]);
+  // The reader moved on from the slide the link opened: no more "Back".
+  const clearBack = back.clear;
+  useEffect(() => { if (landedOn.current !== null && index !== landedOn.current) { landedOn.current = null; clearBack(); } }, [index, clearBack]);
 
   useLayoutEffect(() => {
     const job = pendingJob.current;
@@ -288,6 +300,9 @@ export default function SlideViewer({ content, title, asset, onDownload, marks, 
 
   return (
     <div className="viewer slides-viewer" data-idle={fs.active && !controlsVisible ? 'true' : undefined}>
+      {back.point !== null && back.point !== index && (
+        <button type="button" className="link-return" onClick={() => { landedOn.current = null; go(back.point); back.clear(); }}>Back to slide {back.point + 1}</button>
+      )}
       <div className="viewer-toolbar" role="toolbar" aria-label="Presentation controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Slide {index + 1} of {slides.length}</span>
@@ -328,7 +343,7 @@ export default function SlideViewer({ content, title, asset, onDownload, marks, 
               </div>
             )}
             <div className="slide-layer" ref={incomingRef} data-role="current" data-anno-scope={`s:${index + 1}`} style={{ zIndex: onTop === 'outgoing' ? 1 : 2 }}>
-              <SlideLinkContext.Provider value={go}>
+              <SlideLinkContext.Provider value={followSlideLink}>
                 <Slide slide={slide} slideSize={slideSize} asset={asset} />
               </SlideLinkContext.Provider>
             </div>
