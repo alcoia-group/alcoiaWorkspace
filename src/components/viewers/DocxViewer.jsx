@@ -12,7 +12,7 @@ import { wordUnit } from '../../lib/sectionMarks.js';
 import { useResume } from '../../lib/resume.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { wordConfig, wordLayout } from '../../lib/proveSkip.js';
-import { anchorIndex, safeHref } from '../../lib/docLinks.js';
+import { anchorIndex, fontStack, readableColor, safeHref } from '../../lib/docLinks.js';
 import { useReturnPoint } from '../../lib/returnPoint.js';
 import ReturnButton from './ReturnButton.jsx';
 
@@ -32,7 +32,8 @@ function Runs({ runs }) {
     } else if (run.anchor && goToAnchor) {
       node = <a href="#" className="docx-internal-link" onClick={(e) => { e.preventDefault(); goToAnchor(run.anchor); }}>{node}</a>;
     }
-    return <span key={i} className="docx-run">{node}</span>;
+    const style = run.font || run.color ? { fontFamily: fontStack(run.font), color: readableColor(run.color) } : undefined;
+    return <span key={i} className="docx-run" style={style}>{node}</span>;
   });
 }
 
@@ -104,6 +105,13 @@ const ZOOM_STEPS = [0.75, 0.9, 1, 1.15, 1.3, 1.5];
 export default function DocxViewer({ content, title, asset, onDownload, marks, resume }) {
   const place = useResume(resume);
   const pages = content.pages;
+  // The file's own body font and colour (Word); headings then inherit them unless a run says otherwise.
+  const ownLook = useMemo(() => {
+    const d = content.defaults;
+    const font = fontStack(d?.font);
+    const color = readableColor(d?.color);
+    return font || color ? { fontFamily: font, color } : undefined;
+  }, [content.defaults]);
   const [zoomIndex, setZoomIndex] = useState(2);
   const [current, setCurrent] = useState(1);
   const pageRefs = useRef([]);
@@ -205,7 +213,8 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
         {pages.map((page, i) => (
           <article
             key={i}
-            className="docx-page"
+            className={ownLook ? 'docx-page has-own-look' : 'docx-page'}
+            style={ownLook}
             data-page={i + 1}
             data-anno-scope={`d:${i + 1}`}
             ref={(el) => { pageRefs.current[i] = el; }}

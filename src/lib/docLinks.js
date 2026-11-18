@@ -50,3 +50,25 @@ export async function resolvePdfDest(pdf, dest) {
   }
   return null;
 }
+
+// -- the file's own fonts and colours (Word) ------------------------------
+// A font the file names, then a common free stand-in, then Alcoia's own serif or sans
+// (whichever the name suggests). The reader's computer may not have the original.
+const SERIF = /times|georgia|garamond|cambria|palatino|book|minion|serif|caslon|baskerville/i;
+const STAND_IN = { calibri: 'Carlito', cambria: 'Caladea', arial: 'Liberation Sans', 'times new roman': 'Liberation Serif', 'courier new': 'Liberation Mono', aptos: 'Carlito' };
+export function fontStack(font) {
+  if (typeof font !== 'string' || !/^[A-Za-z0-9 ._&+-]{1,64}$/.test(font)) return undefined;
+  const standIn = STAND_IN[font.toLowerCase()];
+  const fallback = SERIF.test(font) ? "'Literata', Georgia, serif" : "'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif";
+  return `'${font}', ${standIn ? `'${standIn}', ` : ''}${fallback}`;
+}
+
+// A text colour from the file, unless it would be too pale to read on the white page
+// (white text on a shading Alcoia does not draw, for example).
+export function readableColor(color) {
+  if (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color)) return undefined;
+  const [r, g, b] = color.slice(1).match(/../g).map((h) => parseInt(h, 16) / 255);
+  const lin = (v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const luminance = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return luminance > 0.6 ? undefined : color;
+}

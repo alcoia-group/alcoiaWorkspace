@@ -42,3 +42,19 @@ test('resolvePdfDest follows named and explicit destinations', async () => {
   assert.equal(await resolvePdfDest(pdf, [2, { name: 'Fit' }]), 3);
   assert.equal(await resolvePdfDest(pdf, 'nowhere'), null);
 });
+
+import { fontStack, readableColor } from '../src/lib/docLinks.js';
+
+test('fontStack keeps the file\'s font first, adds a free stand-in, and refuses odd names', () => {
+  assert.equal(fontStack('Calibri'), "'Calibri', 'Carlito', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif");
+  assert.match(fontStack('Georgia'), /^'Georgia', 'Literata'/);
+  assert.equal(fontStack("x';}body{"), undefined);
+  assert.equal(fontStack(undefined), undefined);
+});
+
+test('readableColor keeps dark colours and drops ones too pale for a white page', () => {
+  assert.equal(readableColor('#2f5496'), '#2f5496');
+  assert.equal(readableColor('#ffffff'), undefined);
+  assert.equal(readableColor('#f2f2f2'), undefined);
+  assert.equal(readableColor('red'), undefined);
+});
