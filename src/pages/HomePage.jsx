@@ -16,10 +16,6 @@ import KeptAndReviews from '../components/KeptAndReviews.jsx';
 
 const DAY = 86_400_000;
 
-function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-}
 
 // "today", "tomorrow", "in 3 days". Whole days on the calendar, not 24-hour blocks.
 function dueWhen(iso, now = new Date()) {
@@ -108,7 +104,6 @@ export default function HomePage() {
   return (
     <section className="page ov-page">
       <header className="ov-head">
-        <p className="ov-eyebrow">{greeting()}</p>
         <h1 className="ov-title">Your overview</h1>
         <p className="muted">What is due, where you stopped, and the notes you kept.</p>
       </header>
