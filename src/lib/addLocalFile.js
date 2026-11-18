@@ -3,14 +3,14 @@
 //   GET  /api/personal-documents/local-access   a signed-in check; every plan may keep files on the device.
 //                                               Nothing is sent about the file. (An older server answered
 //                                               403 capability_required on the free plan.)
-//   POST /api/personal-documents/convert        Word and PowerPoint only: the bytes are sent once, turned into
+//   POST /api/personal-documents/convert        Word, PowerPoint and EPUB only: the bytes are sent once, turned into
 //                                               the model the workspace draws, and not kept by the server.
 // A PDF is read entirely in the browser and sends nothing at all.
 import { apiGet, apiUploadWithProgress } from './api.js';
 import { loadOrCreateIdentity } from './documentIdentity.js';
 import { getLocalFile, localFileId, putLocalFile, requestPersistence, sha256Hex, storageEstimate } from './localFiles.js';
 
-const FORMATS = { pdf: 'pdf', docx: 'docx', pptx: 'pptx' };
+const FORMATS = { pdf: 'pdf', docx: 'docx', pptx: 'pptx', epub: 'epub' };
 export const MAX_FILE_BYTES = 100 * 1024 * 1024; // the converter's own ceiling; a PDF kept here follows the same
 
 export const formatOf = (file) => FORMATS[file.name.split('.').pop()?.toLowerCase()] ?? null;
@@ -76,7 +76,7 @@ function coded(code) {
 
 export function addErrorMessage(code) {
   return ({
-    unsupported_format: 'Only PDF, Word (.docx) and PowerPoint (.pptx) files can be added.',
+    unsupported_format: 'Only PDF, Word (.docx), PowerPoint (.pptx) and EPUB files can be added.',
     file_too_large: 'This file is larger than 100 MB, which is the most that can be added.',
     device_storage_full: 'There is not enough room left in this browser to keep the file. Delete a file you no longer need and try again.',
     capability_required: 'Adding your own files is included with the Reader and Student plans.',

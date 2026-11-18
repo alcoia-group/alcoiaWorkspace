@@ -47,10 +47,17 @@ export async function readZipEntry(buffer, path) {
 }
 
 // A picture as a Blob, from the file's own media folder. null for anything else.
+// An EPUB keeps pictures wherever its author put them: any plain in-archive path is allowed (no '..', no
+// leading slash, no scheme), still raster only.
+const epubPathOk = (p) => !p.startsWith('/') && !p.includes('\\') && !/^[a-z][a-z0-9+.-]*:/i.test(p) && p.split('/').every((s) => s && s !== '.' && s !== '..');
+
 export async function readLocalImage(blob, format, path) {
   const folder = MEDIA[format];
   const type = TYPES[String(path).split('.').pop()?.toLowerCase()];
-  if (!folder || !type || !String(path).startsWith(folder) || String(path).slice(folder.length).includes('/') || String(path).includes('..')) return null;
+  if (!type) return null;
+  if (format === 'epub') {
+    if (!epubPathOk(String(path))) return null;
+  } else if (!folder || !String(path).startsWith(folder) || String(path).slice(folder.length).includes('/') || String(path).includes('..')) return null;
   const bytes = await readZipEntry(await blob.arrayBuffer(), path);
   if (!bytes) return null;
   return new Blob([bytes], { type });
