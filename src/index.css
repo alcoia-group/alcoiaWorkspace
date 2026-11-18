@@ -765,3 +765,31 @@ html.is-fullscreen[data-bars='hidden'] .pdf-viewer .slides-rail { top: 0; max-he
 .beta-q-choices { display: inline-flex; gap: 6px; }
 .beta-tag { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b5a8e; }
 /* BETA-FEEDBACK (end) */
+
+/* Links over a drawn PDF page (web links and jumps inside the file). */
+.pdf-page .pdf-links { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+.pdf-page .pdf-links a { position: absolute; pointer-events: auto; border-radius: 2px; }
+.pdf-page .pdf-links a:hover, .pdf-page .pdf-links a:focus-visible { background: rgba(120, 100, 200, 0.14); outline: 1px solid rgba(120, 100, 200, 0.5); }
+/* Slide links: a whole shape that links somewhere. */
+.slide-shape-link { position: absolute; z-index: 4; border-radius: 2px; }
+.slide-shape-link:hover, .slide-shape-link:focus-visible { outline: 2px solid rgba(120, 100, 200, 0.6); }
+
+
+/* Links inside documents look like links in Word or a PDF reader: blue and underlined. */
+.docx-page a, .slide-p a { color: #0563c1; text-decoration: underline; text-underline-offset: 2px; }
+.docx-page a:visited, .slide-p a:visited { color: #0563c1; }
+.docx-page a:hover, .slide-p a:hover { color: #034990; }
+/* "Back to where you were" after following a link inside the document. Disappears after a while. */
+.link-return { position: fixed; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); z-index: 30; background: rgba(255,255,255,0.92); color: var(--lilac-deep); border: 1px solid #c7cdd1; border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,0.12); opacity: 0.85; animation: link-return-in 0.2s ease-out; }
+.link-return { display: inline-flex; align-items: center; gap: 6px; }
+.link-return:hover, .link-return:focus-visible { opacity: 1; }
+.link-return-icon { flex: none; }
+/* Phones: no margin beside the page, so only the arrow shows (the full text stays as the label). */
+@media (max-width: 700px) {
+  .link-return { padding: 8px; width: 36px; height: 36px; justify-content: center; }
+  .link-return-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@keyframes link-return-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 0.85; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .link-return { animation: none; } }
+/* A Word file with its own fonts and colours: headings take them from the page and their runs, not Alcoia's serif. */
+.docx-page.has-own-look .docx-heading { font-family: inherit; color: inherit; }

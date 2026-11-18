@@ -126,8 +126,8 @@ export default function FilesPage() {
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
       >
-        <p>Drop PDF, Word or PowerPoint files here, or</p>
-        <input ref={inputRef} type="file" multiple accept=".pdf,.docx,.pptx" onChange={(e) => handleFiles(e.target.files)} disabled={Boolean(progress)} aria-label="Choose files" />
+        <p>Drop PDF, Word, PowerPoint or EPUB files here, or</p>
+        <input ref={inputRef} type="file" multiple accept=".pdf,.docx,.pptx,.epub" onChange={(e) => handleFiles(e.target.files)} disabled={Boolean(progress)} aria-label="Choose files" />
         {progress && <p className="muted">Preparing {progress.name}{progress.fraction > 0 && progress.fraction < 1 ? `: ${Math.round(progress.fraction * 100)}%` : ''}</p>}
         <p className="muted small">Up to 100 MB each. Word and PowerPoint files are sent to our server once so they can be read and drawn, and are not kept there. PDFs never leave your device.</p>
       </div>

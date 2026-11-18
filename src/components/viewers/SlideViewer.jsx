@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { resolveTransition } from '../../lib/transitions.js';
 import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
 import AssetImage from './AssetImage.jsx';
@@ -7,6 +7,12 @@ import { slideUnit } from '../../lib/sectionMarks.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { slideConfig } from '../../lib/proveSkip.js';
 import { useResume } from '../../lib/resume.js';
+import { safeHref } from '../../lib/docLinks.js';
+import { useReturnPoint } from '../../lib/returnPoint.js';
+import ReturnButton from './ReturnButton.jsx';
+
+// Moves to a slide when a link in the deck asks for one (go(index), 0-based). Null in thumbnails.
+const SlideLinkContext = createContext(null);
 
 // PowerPoint-style viewer for the server's slide model. Every slide is drawn
 // at the file's own aspect ratio from fractional geometry, with the file's
@@ -23,6 +29,24 @@ import { useResume } from '../../lib/resume.js';
 const SERIF = /times|georgia|garamond|cambria|palatino|book|minion|serif/i;
 const stackFor = (font) => (font ? `'${font.replace(/'/g, '')}', ${SERIF.test(font) ? "'Literata', Georgia, serif" : "'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif"}` : 'inherit');
 const ALIGN = { l: 'left', ctr: 'center', r: 'right', just: 'justify' };
+
+// A link in a slide: a web address (new tab) or another slide. Clicks never reach the stage,
+// where a click in full screen would also turn the slide.
+function LinkTo({ link, children, className, style, label }) {
+  const go = useContext(SlideLinkContext);
+  if (!link || !go) return children ?? null;
+  const stop = (e) => e.stopPropagation();
+  const href = safeHref(link.href);
+  if (href) return <a href={href} target="_blank" rel="noopener noreferrer" className={className} style={style} aria-label={label} onClick={stop}>{children}</a>;
+  if (link.slide) {
+    return (
+      <a href="#" className={className} style={style} aria-label={label ?? `Go to slide ${link.slide}`} onClick={(e) => { e.preventDefault(); stop(e); go(link.slide - 1); }}>
+        {children}
+      </a>
+    );
+  }
+  return children ?? null;
+}
 
 function Paragraphs({ paragraphs, slideW, compact, thumb }) {
   return paragraphs.map((p, i) => {
@@ -54,7 +78,7 @@ function Paragraphs({ paragraphs, slideW, compact, thumb }) {
               whiteSpace: 'pre-wrap',
             }}
           >
-            {thumb ? null : r.text}
+            {thumb ? null : (r.link ? <LinkTo link={r.link}>{r.text}</LinkTo> : r.text)}
           </span>
         ))}
       </p>
@@ -62,7 +86,21 @@ function Paragraphs({ paragraphs, slideW, compact, thumb }) {
   });
 }
 
-function Shape({ shape, slideW, asset, thumb }) {
+function Shape(props) {
+  const { shape, thumb } = props;
+  const body = <ShapeBody {...props} />;
+  if (!shape.link || thumb) return body;
+  const geo = { left: `${shape.x * 100}%`, top: `${shape.y * 100}%`, width: `${shape.w * 100}%`, height: `${shape.h * 100}%` };
+  const label = shape.link.href ? `Link: ${shape.link.href}` : `Go to slide ${shape.link.slide}`;
+  return (
+    <>
+      {body}
+      <LinkTo link={shape.link} className="slide-shape-link" style={geo} label={label} />
+    </>
+  );
+}
+
+function ShapeBody({ shape, slideW, asset, thumb }) {
   const geo = { left: `${shape.x * 100}%`, top: `${shape.y * 100}%`, width: `${shape.w * 100}%`, height: `${shape.h * 100}%` };
   if (shape.kind === 'image') {
     return <AssetImage asset={asset} path={shape.assetId} alt={shape.alt} className="slide-shape slide-image" style={geo} />;
@@ -166,6 +204,13 @@ export default function SlideViewer({ content, title, asset, onDownload, marks, 
   const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
   const skipConfig = useMemo(() => slideConfig(slides.length), [slides.length]);
 
+  const back = useReturnPoint();
+  const rememberSlide = back.remember;
+  const goRef = useRef(null);
+  // A link in the deck: remember this slide so the reader can come back.
+  const landedOn = useRef(null);
+  const followSlideLink = useCallback((next) => { rememberSlide(indexRef.current); landedOn.current = next; goRef.current?.(next); }, [rememberSlide]);
+
   const go = useCallback((next) => {
     const current = indexRef.current;
     if (next < 0 || next >= slides.length || next === current) return;
@@ -181,6 +226,10 @@ export default function SlideViewer({ content, title, asset, onDownload, marks, 
     setLeaving(current);
     setIndex(next);
   }, [slides]);
+  useEffect(() => { goRef.current = go; }, [go]);
+  // The reader moved on from the slide the link opened: no more "Back".
+  const clearBack = back.clear;
+  useEffect(() => { if (landedOn.current !== null && index !== landedOn.current) { landedOn.current = null; clearBack(); } }, [index, clearBack]);
 
   useLayoutEffect(() => {
     const job = pendingJob.current;
@@ -252,6 +301,9 @@ export default function SlideViewer({ content, title, asset, onDownload, marks, 
 
   return (
     <div className="viewer slides-viewer" data-idle={fs.active && !controlsVisible ? 'true' : undefined}>
+      {back.point !== null && back.point !== index && (
+        <ReturnButton label={`Back to slide ${back.point + 1}`} onClick={() => { landedOn.current = null; go(back.point); back.clear(); }} />
+      )}
       <div className="viewer-toolbar" role="toolbar" aria-label="Presentation controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Slide {index + 1} of {slides.length}</span>
@@ -292,7 +344,9 @@ export default function SlideViewer({ content, title, asset, onDownload, marks, 
               </div>
             )}
             <div className="slide-layer" ref={incomingRef} data-role="current" data-anno-scope={`s:${index + 1}`} style={{ zIndex: onTop === 'outgoing' ? 1 : 2 }}>
-              <Slide slide={slide} slideSize={slideSize} asset={asset} />
+              <SlideLinkContext.Provider value={followSlideLink}>
+                <Slide slide={slide} slideSize={slideSize} asset={asset} />
+              </SlideLinkContext.Provider>
             </div>
           </div>
           {note && !fs.active && <p className="slides-note">{note}</p>}
