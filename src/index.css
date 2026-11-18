@@ -781,6 +781,13 @@ html.is-fullscreen[data-bars='hidden'] .pdf-viewer .slides-rail { top: 0; max-he
 .docx-page a:hover, .slide-p a:hover { color: #034990; }
 /* "Back to where you were" after following a link inside the document. Disappears after a while. */
 .link-return { position: fixed; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); z-index: 30; background: rgba(255,255,255,0.92); color: var(--lilac-deep); border: 1px solid #c7cdd1; border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,0.12); opacity: 0.85; animation: link-return-in 0.2s ease-out; }
+.link-return { display: inline-flex; align-items: center; gap: 6px; }
 .link-return:hover, .link-return:focus-visible { opacity: 1; }
+.link-return-icon { flex: none; }
+/* Phones: no margin beside the page, so only the arrow shows (the full text stays as the label). */
+@media (max-width: 700px) {
+  .link-return { padding: 8px; width: 36px; height: 36px; justify-content: center; }
+  .link-return-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 @keyframes link-return-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 0.85; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .link-return { animation: none; } }

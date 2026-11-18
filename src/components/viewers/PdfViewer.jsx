@@ -12,6 +12,7 @@ import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { pdfConfig } from '../../lib/proveSkip.js';
 import { pdfLinkTarget, resolvePdfDest } from '../../lib/docLinks.js';
 import { useReturnPoint } from '../../lib/returnPoint.js';
+import ReturnButton from './ReturnButton.jsx';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -271,7 +272,7 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
   return (
     <div className="viewer pdf-viewer">
       {back.point !== null && (
-        <button type="button" className="link-return" onClick={() => { scrollTo(back.point); back.clear(); }}>Back to page {back.point}</button>
+        <ReturnButton label={`Back to page ${back.point}`} onClick={() => { scrollTo(back.point); back.clear(); }} />
       )}
       <div className="viewer-toolbar" role="toolbar" aria-label="PDF controls">
         <span className="viewer-title">{title}</span>

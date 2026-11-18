@@ -9,6 +9,7 @@ import { slideConfig } from '../../lib/proveSkip.js';
 import { useResume } from '../../lib/resume.js';
 import { safeHref } from '../../lib/docLinks.js';
 import { useReturnPoint } from '../../lib/returnPoint.js';
+import ReturnButton from './ReturnButton.jsx';
 
 // Moves to a slide when a link in the deck asks for one (go(index), 0-based). Null in thumbnails.
 const SlideLinkContext = createContext(null);
@@ -301,7 +302,7 @@ export default function SlideViewer({ content, title, asset, onDownload, marks, 
   return (
     <div className="viewer slides-viewer" data-idle={fs.active && !controlsVisible ? 'true' : undefined}>
       {back.point !== null && back.point !== index && (
-        <button type="button" className="link-return" onClick={() => { landedOn.current = null; go(back.point); back.clear(); }}>Back to slide {back.point + 1}</button>
+        <ReturnButton label={`Back to slide ${back.point + 1}`} onClick={() => { landedOn.current = null; go(back.point); back.clear(); }} />
       )}
       <div className="viewer-toolbar" role="toolbar" aria-label="Presentation controls">
         <span className="viewer-title">{title}</span>

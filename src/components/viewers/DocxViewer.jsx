@@ -14,6 +14,7 @@ import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { wordConfig, wordLayout } from '../../lib/proveSkip.js';
 import { anchorIndex, safeHref } from '../../lib/docLinks.js';
 import { useReturnPoint } from '../../lib/returnPoint.js';
+import ReturnButton from './ReturnButton.jsx';
 
 // Moves the reader to a place in the document (a table of contents entry, "see chapter 3").
 const AnchorContext = createContext(null);
@@ -183,7 +184,7 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
   return (
     <div className="viewer" style={{ '--z': ZOOM_STEPS[zoomIndex] }}>
       {back.point !== null && (
-        <button type="button" className="link-return" onClick={() => { scrollToBlock(back.point); back.clear(); }}>Back to where you were</button>
+        <ReturnButton label="Back to where you were" onClick={() => { scrollToBlock(back.point); back.clear(); }} />
       )}
       <div className="viewer-toolbar" role="toolbar" aria-label="Document controls">
         <span className="viewer-title">{title}</span>
