@@ -1,4 +1,4 @@
-const FORMAT_LABEL = { pdf: 'PDF', docx: 'Word document', pptx: 'PowerPoint' };
+const FORMAT_LABEL = { pdf: 'PDF', docx: 'Word document', pptx: 'PowerPoint', epub: 'EPUB book' };
 
 export const formatLabel = (format) => FORMAT_LABEL[format] ?? 'Document';
 

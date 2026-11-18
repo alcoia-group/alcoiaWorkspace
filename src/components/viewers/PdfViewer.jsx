@@ -1,5 +1,5 @@
 import { useResume } from '../../lib/resume.js';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MarkToggle, { OptionalBadge } from '../MarkToggle.jsx';
 import { pageUnit } from '../../lib/sectionMarks.js';
 import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -10,6 +10,9 @@ import { assetBase } from '../../lib/assets.js';
 import { useFullscreen } from '../../lib/fullscreen.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { pdfConfig } from '../../lib/proveSkip.js';
+import { pdfLinkTarget, resolvePdfDest } from '../../lib/docLinks.js';
+import { useReturnPoint } from '../../lib/returnPoint.js';
+import ReturnButton from './ReturnButton.jsx';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -36,8 +39,43 @@ function useVisible(rootMargin) {
   return [ref, near];
 }
 
-// Draws one page into a canvas (and optionally the text layer) at `scale`.
-async function drawPage({ pdf, number, scale, canvas, textHost, signal }) {
+// The page's links as real <a> elements over the text: web links open in a new tab,
+// links to another page of the file move the reader there. Anything else is not drawn.
+async function drawLinks({ pdf, page, number, viewport, host, onGoto, signal }) {
+  host.replaceChildren();
+  let annotations = [];
+  try { annotations = await page.getAnnotations({ intent: 'display' }); } catch { return; }
+  if (signal.cancelled) return;
+  for (const annot of annotations) {
+    const target = pdfLinkTarget(annot, { page: number, pageCount: pdf.numPages });
+    if (!target) continue;
+    const [ax, ay] = viewport.convertToViewportPoint(annot.rect[0], annot.rect[1]);
+    const [bx, by] = viewport.convertToViewportPoint(annot.rect[2], annot.rect[3]);
+    const [x1, y1, x2, y2] = pdfjs.Util.normalizeRect([ax, ay, bx, by]);
+    if (x2 - x1 < 2 || y2 - y1 < 2) continue;
+    const a = document.createElement('a');
+    Object.assign(a.style, { left: `${x1}px`, top: `${y1}px`, width: `${x2 - x1}px`, height: `${y2 - y1}px` });
+    if (target.href) {
+      a.href = target.href;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.title = target.href;
+      a.setAttribute('aria-label', `Link: ${target.href}`);
+    } else {
+      a.href = '#';
+      a.setAttribute('aria-label', target.page ? `Go to page ${target.page}` : 'Go to another part of this document');
+      a.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const n = target.page ?? (await resolvePdfDest(pdf, target.dest));
+        if (n) onGoto?.(n);
+      });
+    }
+    host.append(a);
+  }
+}
+
+// Draws one page into a canvas (and optionally the text and link layers) at `scale`.
+async function drawPage({ pdf, number, scale, canvas, textHost, linkHost, onGoto, signal }) {
   const page = await pdf.getPage(number);
   if (signal.cancelled) return;
   const viewport = page.getViewport({ scale });
@@ -59,6 +97,7 @@ async function drawPage({ pdf, number, scale, canvas, textHost, signal }) {
     signal.onCancel(() => layer.cancel());
     await layer.render();
   }
+  if (linkHost && !signal.cancelled) await drawLinks({ pdf, page, number, viewport, host: linkHost, onGoto, signal });
   page.cleanup();
 }
 
@@ -71,17 +110,20 @@ function makeSignal() {
   };
 }
 
-function PdfPage({ pdf, number, scale, base, onNear }) {
+function PdfPage({ pdf, number, scale, base, onNear, onGoto }) {
   const [ref, near] = useVisible('900px 0px');
   const canvasRef = useRef(null);
   const textRef = useRef(null);
+  const linkRef = useRef(null);
+  const gotoRef = useRef(onGoto);
+  useEffect(() => { gotoRef.current = onGoto; }, [onGoto]);
   const [drawn, setDrawn] = useState(false);
   useEffect(() => { if (near) onNear?.(number); }, [near, number, onNear]);
   useEffect(() => {
     if (!near) return undefined;
     const signal = makeSignal();
     setDrawn(false);
-    drawPage({ pdf, number, scale, canvas: canvasRef.current, textHost: textRef.current, signal })
+    drawPage({ pdf, number, scale, canvas: canvasRef.current, textHost: textRef.current, linkHost: linkRef.current, onGoto: (n) => gotoRef.current?.(n), signal })
       .then(() => !signal.cancelled && setDrawn(true))
       .catch(() => {});
     return () => signal.cancel();
@@ -97,6 +139,7 @@ function PdfPage({ pdf, number, scale, base, onNear }) {
     >
       <canvas ref={canvasRef} className="pdf-canvas" aria-hidden="true" data-drawn={drawn ? 'true' : undefined} />
       <div ref={textRef} className="textLayer" />
+      <div ref={linkRef} className="pdf-links" />
     </article>
   );
 }
@@ -111,7 +154,16 @@ function PdfThumb({ pdf, number, base, current, onSelect }) {
     drawPage({ pdf, number, scale: width / base.w, canvas: canvasRef.current, textHost: null, signal }).catch(() => {});
     return () => signal.cancel();
   }, [near, pdf, number, base.w]);
-  useEffect(() => { if (current) ref.current?.scrollIntoView?.({ block: 'nearest' }); }, [current, ref]);
+  // Keep the current thumbnail visible by scrolling the list only, never the window (that would undo a jump).
+  useEffect(() => {
+    const el = ref.current;
+    const rail = el?.parentElement;
+    if (!current || !el || !rail) return;
+    const r = el.getBoundingClientRect();
+    const c = rail.getBoundingClientRect();
+    if (r.top < c.top) rail.scrollTop += r.top - c.top - 8;
+    else if (r.bottom > c.bottom) rail.scrollTop += r.bottom - c.bottom + 8;
+  }, [current, ref]);
   return (
     <button ref={ref} type="button" className={current ? 'rail-item current' : 'rail-item'} onClick={onSelect} aria-current={current ? 'true' : undefined} aria-label={`Go to page ${number}`}>
       <span className="rail-no" aria-hidden="true">{number}</span>
@@ -200,6 +252,16 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
   useEffect(() => { place.report(current - 1); }, [current, place]);
 
   const scrollTo = (n) => stageRef.current?.querySelector(`[data-page="${n}"]`)?.scrollIntoView?.({ block: 'start' });
+  // A link to another page of the file: go there, and offer a way back.
+  const back = useReturnPoint();
+  const remember = back.remember;
+  const currentRef = useRef(current);
+  useEffect(() => { currentRef.current = current; }, [current]);
+  const followLink = useCallback((n) => {
+    const from = currentRef.current;
+    scrollTo(n);
+    remember(from, () => stageRef.current?.querySelector(`[data-page="${n}"]`));
+  }, [remember]);
 
   if (error) return <p className="alert alert-error">This PDF could not be opened. You can still download it.</p>;
   if (!pdf || !base) return <p className="muted pad">Loading.</p>;
@@ -209,6 +271,9 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
 
   return (
     <div className="viewer pdf-viewer">
+      {back.point !== null && (
+        <ReturnButton label={`Back to page ${back.point}`} onClick={() => { scrollTo(back.point); back.clear(); }} />
+      )}
       <div className="viewer-toolbar" role="toolbar" aria-label="PDF controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Page {current} of {content.pageCount}</span>
@@ -232,7 +297,7 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
           ))}
         </nav>
         <div className="viewer-stage pdf-stage" ref={stageRef}>
-          {pages.map((n) => <PdfPage key={n} pdf={pdf} number={n} scale={scale} base={base} />)}
+          {pages.map((n) => <PdfPage key={n} pdf={pdf} number={n} scale={scale} base={base} onGoto={followLink} />)}
         </div>
       </div>
     </div>

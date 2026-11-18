@@ -1,5 +1,5 @@
 import { useFullscreen } from '../../lib/fullscreen.js';
-import { cloneElement, useEffect, useMemo, useRef, useState } from 'react';
+import { cloneElement, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 // Word-style viewer for the server's structured DOCX model. It renders real
 // <h*>/<p>/<ul>/<table> elements inside page frames, so the alcoia extension
@@ -12,20 +12,28 @@ import { wordUnit } from '../../lib/sectionMarks.js';
 import { useResume } from '../../lib/resume.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
 import { wordConfig, wordLayout } from '../../lib/proveSkip.js';
+import { anchorIndex, fontStack, readableColor, safeHref } from '../../lib/docLinks.js';
+import { useReturnPoint } from '../../lib/returnPoint.js';
+import ReturnButton from './ReturnButton.jsx';
 
-const SAFE_HREF = /^(https?:|mailto:)/i;
+// Moves the reader to a place in the document (a table of contents entry, "see chapter 3").
+const AnchorContext = createContext(null);
 
 function Runs({ runs }) {
+  const goToAnchor = useContext(AnchorContext);
   return runs.map((run, i) => {
     let node = run.text;
     if (run.bold) node = <strong>{node}</strong>;
     if (run.italic) node = <em>{node}</em>;
     if (run.underline) node = <u>{node}</u>;
     if (run.strike) node = <s>{node}</s>;
-    if (run.href && SAFE_HREF.test(run.href)) {
+    if (safeHref(run.href)) {
       node = <a href={run.href} target="_blank" rel="noopener noreferrer">{node}</a>;
+    } else if (run.anchor && goToAnchor) {
+      node = <a href="#" className="docx-internal-link" onClick={(e) => { e.preventDefault(); goToAnchor(run.anchor); }}>{node}</a>;
     }
-    return <span key={i} className="docx-run">{node}</span>;
+    const style = run.font || run.color ? { fontFamily: fontStack(run.font), color: readableColor(run.color) } : undefined;
+    return <span key={i} className="docx-run" style={style}>{node}</span>;
   });
 }
 
@@ -97,6 +105,13 @@ const ZOOM_STEPS = [0.75, 0.9, 1, 1.15, 1.3, 1.5];
 export default function DocxViewer({ content, title, asset, onDownload, marks, resume }) {
   const place = useResume(resume);
   const pages = content.pages;
+  // The file's own body font and colour (Word); headings then inherit them unless a run says otherwise.
+  const ownLook = useMemo(() => {
+    const d = content.defaults;
+    const font = fontStack(d?.font);
+    const color = readableColor(d?.color);
+    return font || color ? { fontFamily: font, color } : undefined;
+  }, [content.defaults]);
   const [zoomIndex, setZoomIndex] = useState(2);
   const [current, setCurrent] = useState(1);
   const pageRefs = useRef([]);
@@ -137,6 +152,17 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
 
   const scrollToBlock = (n) => stageRef.current?.querySelector(`[data-block="${n}"]`)?.scrollIntoView?.({ block: 'start' });
 
+  // Links inside the document: jump to the block holding the place, and offer a way back.
+  const anchors = useMemo(() => anchorIndex(pages, layout.offsets), [pages, layout]);
+  const back = useReturnPoint();
+  const goToAnchor = (name) => {
+    const at = anchors.get(name);
+    if (!at) return;
+    const find = () => stageRef.current?.querySelector(`[data-block="${at.block}"]`) ?? stageRef.current?.querySelector(`[data-page="${at.page + 1}"]`);
+    find()?.scrollIntoView?.({ block: 'start' });
+    back.remember(block, find);
+  };
+
   // Back to the saved block, then start saving once the page has settled (images above it can still shift things).
   useEffect(() => {
     if (place.initial > 0) stageRef.current?.querySelector(`[data-block="${place.initial}"]`)?.scrollIntoView?.({ block: 'start' });
@@ -165,6 +191,9 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
 
   return (
     <div className="viewer" style={{ '--z': ZOOM_STEPS[zoomIndex] }}>
+      {back.point !== null && (
+        <ReturnButton label="Back to where you were" onClick={() => { scrollToBlock(back.point); back.clear(); }} />
+      )}
       <div className="viewer-toolbar" role="toolbar" aria-label="Document controls">
         <span className="viewer-title">{title}</span>
         <span className="viewer-pageno" aria-live="polite">Page {current} of {pages.length}</span>
@@ -179,11 +208,13 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
           {onDownload && <button type="button" className="secondary" onClick={onDownload}>Download</button>}
         </span>
       </div>
+      <AnchorContext.Provider value={anchors.size ? goToAnchor : null}>
       <div className="viewer-stage" ref={stageRef}>
         {pages.map((page, i) => (
           <article
             key={i}
-            className="docx-page"
+            className={ownLook ? 'docx-page has-own-look' : 'docx-page'}
+            style={ownLook}
             data-page={i + 1}
             data-anno-scope={`d:${i + 1}`}
             ref={(el) => { pageRefs.current[i] = el; }}
@@ -193,6 +224,7 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
           </article>
         ))}
       </div>
+      </AnchorContext.Provider>
     </div>
   );
 }
