@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/grading-client.js, commit 98c7f41fe42a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/grading-client.js, commit 6444994dc273) by scripts/sync-detection.mjs. Do not edit here. */
 /* grading-client.js — free-text answer grading, extracted for reuse (item 43)
  *
  * Pulled out of host.js so quiz.js — a normal extension page, not the
