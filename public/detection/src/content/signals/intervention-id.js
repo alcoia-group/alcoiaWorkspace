@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/intervention-id.js, commit fdc51fea6e9d) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/intervention-id.js, commit 61c25eb22beb) by scripts/sync-detection.mjs. Do not edit here. */
 /* intervention-id.js — a unique identity for one presented intervention
  * (intelligence-architecture audit, step 5)
  *

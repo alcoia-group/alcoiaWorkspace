@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/reading-map.js, commit fdc51fea6e9d) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/reading-map.js, commit 61c25eb22beb) by scripts/sync-detection.mjs. Do not edit here. */
 /* reading-map.js
    A collapsible right-side sidebar showing:
    - Article progress bar
