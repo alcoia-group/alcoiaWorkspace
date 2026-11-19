@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/reading-time-model.js, commit 53abad287d43) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/reading-time-model.js, commit 6444994dc273) by scripts/sync-detection.mjs. Do not edit here. */
 /* reading-time-model.js: how long a paragraph should take THIS reader.
  *
  * The old expectation picked one of four speeds from a difficulty grade, so a paragraph one point past a
