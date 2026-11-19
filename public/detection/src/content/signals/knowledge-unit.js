@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/knowledge-unit.js, commit 6444994dc273) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/knowledge-unit.js, commit 8701f97ed346) by scripts/sync-detection.mjs. Do not edit here. */
 /* knowledge-unit.js — V1 content-based knowledge-unit identity
  *
  * Replaces the fragile `text.slice(0, 80).trim()` identity used throughout
