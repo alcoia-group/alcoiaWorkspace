@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/predictions.js, commit fdc51fea6e9d) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/predictions.js, commit 61c25eb22beb) by scripts/sync-detection.mjs. Do not edit here. */
 /* predictions.js — "before you read on" prompts for one assigned reading.
  *
  *   GET {ASSIGNMENTS_URL}/:assignmentId/predictions -> 200 { predictions: [{ unitId, afterUnitIds, prompt }] }

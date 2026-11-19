@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/argument-cues.js, commit fdc51fea6e9d) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/argument-cues.js, commit 61c25eb22beb) by scripts/sync-detection.mjs. Do not edit here. */
 /* argument-cues.js -- does this paragraph argue for a position?
  *
  * A paragraph that takes a side (says something should be done, states what the author believes, or presents a
