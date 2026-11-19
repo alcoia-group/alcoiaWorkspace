@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/progression-entropy.js, commit 53abad287d43) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/progression-entropy.js, commit 98c7f41fe42a) by scripts/sync-detection.mjs. Do not edit here. */
 /* progression-entropy.js — the shape of a session, not a moment
  *
  * How dwell time is distributed across the paragraphs of a session says

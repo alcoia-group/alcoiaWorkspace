@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/reader-context.js, commit 53abad287d43) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/reader-context.js, commit 98c7f41fe42a) by scripts/sync-detection.mjs. Do not edit here. */
 /* reader-context.js — is this page the alcoia workspace, and which
  * assignment is it showing? (workspace.alcoia.app, repo alcoiaAssignments)
  *
