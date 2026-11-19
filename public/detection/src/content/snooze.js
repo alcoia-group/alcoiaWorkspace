@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/snooze.js, commit 98c7f41fe42a) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/snooze.js, commit 6444994dc273) by scripts/sync-detection.mjs. Do not edit here. */
 /* snooze.js — an explicit, reader-chosen pause on interruptions
  *
  * Worth having before any inferred tolerance adaptation: it is explicit,
