@@ -793,3 +793,21 @@ html.is-fullscreen[data-bars='hidden'] .pdf-viewer .slides-rail { top: 0; max-he
 @media (prefers-reduced-motion: reduce) { .link-return { animation: none; } }
 /* A Word file with its own fonts and colours: headings take them from the page and their runs, not Alcoia's serif. */
 .docx-page.has-own-look .docx-heading { font-family: inherit; color: inherit; }
+
+/* "Explain this picture" (assigned readings). Kept quiet: a small secondary button under the picture, the answer in a
+   plain box with a note that it may be wrong. */
+.explain-picture { margin: -0.4em 0 1em; font-family: var(--alc-sans, system-ui, sans-serif); font-size: 13px; }
+.explain-picture-button { font-size: 13px; padding: 4px 10px; }
+.explain-picture-answer { border: 1px solid var(--field-border, #c7cdd1); border-radius: 8px; padding: 10px 12px; background: #fafaf8; line-height: 1.5; display: grid; gap: 6px; max-width: 60ch; }
+.explain-picture-answer .link-button { justify-self: start; }
+.explain-picture-kind { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint, #6b7280); }
+.explain-picture-note { font-size: 12px; color: var(--ink-faint, #6b7280); }
+.explain-picture-error { color: #9a3412; }
+.pdf-page .explain-picture { position: absolute; top: 8px; right: 8px; z-index: 3; margin: 0; max-width: min(420px, 90%); }
+.pdf-page .explain-picture-answer { background: #fffffff2; box-shadow: 0 2px 10px rgba(0,0,0,0.12); }
+
+.slide-extras { display: grid; gap: 8px; margin-top: 8px; }
+.slide-extras .explain-picture { margin: 0; }
+.slide-notes { font-size: 14px; border: 1px solid var(--field-border, #c7cdd1); border-radius: 8px; padding: 6px 12px; background: #fff; }
+.slide-notes summary { cursor: pointer; font-size: 13px; color: var(--ink-faint, #6b7280); }
+.slide-notes-text { white-space: pre-wrap; line-height: 1.5; padding: 6px 0 4px; }
