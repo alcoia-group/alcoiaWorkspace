@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/reading-tab.js, commit 61c25eb22beb) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/reading-tab.js, commit 0ab7d7d57443) by scripts/sync-detection.mjs. Do not edit here. */
 /* reading-tab.js — finds the page a reader was last looking at, for buttons on
  * extension pages (the settings page opens in its own tab, so "the active tab"
  * is the settings page itself, which has no content script).

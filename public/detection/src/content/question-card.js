@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/question-card.js, commit 61c25eb22beb) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/question-card.js, commit 0ab7d7d57443) by scripts/sync-detection.mjs. Do not edit here. */
 /* question-card.js — the retrieval question, in front of the reader
  *
  * The primary intervention. Answering is what produces the only ground truth

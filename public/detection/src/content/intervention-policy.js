@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/intervention-policy.js, commit 61c25eb22beb) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/intervention-policy.js, commit 0ab7d7d57443) by scripts/sync-detection.mjs. Do not edit here. */
 /* intervention-policy.js — decides whether a reading state earns an interruption
  *
  * The engine says what it observed. This says whether to act on it. Splitting
