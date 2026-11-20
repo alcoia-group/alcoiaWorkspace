@@ -9,3 +9,6 @@ Links in documents (`src/lib/docLinks.js`): PDF pages get a link layer from pdf.
 Word files show their own fonts and text colours (`content.defaults` on the page, `run.font` / `run.color` on runs; `fontStack` and `readableColor` in `src/lib/docLinks.js`): the file's font first, a free stand-in (Calibri -> Carlito, Cambria -> Caladea, Arial, Times New Roman, Courier New), then Alcoia's serif or sans; a colour too pale for the white page is ignored. Headings inherit the file's look (`.has-own-look`). Sizes and alignment stay Alcoia's.
 
 Detection copy re-synced (19 November): challenge questions for readers doing well, explanation cards end with a check against the text.
+
+## 20 November 2026
+Full screen for Word and PDF: the reading area (`.annotator`) is a fixed box that scrolls on its own, so the window never fired `scroll` and the detection only moved to the next paragraph on its 5-second tick (and read scroll speed as 0). `detection/boot.js` now passes `scrollRoot` (the `.annotator` while `is-fullscreen` is on) to the orchestrator, which listens to that box too (extension commit 0ab7d7d, synced). Checked in Chromium that such a box fires no window scroll and is heard by a capture listener; not checked on the full app in full screen.

@@ -157,6 +157,9 @@ export async function startDetection({ assignmentId = null, observers = null, lo
     settings: () => ({ assistantEnabled: settingsNow.assistantEnabled, comprehensionCheckEnabled: settingsNow.comprehensionCheckEnabled, debugEnabled: false }),
     host: observers ? observeHost(hostApi.host, observers) : hostApi.host,
     paragraphTrackerOpts: { blockSource: readerBlockSource },
+    // Full screen for Word and PDF makes the reading area (.annotator) a fixed box that scrolls on its own, so the
+    // window never fires 'scroll'. Name it so the tracker follows scrolling there too (lib/fullscreen.js, index.css).
+    scrollRoot: () => (document.documentElement.classList.contains('is-fullscreen') ? document.querySelector('.annotator') : null),
   });
   hostApi.setOrchestrator(orchestrator);
 
