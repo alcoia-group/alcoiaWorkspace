@@ -12,3 +12,19 @@ Detection copy re-synced (19 November): challenge questions for readers doing we
 
 ## 20 November 2026
 Full screen for Word and PDF: the reading area (`.annotator`) is a fixed box that scrolls on its own, so the window never fired `scroll` and the detection only moved to the next paragraph on its 5-second tick (and read scroll speed as 0). `detection/boot.js` now passes `scrollRoot` (the `.annotator` while `is-fullscreen` is on) to the orchestrator, which listens to that box too (extension commit 0ab7d7d, synced). Checked in Chromium that such a box fires no window scroll and is heard by a capture listener; not checked on the full app in full screen.
+
+## 20 November 2026 (later)
+- Detection on slides and pictures (`src/detection/documentBlocks.js`): a slide is one block whose text is built like
+  the server's slide passage, so its hash matches the deck; a slide with a picture, chart or under 20 words is media
+  (followed, not judged on pace). A Word or EPUB picture of at least 64 x 64 px is its own media block.
+- "Explain this picture" (`viewers/ExplainPicture.jsx`, `lib/pictures.js`), assigned readings only, nothing sent until
+  the reader presses it: under each Word and EPUB picture, under a slide (one button per picture), and on a PDF page that
+  pdf.js says paints an image (the page as drawn, scaled to 1600 px, sent as a JPEG). The answer always says it was
+  written by AI from the picture and may be wrong. The panel is `data-anno-skip` and `annotator-ui`, so highlights and
+  detection never count its text.
+- Speaker notes under a slide (folded), when the server sends them: instructor's switch for assigned decks, always for
+  the reader's own decks.
+- PowerPoint is closed for the beta (owner decision): own files accept PDF, Word and EPUB only, copy updated, the
+  PowerPoint lines kept in comments. The server refuses new decks (`format_closed_for_beta`). Decks already here still open.
+- Verified in Chromium against the built app with the API mocked (Word picture, PDF page with and without a picture,
+  slide picture and notes); detection unit tests. Not verified against a real server or the vision model.

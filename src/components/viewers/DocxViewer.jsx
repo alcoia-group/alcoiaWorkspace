@@ -7,6 +7,8 @@ import { cloneElement, createContext, useContext, useEffect, useMemo, useRef, us
 // Text goes through React only: nothing in the model is ever treated as markup.
 
 import AssetImage from './AssetImage.jsx';
+import ExplainPicture from './ExplainPicture.jsx';
+import { describePicture } from '../../lib/pictures.js';
 import MarkToggle from '../MarkToggle.jsx';
 import { wordUnit } from '../../lib/sectionMarks.js';
 import { useResume } from '../../lib/resume.js';
@@ -93,7 +95,13 @@ function renderBlock(block, i, asset) {
           </table>
         );
       case 'image':
-        return <AssetImage key={i} asset={asset} path={block.assetId} alt={block.alt} className="docx-image" />;
+        if (!asset.assignmentId || asset.local) return <AssetImage key={i} asset={asset} path={block.assetId} alt={block.alt} className="docx-image" />;
+        return (
+          <div key={i} className="docx-figure">
+            <AssetImage asset={asset} path={block.assetId} alt={block.alt} className="docx-image" />
+            <ExplainPicture run={() => describePicture({ assignmentId: asset.assignmentId, path: block.assetId, sessionToken: asset.sessionToken })} />
+          </div>
+        );
       default:
         return null;
     }
