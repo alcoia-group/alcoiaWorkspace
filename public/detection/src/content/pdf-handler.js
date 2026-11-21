@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/pdf-handler.js, commit 0ab7d7d57443) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/pdf-handler.js, commit 2753fd3ee94f) by scripts/sync-detection.mjs. Do not edit here. */
 /*
   PDF Handler (ES module)
   - Exports initPDFHandler() which scans for PDF textLayers or uses PDF.js

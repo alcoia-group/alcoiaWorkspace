@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/popup-history.js, commit 0ab7d7d57443) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/popup-history.js, commit 2753fd3ee94f) by scripts/sync-detection.mjs. Do not edit here. */
 /* popup-history.js -- an optional, local-only list of the popups alcoia showed (explanations,
  * questions, summaries), so a reader can find one again after it closed.
  *

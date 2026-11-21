@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/install-token.js, commit 0ab7d7d57443) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/install-token.js, commit 2753fd3ee94f) by scripts/sync-detection.mjs. Do not edit here. */
 /* install-token.js — the opaque per-install token that gates every AI call
  *
  * "No account is required to use the extension. AI calls are gated by an

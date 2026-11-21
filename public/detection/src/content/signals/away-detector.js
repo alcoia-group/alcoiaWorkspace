@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/away-detector.js, commit 0ab7d7d57443) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/away-detector.js, commit 2753fd3ee94f) by scripts/sync-detection.mjs. Do not edit here. */
 /* away-detector.js — passive "away from the page" detection
  *
  * Away means the reader is not at the page: the tab has been hidden or the
