@@ -1,5 +1,10 @@
 import { API_BASE_URL, ApiError, apiPost } from './api.js';
 
+// CLOSED FOR THE BETA (cost: each first press is a vision call plus a text call). The button, and so every call below, is
+// off unless the app is built with VITE_PICTURE_EXPLANATIONS=on; the server routes are off unless FEATURE_PICTURE_EXPLANATIONS=on.
+// Nothing was deleted: turn both on to bring it back.
+export const PICTURE_EXPLANATIONS_ON = import.meta.env.VITE_PICTURE_EXPLANATIONS === 'on';
+
 // "Explain this picture" (assigned readings only; the server reads the picture from the stored file).
 //   POST /api/assignments/:id/document/pictures/describe     { path }   Word, EPUB and slide pictures
 //   POST /api/assignments/:id/document/pages/:page/describe  raw image  a PDF page as this viewer drew it
