@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { resolveTransition } from '../../lib/transitions.js';
 import { useFullscreen, useIdleControls } from '../../lib/fullscreen.js';
 import AssetImage from './AssetImage.jsx';
+import ExplainPicture from './ExplainPicture.jsx';
+import { describePicture } from '../../lib/pictures.js';
 import MarkToggle, { OptionalBadge } from '../MarkToggle.jsx';
 import { slideUnit } from '../../lib/sectionMarks.js';
 import ProveSkip, { useBankItems } from '../ProveSkip.jsx';
@@ -144,6 +146,31 @@ function ShapeBody({ shape, slideW, asset, thumb }) {
 // `thumb`: a miniature for the slide list. Its text is drawn by CSS from a
 // data attribute, so it is a picture of the slide, not a second copy of the
 // text for the alcoia extension to read.
+// Under the slide, outside its annotation scope: the speaker notes (sent only when the instructor turned them on for
+// this material, or for the reader's own file) and, on assigned readings, a button per picture to have it described.
+function SlideExtras({ slide, asset }) {
+  const pictures = slide.shapes.filter((sh) => sh.kind === 'image' && sh.assetId);
+  const canDescribe = Boolean(asset.assignmentId) && !asset.local;
+  if (!slide.notes && !(canDescribe && pictures.length)) return null;
+  return (
+    <div className="slide-extras">
+      {canDescribe && pictures.map((sh, i) => (
+        <ExplainPicture
+          key={`${i}:${sh.assetId}`}
+          label={pictures.length > 1 ? `Explain picture ${i + 1} on this slide` : 'Explain the picture on this slide'}
+          run={() => describePicture({ assignmentId: asset.assignmentId, path: sh.assetId, sessionToken: asset.sessionToken })}
+        />
+      ))}
+      {slide.notes && (
+        <details className="slide-notes">
+          <summary>Speaker notes</summary>
+          <div className="slide-notes-text">{slide.notes}</div>
+        </details>
+      )}
+    </div>
+  );
+}
+
 function Slide({ slide, slideSize, asset, thumb }) {
   return (
     <div className={thumb ? 'slide slide-thumb' : 'slide'} style={{ background: slide.background, color: '#000' }}>
@@ -350,6 +377,7 @@ export default function SlideViewer({ content, title, asset, onDownload, marks, 
             </div>
           </div>
           {note && !fs.active && <p className="slides-note">{note}</p>}
+          {!fs.active && <SlideExtras key={index} slide={slide} asset={asset} />}
         </div>
       </div>
     </div>

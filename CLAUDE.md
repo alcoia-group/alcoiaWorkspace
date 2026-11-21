@@ -9,3 +9,25 @@ Links in documents (`src/lib/docLinks.js`): PDF pages get a link layer from pdf.
 Word files show their own fonts and text colours (`content.defaults` on the page, `run.font` / `run.color` on runs; `fontStack` and `readableColor` in `src/lib/docLinks.js`): the file's font first, a free stand-in (Calibri -> Carlito, Cambria -> Caladea, Arial, Times New Roman, Courier New), then Alcoia's serif or sans; a colour too pale for the white page is ignored. Headings inherit the file's look (`.has-own-look`). Sizes and alignment stay Alcoia's.
 
 Detection copy re-synced (19 November): challenge questions for readers doing well, explanation cards end with a check against the text.
+
+## 20 November 2026
+Full screen for Word and PDF: the reading area (`.annotator`) is a fixed box that scrolls on its own, so the window never fired `scroll` and the detection only moved to the next paragraph on its 5-second tick (and read scroll speed as 0). `detection/boot.js` now passes `scrollRoot` (the `.annotator` while `is-fullscreen` is on) to the orchestrator, which listens to that box too (extension commit 0ab7d7d, synced). Checked in Chromium that such a box fires no window scroll and is heard by a capture listener; not checked on the full app in full screen.
+
+## 20 November 2026 (later)
+- Detection on slides and pictures (`src/detection/documentBlocks.js`): a slide is one block whose text is built like
+  the server's slide passage, so its hash matches the deck; a slide with a picture, chart or under 20 words is media
+  (followed, not judged on pace). A Word or EPUB picture of at least 64 x 64 px is its own media block.
+- "Explain this picture" (`viewers/ExplainPicture.jsx`, `lib/pictures.js`), assigned readings only, nothing sent until
+  the reader presses it: under each Word and EPUB picture, under a slide (one button per picture), and on a PDF page that
+  pdf.js says paints an image (the page as drawn, scaled to 1600 px, sent as a JPEG). The answer always says it was
+  written by AI from the picture and may be wrong. The panel is `data-anno-skip` and `annotator-ui`, so highlights and
+  detection never count its text.
+- Speaker notes under a slide (folded), when the server sends them: instructor's switch for assigned decks, always for
+  the reader's own decks.
+- PowerPoint is closed for the beta (owner decision): own files accept PDF, Word and EPUB only, copy updated, the
+  PowerPoint lines kept in comments. The server refuses new decks (`format_closed_for_beta`). Decks already here still open.
+- Verified in Chromium against the built app with the API mocked (Word picture, PDF page with and without a picture,
+  slide picture and notes); detection unit tests. Not verified against a real server or the vision model.
+
+## 20 November 2026 (colour control)
+The row of six colour dots in the reading tools is gone. Highlight is now a highlighter icon with the current colour under it, and a small arrow beside it opens a menu (`components/ColorMenu.jsx`): the six preset colours, "Your colours" (up to six custom colours made before), and a custom colour (native colour picker plus a hex box, "Use"). The colour applies to highlight, underline, wavy, strike, pen and sticky notes. A colour is a preset name or `#rrggbb` (`resolveColor`, `colorToken`, `registerColor` in `lib/annotations.js`); a custom colour gets its own `::highlight` rules written into one style element the first time it is used, only from a validated hex. Marks made before keep their preset names; anything unreadable falls back to yellow. The choice and the recent colours are kept on this device (`alcoia_highlight_color`, `alcoia_recent_colors`). The small colour rows in the sticky-note, selection and edit-mark popups show the presets plus recent custom colours. Escape and a click outside close the menu; on touch screens every target is 44 px. Verified in Chromium against the built app (menu, preset, custom colour, highlight drawn, kept after reload, redrawn from storage) and `tests/colors.test.mjs`. Not verified: Safari or Firefox, a real phone.

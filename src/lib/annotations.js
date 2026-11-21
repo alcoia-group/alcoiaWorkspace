@@ -17,6 +17,76 @@ export const COLORS = {
   purple: { name: 'Purple', fill: 'rgba(175, 82, 222, 0.34)', solid: '#8e44ad' },
 };
 export const COLOR_KEYS = Object.keys(COLORS);
+
+// A colour is a preset name (yellow, green, ...) or a custom '#rrggbb'. Marks made before custom
+// colours existed only hold preset names, so they keep working. Anything else falls back to yellow.
+export const HEX_RE = /^#[0-9a-f]{6}$/i;
+const channel = (hex, i) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+const toHex = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+export const isCustomColor = (key) => typeof key === 'string' && HEX_RE.test(key);
+
+export function resolveColor(key) {
+  if (COLORS[key]) return COLORS[key];
+  if (!isCustomColor(key)) return COLORS.yellow;
+  const [r, g, b] = [0, 1, 2].map((i) => channel(key, i));
+  return {
+    name: key.toUpperCase(),
+    fill: `rgba(${r}, ${g}, ${b}, 0.40)`,
+    // Lines and pen strokes use a slightly darker shade so they read on white paper.
+    solid: `#${toHex(r * 0.78)}${toHex(g * 0.78)}${toHex(b * 0.78)}`,
+  };
+}
+
+// The name used in CSS highlight rules: a preset name, or x + the six hex digits.
+export const colorToken = (key) => (COLORS[key] ? key : isCustomColor(key) ? `x${key.slice(1).toLowerCase()}` : 'yellow');
+
+// Custom colours need their own ::highlight rules, written once into a style element the first
+// time a colour is used. Only validated hex values ever reach the rule text.
+const customTokens = new Set();
+let customSheet = null;
+export function registerColor(key) {
+  const token = colorToken(key);
+  if (COLORS[token] || customTokens.has(token)) return token;
+  customTokens.add(token);
+  if (typeof document === 'undefined') return token;
+  const c = resolveColor(key);
+  if (!customSheet) {
+    customSheet = document.createElement('style');
+    customSheet.id = 'alc-custom-highlights';
+    document.head.appendChild(customSheet);
+  }
+  customSheet.appendChild(document.createTextNode(
+    `::highlight(alc-hl-${token}) { background-color: ${c.fill}; }\n`
+    + `::highlight(alc-ul-${token}) { text-decoration: underline; text-decoration-color: ${c.solid}; text-decoration-thickness: 2px; }\n`
+    + `::highlight(alc-wv-${token}) { text-decoration: underline wavy; text-decoration-color: ${c.solid}; text-decoration-thickness: 1.5px; }\n`
+    + `::highlight(alc-st-${token}) { text-decoration: line-through; text-decoration-color: ${c.solid}; text-decoration-thickness: 2px; }\n`,
+  ));
+  return token;
+}
+export const highlightNames = () => ['hl', 'ul', 'wv', 'st'].flatMap((k) => [...COLOR_KEYS, ...customTokens].map((c) => `alc-${k}-${c}`));
+
+// The reader's choice (and the custom colours they made) stay on this device.
+const COLOR_PREF_KEY = 'alcoia_highlight_color';
+const RECENT_KEY = 'alcoia_recent_colors';
+export const RECENT_MAX = 6;
+export function loadColorChoice() {
+  try {
+    const v = localStorage.getItem(COLOR_PREF_KEY);
+    return COLORS[v] || isCustomColor(v) ? v : 'yellow';
+  } catch { return 'yellow'; }
+}
+export function saveColorChoice(v) { try { localStorage.setItem(COLOR_PREF_KEY, v); } catch { /* storage blocked: lasts this visit */ } }
+export function loadRecentColors() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
+    return Array.isArray(raw) ? raw.filter(isCustomColor).slice(0, RECENT_MAX) : [];
+  } catch { return []; }
+}
+export function rememberColor(list, hex) {
+  const next = [hex.toLowerCase(), ...list.filter((c) => c.toLowerCase() !== hex.toLowerCase())].slice(0, RECENT_MAX);
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* storage blocked */ }
+  return next;
+}
 // kind: hl = highlight, ul = underline, wv = wavy underline, st = strike-through
 export const TEXT_KINDS = ['hl', 'ul', 'wv', 'st'];
 export const KIND_LABEL = { hl: 'Highlight', ul: 'Underline', wv: 'Wavy underline', st: 'Strike-through' };
@@ -209,7 +279,7 @@ export function marksToMarkdown(title, items, extra = {}) {
     }
     const it = r.it;
     lines.push(`> ${it.quote.replace(/\s+/g, ' ')}`, '');
-    lines.push(`*${KIND_LABEL[it.kind] ?? 'Mark'}, ${COLORS[it.color]?.name ?? ''}*`.replace(', *', '*'), '');
+    lines.push(`*${KIND_LABEL[it.kind] ?? 'Mark'}, ${resolveColor(it.color).name}*`.replace(', *', '*'), '');
     if (it.note) lines.push(it.note, '');
   }
   if (notes.length) {

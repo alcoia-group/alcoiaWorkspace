@@ -13,6 +13,8 @@ import { pdfConfig } from '../../lib/proveSkip.js';
 import { pdfLinkTarget, resolvePdfDest } from '../../lib/docLinks.js';
 import { useReturnPoint } from '../../lib/returnPoint.js';
 import ReturnButton from './ReturnButton.jsx';
+import ExplainPicture from './ExplainPicture.jsx';
+import { describePdfPage, pageImageBlob } from '../../lib/pictures.js';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -75,7 +77,19 @@ async function drawLinks({ pdf, page, number, viewport, host, onGoto, signal }) 
 }
 
 // Draws one page into a canvas (and optionally the text and link layers) at `scale`.
-async function drawPage({ pdf, number, scale, canvas, textHost, linkHost, onGoto, signal }) {
+// Whether a page paints a picture (pdf.js reuses the operator list it just rendered from). A logo in a running header
+// counts too; that only means the button shows on more pages than it needs to.
+const PICTURE_OPS = new Set([pdfjs.OPS.paintImageXObject, pdfjs.OPS.paintInlineImageXObject, pdfjs.OPS.paintImageXObjectRepeat].filter((n) => n !== undefined));
+async function pagePaintsPicture(page) {
+  try {
+    const ops = await page.getOperatorList();
+    return ops.fnArray.some((fn) => PICTURE_OPS.has(fn));
+  } catch { return false; }
+}
+
+// Draws one page into a canvas (and optionally the text and link layers) at `scale`. With `findPicture` it also
+// resolves whether the page paints a picture.
+async function drawPage({ pdf, number, scale, canvas, textHost, linkHost, onGoto, signal, findPicture = false }) {
   const page = await pdf.getPage(number);
   if (signal.cancelled) return;
   const viewport = page.getViewport({ scale });
@@ -98,7 +112,9 @@ async function drawPage({ pdf, number, scale, canvas, textHost, linkHost, onGoto
     await layer.render();
   }
   if (linkHost && !signal.cancelled) await drawLinks({ pdf, page, number, viewport, host: linkHost, onGoto, signal });
+  const hasPicture = findPicture && !signal.cancelled ? await pagePaintsPicture(page) : false;
   page.cleanup();
+  return { hasPicture };
 }
 
 function makeSignal() {
@@ -110,7 +126,7 @@ function makeSignal() {
   };
 }
 
-function PdfPage({ pdf, number, scale, base, onNear, onGoto }) {
+function PdfPage({ pdf, number, scale, base, onNear, onGoto, describe }) {
   const [ref, near] = useVisible('900px 0px');
   const canvasRef = useRef(null);
   const textRef = useRef(null);
@@ -118,16 +134,17 @@ function PdfPage({ pdf, number, scale, base, onNear, onGoto }) {
   const gotoRef = useRef(onGoto);
   useEffect(() => { gotoRef.current = onGoto; }, [onGoto]);
   const [drawn, setDrawn] = useState(false);
+  const [hasPicture, setHasPicture] = useState(false);
   useEffect(() => { if (near) onNear?.(number); }, [near, number, onNear]);
   useEffect(() => {
     if (!near) return undefined;
     const signal = makeSignal();
     setDrawn(false);
-    drawPage({ pdf, number, scale, canvas: canvasRef.current, textHost: textRef.current, linkHost: linkRef.current, onGoto: (n) => gotoRef.current?.(n), signal })
-      .then(() => !signal.cancelled && setDrawn(true))
+    drawPage({ pdf, number, scale, canvas: canvasRef.current, textHost: textRef.current, linkHost: linkRef.current, onGoto: (n) => gotoRef.current?.(n), signal, findPicture: Boolean(describe) })
+      .then((r) => { if (!signal.cancelled) { setDrawn(true); setHasPicture(Boolean(r?.hasPicture)); } })
       .catch(() => {});
     return () => signal.cancel();
-  }, [near, pdf, number, scale]);
+  }, [near, pdf, number, scale, describe]);
   return (
     <article
       ref={ref}
@@ -140,6 +157,12 @@ function PdfPage({ pdf, number, scale, base, onNear, onGoto }) {
       <canvas ref={canvasRef} className="pdf-canvas" aria-hidden="true" data-drawn={drawn ? 'true' : undefined} />
       <div ref={textRef} className="textLayer" />
       <div ref={linkRef} className="pdf-links" />
+      {describe && drawn && hasPicture && (
+        <ExplainPicture
+          label="Explain a picture on this page"
+          run={async () => describe(number, await pageImageBlob(canvasRef.current))}
+        />
+      )}
     </article>
   );
 }
@@ -186,6 +209,11 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
   const fs = useFullscreen();
   // The question bank is built on the server from a stored file; a file kept on this device has none.
   const bankId = asset.local ? null : (asset.assignmentId ?? asset.personalId);
+  // "Explain a picture on this page": assigned readings only. The page as drawn here is sent as an image; the server
+  // keeps the answer for 24 hours and never as the class's description of that page.
+  const describe = useMemo(() => (asset.assignmentId && !asset.local
+    ? (page, blob) => describePdfPage({ assignmentId: asset.assignmentId, page, blob, sessionToken: asset.sessionToken })
+    : null), [asset.assignmentId, asset.local, asset.sessionToken]);
   const skipConfig = useMemo(() => pdfConfig(content.pageCount), [content.pageCount]);
   const bankItems = useBankItems(bankId, asset.sessionToken, Boolean(bankId), Boolean(asset.personalId));
 
@@ -297,7 +325,7 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
           ))}
         </nav>
         <div className="viewer-stage pdf-stage" ref={stageRef}>
-          {pages.map((n) => <PdfPage key={n} pdf={pdf} number={n} scale={scale} base={base} onGoto={followLink} />)}
+          {pages.map((n) => <PdfPage key={n} pdf={pdf} number={n} scale={scale} base={base} onGoto={followLink} describe={describe} />)}
         </div>
       </div>
     </div>
