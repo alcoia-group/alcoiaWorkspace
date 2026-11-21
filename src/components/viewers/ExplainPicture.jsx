@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { kindLabel, pictureErrorMessage } from '../../lib/pictures.js';
+import { kindLabel, pictureErrorMessage, PICTURE_EXPLANATIONS_ON } from '../../lib/pictures.js';
 
 // A button under a picture that asks the server to explain it, and the answer below it: a short explanation of what the
 // picture is for in this text and how to read it, and under it what the picture shows (the description the explanation
@@ -8,6 +8,8 @@ import { kindLabel, pictureErrorMessage } from '../../lib/pictures.js';
 // text is never part of the document for highlights or for reading detection.
 export default function ExplainPicture({ run, label = 'Explain this picture', className = '' }) {
   const [state, setState] = useState({ status: 'idle' });
+  // Closed for the beta (see lib/pictures.js): no button, no panel, no request.
+  if (!PICTURE_EXPLANATIONS_ON) return null;
 
   async function ask() {
     setState({ status: 'loading' });
