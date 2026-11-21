@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/hold-class.js, commit 0ab7d7d57443) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/hold-class.js, commit 2753fd3ee94f) by scripts/sync-detection.mjs. Do not edit here. */
 /* hold-class.js — turns the policy's reason for NOT interrupting into one word from a closed list, so the product can be
  * measured ("how often is a card held back, and by what") without keeping any reading content. The reason strings are the
  * policy's own fixed sentences; a reason that is not recognised, or that is routine (no state, on pace, low confidence),
