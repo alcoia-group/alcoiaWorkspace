@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/orchestrator.js, commit 61c25eb22beb) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/orchestrator.js, commit 0ab7d7d57443) by scripts/sync-detection.mjs. Do not edit here. */
 /* orchestrator.js — the detection pipeline, wired together
  *
  * Owns everything between "a reader did something" and "the policy says this
@@ -43,6 +43,10 @@ export async function createOrchestrator(deps) {
     awayOpts,
     // Passed to struggle-evidence-rule.js ({ enabled, windowMs, now }). Omitted, the default rule applies.
     evidenceRuleOpts,
+    // Optional. A function returning the element that scrolls instead of the window (the workspace's full-screen
+    // reading area is a fixed, scrolling box, so the window itself never scrolls and never fires 'scroll').
+    // Returns null when the window is what scrolls. Omitted, only window scrolls are heard, exactly as before.
+    scrollRoot,
   } = deps;
 
   const s = () => settings() || {};
@@ -353,19 +357,27 @@ export async function createOrchestrator(deps) {
       try { cursorTracker.update(e.clientX, e.clientY); } catch (err) {}
     }, { passive: true, signal });
 
-    window.addEventListener('scroll', () => {
+    // Scroll does not bubble, so an inner scrolling box is only heard in the capture phase on the document.
+    // Only the window (target: the document) or the one box scrollRoot names is accepted; every other scrolling
+    // element on a page (a code block, a carousel) is ignored, as it always was.
+    document.addEventListener('scroll', (ev) => {
       if (!s().comprehensionCheckEnabled) return;
+      let box = null;
+      try { box = scrollRoot ? scrollRoot() : null; } catch (err) { box = null; }
+      const fromWindow = ev.target === document;
+      if (!fromWindow && !(box && ev.target === box)) return;
+      const y = fromWindow ? window.scrollY : box.scrollTop;
       try {
-        scrollDynamics.update(window.scrollY);
+        scrollDynamics.update(y);
         // Same gate as scrollDynamics above — a reader who turned off
         // "Notice when I'm struggling" gets no scroll-derived collection of
         // any kind, not just no detection (item DC-1a).
-        scrollKinematicsTracker.update(window.scrollY);
+        scrollKinematicsTracker.update(y);
         syncParagraph();
         const signal = comprehensionMonitor.onScroll();
         if (signal) pumpSignals(signal);
       } catch (e) {}
-    }, { passive: true, signal });
+    }, { passive: true, capture: true, signal });
 
     // Selection and copy are corroboration, never triggers — the selection
     // summary feature already responds to the reader's own action, and firing

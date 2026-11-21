@@ -179,7 +179,8 @@ export default function HomePage() {
           {files === null && <div className="ov-skeleton" aria-label="Loading"><span /><span /></div>}
           {files !== null && recentFiles.length === 0 && (
             <p className="ov-empty">
-              {files.length === 0 ? 'Add your own PDF, Word, PowerPoint or EPUB files. They stay on this device.' : 'Open one of your files and it shows here, with where you stopped.'}
+              {/* PowerPoint closed for the beta; was 'Add your own PDF, Word, PowerPoint or EPUB files...' */}
+              {files.length === 0 ? 'Add your own PDF, Word or EPUB files. They stay on this device.' : 'Open one of your files and it shows here, with where you stopped.'}
             </p>
           )}
           {recentFiles.length > 0 && (

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  COLORS, COLOR_KEYS, KIND_LABEL, NOTE_MAX, clamp01, anchorFromSelection, caretAtPoint, highlightsSupported, loadMarks,
-  marksToMarkdown, newId, rangeFromOffsets, resolveAnchor, saveMarks, scopeLabel, scopeOrder, scopeText,
+  KIND_LABEL, NOTE_MAX, clamp01, anchorFromSelection, caretAtPoint, highlightNames, highlightsSupported, loadColorChoice,
+  loadMarks, loadRecentColors, marksToMarkdown, newId, rangeFromOffsets, registerColor, rememberColor, resolveAnchor, resolveColor,
+  saveColorChoice, saveMarks, scopeLabel, scopeOrder, scopeText,
 } from '../lib/annotations.js';
+import ColorMenu, { Swatches } from './ColorMenu.jsx';
 import { useEditingTools } from '../lib/useEditingTools.js';
 
 // Reading tools around any viewer: highlighters, underlines, strike-through, notes, a pen and an
@@ -78,7 +80,7 @@ function StrokeLayer({ scopeId, strokes, drawing, color, width, onAdd, onErase }
         <path
           key={s.id}
           d={d(s.points)}
-          stroke={COLORS[s.color]?.solid ?? '#333'}
+          stroke={resolveColor(s.color).solid}
           strokeWidth={s.width}
           fill="none"
           strokeLinecap="round"
@@ -89,7 +91,7 @@ function StrokeLayer({ scopeId, strokes, drawing, color, width, onAdd, onErase }
         />
       ))}
       {live && (
-        <path d={d(live.points)} stroke={COLORS[color].solid} strokeWidth={width} fill="none" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+        <path d={d(live.points)} stroke={resolveColor(color).solid} strokeWidth={width} fill="none" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
       )}
     </svg>
   );
@@ -145,7 +147,7 @@ function StickyLayer({ scopeId, stickies, openId, onToggle, onMove }) {
           type="button"
           className={s.id === openId ? 'sticky-pin open' : 'sticky-pin'}
           data-sticky-id={s.id}
-          style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, '--c': COLORS[s.color]?.solid ?? '#d4a500' }}
+          style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, '--c': resolveColor(s.color).solid }}
           aria-label={`Sticky note ${i + 1}${s.text ? `: ${s.text.slice(0, 60)}` : ' (empty)'}. Enter opens it, arrow keys move it.`}
           aria-expanded={s.id === openId}
           onPointerDown={(e) => down(e, s)}
@@ -168,7 +170,10 @@ export default function Annotator({ docKey, title, children }) {
   const [marks, setMarks] = useState(() => loadMarks(docKey));
   const [toolChoice, setTool] = useState('select'); // select | highlight | underline | wavy | strike | pen | eraser
   const tool = editable ? toolChoice : 'select';
-  const [color, setColor] = useState('yellow');
+  const [color, setColorState] = useState(() => { const c = loadColorChoice(); registerColor(c); return c; });
+  const [recentColors, setRecentColors] = useState(loadRecentColors);
+  const setColor = useCallback((c) => { registerColor(c); setColorState(c); saveColorChoice(c); }, []);
+  const rememberCustom = useCallback((hex) => { registerColor(hex); setRecentColors((l) => rememberColor(l, hex)); }, []);
   const [penWidth, setPenWidth] = useState('medium');
   const [panelChoice, setPanel] = useState(false);
   // The tools bar can be folded to one slim row; the choice is kept in this browser.
@@ -224,13 +229,12 @@ export default function Annotator({ docKey, title, children }) {
         const range = rangeFromOffsets(el, at[0], at[1]);
         if (!range) continue;
         resolved.current.set(m.id, { scopeEl: el, start: at[0], end: at[1] });
-        const name = `alc-${m.kind}-${m.color}`;
+        const name = `alc-${m.kind}-${registerColor(m.color)}`;
         if (!groups.has(name)) groups.set(name, []);
         groups.get(name).push(range);
       }
     }
-    const names = [];
-    for (const k of ['hl', 'ul', 'wv', 'st']) for (const c of COLOR_KEYS) names.push(`alc-${k}-${c}`);
+    const names = highlightNames();
     // A browser with a partial Custom Highlight API must never break reading: drawing is best effort.
     const clear = () => { try { for (const n of names) CSS.highlights.delete(n); } catch { /* not supported */ } };
     clear();
@@ -388,7 +392,7 @@ export default function Annotator({ docKey, title, children }) {
 
   const editing = popover?.kind === 'edit' ? marks.items.find((i) => i.id === popover.id) : null;
   const sortedItems = [...marks.items].sort((a, b) => scopeOrder(a.scope) - scopeOrder(b.scope) || a.start - b.start);
-  const textToolButtons = [['highlight', 'Highlight'], ['underline', 'Underline'], ['wavy', 'Wavy'], ['strike', 'Strike']];
+  const textToolButtons = [['underline', 'Underline'], ['wavy', 'Wavy'], ['strike', 'Strike']];
   const count = marks.items.length + marks.strokes.length + marks.stickies.length + marks.notes.length;
   const openSticky = marks.stickies.find((s) => s.id === openId);
   const stickyRows = [...marks.stickies].sort((a, b) => scopeOrder(a.scope) - scopeOrder(b.scope) || a.y - b.y);
@@ -404,18 +408,16 @@ export default function Annotator({ docKey, title, children }) {
       {editable && !collapsed && (
       <div className="annotator-bar annotator-ui" role="toolbar" aria-label="Reading tools" ref={barRef}>
         <button type="button" className={tool === 'select' ? 'tool on' : 'tool'} onClick={() => { setTool('select'); setPopover(null); }} aria-pressed={tool === 'select'} title="Select text; a menu appears">Select</button>
+        {supported && (
+          <ColorMenu value={color} onChange={setColor} onRemember={rememberCustom} recent={recentColors} active={tool === 'highlight'} onToggleTool={() => setTool(tool === 'highlight' ? 'select' : 'highlight')} />
+        )}
         {supported && textToolButtons.map(([k, label]) => (
           <button key={k} type="button" className={tool === k ? 'tool on' : 'tool'} onClick={() => setTool(tool === k ? 'select' : k)} aria-pressed={tool === k} title={`${label}: select text to mark it`}>
-            <span className={`tool-icon tool-${k}`} aria-hidden="true" style={{ '--c': COLORS[color].solid, '--f': COLORS[color].fill }}>A</span>{label}
+            <span className={`tool-icon tool-${k}`} aria-hidden="true" style={{ '--c': resolveColor(color).solid, '--f': resolveColor(color).fill }}>A</span>{label}
           </button>
         ))}
         <button type="button" className={tool === 'pen' ? 'tool on' : 'tool'} onClick={() => setTool(tool === 'pen' ? 'select' : 'pen')} aria-pressed={tool === 'pen'} title="Draw freehand on the page">Pen</button>
         <button type="button" className={tool === 'eraser' ? 'tool on' : 'tool'} onClick={() => setTool(tool === 'eraser' ? 'select' : 'eraser')} aria-pressed={tool === 'eraser'} title="Click a mark or stroke to remove it">Eraser</button>
-        <span className="swatches" role="group" aria-label="Colour">
-          {COLOR_KEYS.map((c) => (
-            <button key={c} type="button" className={c === color ? 'swatch on' : 'swatch'} style={{ background: COLORS[c].solid }} onClick={() => setColor(c)} aria-label={COLORS[c].name} aria-pressed={c === color} />
-          ))}
-        </span>
         {tool === 'pen' && (
           <span className="widths" role="group" aria-label="Pen size">
             {Object.keys(PEN_WIDTHS).map((w) => (
@@ -442,7 +444,7 @@ export default function Annotator({ docKey, title, children }) {
               {sortedItems.map((it) => (
                 <li key={it.id}>
                   <button type="button" className="mark-row" onClick={() => goTo(it)}>
-                    <span className={`mark-chip kind-${it.kind}`} style={{ '--c': COLORS[it.color]?.solid, '--f': COLORS[it.color]?.fill }} aria-hidden="true" />
+                    <span className={`mark-chip kind-${it.kind}`} style={{ '--c': resolveColor(it.color).solid, '--f': resolveColor(it.color).fill }} aria-hidden="true" />
                     <span className="mark-body">
                       <span className="mark-where">{scopeLabel(it.scope)} · {KIND_LABEL[it.kind]}{resolved.current.has(it.id) ? '' : ' · text moved'}</span>
                       <span className="mark-quote">{it.quote.length > 140 ? `${it.quote.slice(0, 140)}…` : it.quote}</span>
@@ -460,7 +462,7 @@ export default function Annotator({ docKey, title, children }) {
                   {stickyRows.map((st) => (
                     <li key={st.id}>
                       <button type="button" className="mark-row" onClick={() => { goTo(st); setTimeout(() => setOpenId(st.id), 250); }}>
-                        <span className="mark-chip sticky-chip" style={{ '--c': COLORS[st.color]?.solid }} aria-hidden="true" />
+                        <span className="mark-chip sticky-chip" style={{ '--c': resolveColor(st.color).solid }} aria-hidden="true" />
                         <span className="mark-body">
                           <span className="mark-where">{scopeLabel(st.scope)} · Sticky note</span>
                           <span className="mark-note">{st.text ? (st.text.length > 140 ? `${st.text.slice(0, 140)}…` : st.text) : 'Empty'}</span>
@@ -531,9 +533,7 @@ export default function Annotator({ docKey, title, children }) {
             aria-label="Sticky note text"
           />
           <div className="pop-row">
-            {COLOR_KEYS.map((c) => (
-              <button key={c} type="button" className={c === openSticky.color ? 'swatch on' : 'swatch'} style={{ background: COLORS[c].solid }} onClick={() => updateSticky(openSticky.id, { color: c })} aria-label={COLORS[c].name} aria-pressed={c === openSticky.color} />
-            ))}
+            <Swatches value={openSticky.color} onPick={(c) => updateSticky(openSticky.id, { color: c })} recent={recentColors} />
           </div>
           <div className="pop-row">
             <button type="button" className="secondary" onClick={() => setOpenId(null)}>Done</button>
@@ -545,9 +545,7 @@ export default function Annotator({ docKey, title, children }) {
       {editable && popover?.kind === 'new' && (
         <div className="annotator-pop annotator-ui" style={{ left: popover.x, top: popover.y }} role="menu">
           <div className="pop-row">
-            {COLOR_KEYS.map((c) => (
-              <button key={c} type="button" className="swatch" style={{ background: COLORS[c].solid }} onClick={() => applyNew('hl', c, false)} aria-label={`Highlight ${COLORS[c].name}`} />
-            ))}
+            <Swatches value="" onPick={(c) => applyNew('hl', c, false)} recent={recentColors} label={(n) => `Highlight ${n}`} />
           </div>
           <div className="pop-row">
             <button type="button" className="secondary" onClick={() => applyNew('ul', color, false)}>Underline</button>
@@ -561,9 +559,7 @@ export default function Annotator({ docKey, title, children }) {
       {editable && editing && (
         <div className="annotator-pop annotator-ui" style={{ left: popover.x, top: popover.y }} role="dialog" aria-label="Edit mark">
           <div className="pop-row">
-            {COLOR_KEYS.map((c) => (
-              <button key={c} type="button" className={c === editing.color ? 'swatch on' : 'swatch'} style={{ background: COLORS[c].solid }} onClick={() => update(editing.id, { color: c })} aria-label={COLORS[c].name} />
-            ))}
+            <Swatches value={editing.color} onPick={(c) => { registerColor(c); update(editing.id, { color: c }); }} recent={recentColors} />
           </div>
           <div className="pop-row">
             {['hl', 'ul', 'wv', 'st'].map((k) => (
