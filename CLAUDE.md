@@ -37,3 +37,6 @@ Detection re-synced (extension commit below): up to 3 automatic cards on one par
 
 ## 25 November 2026
 A reading's own due checks ("Ready to check again") now also appear above the document when it is reopened (`KeptAndReviews` with `assignmentId`: only that reading, no Kept list). Checks are only due a day or more after help or an answer, so this shows after time away. The overview card still lists every reading. Build passes; not checked in a browser.
+
+## 25 November 2026 (plainer cards)
+Detection re-synced: the second explanation or repair card on a paragraph asks for plainer wording, the third for the smallest steps (see the extension's CLAUDE.md). Build passes; not checked in a browser.
