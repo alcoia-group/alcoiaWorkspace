@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/comprehension-monitor.js, commit 2753fd3ee94f) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/comprehension-monitor.js, commit 8a54c20b330f) by scripts/sync-detection.mjs. Do not edit here. */
 /* comprehension-monitor.js
    Detects readers who appear focused but may not be understanding the content.
 

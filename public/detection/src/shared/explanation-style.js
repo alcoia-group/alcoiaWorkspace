@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/explanation-style.js, commit 2753fd3ee94f) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/explanation-style.js, commit 8a54c20b330f) by scripts/sync-detection.mjs. Do not edit here. */
 /* explanation-style.js: which way of explaining to try for THIS learner.
  *
  * The server keeps, per summarize mode, an ordered list of the styles the learner's own results favour
@@ -14,6 +14,10 @@ export const STYLE_NAMES = Object.freeze(['example_first', 'analogy', 'step_by_s
  * had). The marker '_default' means "the ordinary prompt with no layout was used". */
 export function chooseStyle(list, rng = Math.random, opts = {}) {
   const avoid = new Set([].concat(opts.avoid || []).filter(Boolean));
+  // opts.prefer: layouts that suit the KIND of difficulty (for example a worked example for someone who said "I don't
+  // know"). A clear difficulty beats the learned order; one already used on this paragraph is skipped.
+  const preferred = [].concat(opts.prefer || []).find((x) => STYLE_NAMES.includes(x) && !avoid.has(x));
+  if (preferred) return preferred;
   if (!Array.isArray(list) || list.length === 0) {
     // No profile. Normally the ordinary prompt; but a paragraph that already had help gets a different layout.
     if (avoid.size === 0) return null;
