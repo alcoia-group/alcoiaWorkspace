@@ -9,7 +9,8 @@ import BetaRemembered from './BetaRemembered.jsx'; // BETA-FEEDBACK
 const dayLong = (iso) => new Date(`${String(iso).slice(0, 10)}T12:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'long', timeZone: 'UTC' });
 const day = (iso) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
-export default function KeptAndReviews({ sessionToken }) {
+export default function KeptAndReviews({ sessionToken, assignmentId = null }) {
+  // With assignmentId (the reader page) only that reading's due checks are shown, and not the Kept list.
   const [kept, setKept] = useState([]);
   const [due, setDue] = useState([]);
   const [open, setOpen] = useState(null); // the review being answered
@@ -21,10 +22,10 @@ export default function KeptAndReviews({ sessionToken }) {
   useEffect(() => {
     let cancelled = false;
     const opts = { sessionToken };
-    apiGet('/api/account/kept', opts).then((r) => !cancelled && setKept(r.items ?? [])).catch(() => {});
-    apiGet('/api/account/reviews/due', opts).then((r) => !cancelled && setDue(r.reviews ?? [])).catch(() => {});
+    if (!assignmentId) apiGet('/api/account/kept', opts).then((r) => !cancelled && setKept(r.items ?? [])).catch(() => {});
+    apiGet('/api/account/reviews/due', opts).then((r) => !cancelled && setDue((r.reviews ?? []).filter((x) => !assignmentId || x.assignmentId === assignmentId))).catch(() => {});
     return () => { cancelled = true; };
-  }, [sessionToken]);
+  }, [sessionToken, assignmentId]);
 
   async function answer(review, choiceId) {
     setBusy(true);

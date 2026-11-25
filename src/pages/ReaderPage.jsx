@@ -1,3 +1,4 @@
+import KeptAndReviews from '../components/KeptAndReviews.jsx';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useSession } from '../context/SessionContext.jsx';
@@ -141,6 +142,7 @@ export default function ReaderPage() {
             })()}
           </span>
         </div>
+        <KeptAndReviews sessionToken={session.sessionToken} assignmentId={assignmentId} />
         <BeforeYouRead assignmentId={assignmentId} content={doc.content} sessionToken={session.sessionToken} />
         <Annotator docKey={`a:${assignmentId}`} title={assignment.name || assignment.className}>
         <Suspense fallback={<p className="muted pad">Loading.</p>}>
