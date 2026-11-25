@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/reading-line.js, commit 2753fd3ee94f) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/reading-line.js, commit 8a54c20b330f) by scripts/sync-detection.mjs. Do not edit here. */
 /* reading-line.js: where on the screen this reader actually reads
  *
  * paragraph-tracker.js decides which paragraph is being read by asking which one crosses a horizontal "reading line".
