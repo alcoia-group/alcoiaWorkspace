@@ -1,5 +1,5 @@
 import { useFullscreen } from '../../lib/fullscreen.js';
-import { cloneElement, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, cloneElement, createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 // Word-style viewer for the server's structured DOCX model. It renders real
 // <h*>/<p>/<ul>/<table> elements inside page frames, so the alcoia extension
@@ -42,13 +42,15 @@ function Runs({ runs }) {
 // `offset` (top-level blocks only) is the number of blocks before this page, so every top-level block
 // carries `data-block`, its index through the whole document. "Prove it to skip" uses it to know
 // where the reader is and where to go; it is an attribute only, no text is added to the page.
-function Blocks({ blocks, asset, marks, page, offset }) {
+function Blocks({ blocks, asset, marks, page, offset, slots }) {
   return blocks.map((block, i) => {
     let node = renderBlock(block, i, asset);
     if (node === null) return node;
     const at = offset === undefined ? undefined : offset + i;
+    const slot = at !== undefined ? slots?.[at] : undefined;
     if (marks === undefined || page === undefined) {
-      return at !== undefined && typeof node.type === 'string' ? cloneElement(node, { 'data-block': at }) : node;
+      const plain = at !== undefined && typeof node.type === 'string' ? cloneElement(node, { 'data-block': at }) : node;
+      return slot ? <Fragment key={i}>{plain}{slot}</Fragment> : plain;
     }
     const unit = wordUnit(page, i);
     const optional = marks.optional.has(unit);
@@ -56,6 +58,7 @@ function Blocks({ blocks, asset, marks, page, offset }) {
       <div key={i} className={optional ? 'docx-unit is-optional' : 'docx-unit'} data-unit={unit} data-block={at}>
         {node}
         <MarkToggle marks={marks} unit={unit} className="mark-toggle secondary" />
+        {slot}
       </div>
     );
   });
@@ -110,7 +113,7 @@ function renderBlock(block, i, asset) {
 
 const ZOOM_STEPS = [0.75, 0.9, 1, 1.15, 1.3, 1.5];
 
-export default function DocxViewer({ content, title, asset, onDownload, marks, resume }) {
+export default function DocxViewer({ content, title, asset, onDownload, marks, resume, slots }) {
   const place = useResume(resume);
   const pages = content.pages;
   // The file's own body font and colour (Word); headings then inherit them unless a run says otherwise.
@@ -228,7 +231,7 @@ export default function DocxViewer({ content, title, asset, onDownload, marks, r
             ref={(el) => { pageRefs.current[i] = el; }}
             aria-label={`Page ${i + 1} of ${pages.length}`}
           >
-            <Blocks blocks={page.blocks} asset={asset} marks={marks ?? undefined} page={i} offset={layout.offsets[i]} />
+            <Blocks blocks={page.blocks} asset={asset} marks={marks ?? undefined} page={i} offset={layout.offsets[i]} slots={slots?.block} />
           </article>
         ))}
       </div>

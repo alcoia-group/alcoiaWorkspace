@@ -40,3 +40,18 @@ A reading's own due checks ("Ready to check again") now also appear above the do
 
 ## 25 November 2026 (plainer cards)
 Detection re-synced: the second explanation or repair card on a paragraph asks for plainer wording, the third for the smallest steps (see the extension's CLAUDE.md). Build passes; not checked in a browser.
+
+## 26 November 2026
+The own-file message for a PDF with no selectable text now says to run OCR first and add it again. Copy only.
+Update, same day: adding your own PDF with no selectable text is refused (`no_selectable_text`, nothing kept on the device) with the run-OCR message. An already stored scan in an assigned reading shows "ask your instructor for a text version". 40 unit tests pass (`node --test tests/*.test.mjs`; the workspace has no npm test script).
+
+## 26 November 2026 (own files closed for the beta)
+"My files" shows a "not available during the beta" notice and the Add a file button is commented out (`OWN FILES CLOSED FOR THE BETA`); `VITE_OWN_FILES=on` at build time brings it back (the server also needs `FEATURE_OWN_FILES=on`). Build and 40 tests pass; not checked in a browser.
+
+## 26 November 2026 (questions found in the document)
+The reading's own questions are offered where they are in the document, not as a banner (`components/FoundQuestions.jsx`, `lib/docQuestions.js`, `lib/docQuestionPlacement.js`). `ReaderPage` fetches `GET /api/assignments/:id/document/questions` once the document is shown and gives the viewer `slots`: Word and EPUB render a group under its heading's top-level block (`data-block` index counted through the document; a group with no heading goes under the block before its first question), PDF under the page the questions start on. Slides and groups with no place get no offer. The offer is one line ("These 6 questions are from the reading", "Answer here"), then one card at a time (radio choices or a text box), then "Your answers". Answers are kept on this device only (`alcoia_workspace_found_<assignment>_<group>`) and "Review your answers" shows them again; nothing is graded or sent (no answer key). Slots are `data-anno-skip`, so highlights and detection ignore them. Build and 43 unit tests pass; not checked in a browser.
+
+Update, same day: switched off for now. Nothing is fetched or shown unless `VITE_FOUND_QUESTIONS=on` at build time (the server also needs `FEATURE_DOCUMENT_QUESTIONS=on`). The code is kept.
+
+## 26 November 2026 (completion notice)
+The invite page shows an extra notice when the class lets the instructor see completion (`ReportingNotice` `completionVisible`, from the invite preview) and joins with `acknowledgedCompletion: true`; the server refuses a join without it. Build and 43 tests pass; not checked in a browser.

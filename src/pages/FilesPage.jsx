@@ -14,7 +14,7 @@ import {
 // My files: the user's own documents, kept on THIS device. The workspace holds the file in the browser and
 // opens it from there; the server never receives a copy to keep. Closing the tab, refreshing or coming back
 // later does not remove them. Clearing this site's data in the browser does.
-export default function FilesPage() {
+function FilesPageOn() {
   const { session, signOut } = useSession();
   const account = session.email ?? null;
   const [files, setFiles] = useState(null);
@@ -197,6 +197,22 @@ export default function FilesPage() {
         </>
       )}
       <p className="muted small">To report a file that breaks the rules, use the contact form on alcoia.app.</p>
+    </section>
+  );
+}
+
+// Your own files are switched off for the beta (owner decision, 26 November 2026): they come after it. Build with
+// VITE_OWN_FILES=on to bring the page back. The old page above is unchanged.
+export const OWN_FILES_ON = import.meta.env.VITE_OWN_FILES === 'on';
+
+export default function FilesPage() {
+  if (OWN_FILES_ON) return <FilesPageOn />;
+  return (
+    <section className="page">
+      <h1>My files</h1>
+      <p>Your own files are not available during the beta. They come after it, so we can test class readings first.</p>
+      <p className="muted">Assigned readings work now: open one from your overview.</p>
+      <p><Link to="/">Back to the overview</Link></p>
     </section>
   );
 }

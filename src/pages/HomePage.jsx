@@ -195,7 +195,7 @@ export default function HomePage() {
               ))}
             </ul>
           )}
-          {files !== null && files.length === 0 && <Link className="button secondary" to="/files">Add a file</Link>}
+          {/* OWN FILES CLOSED FOR THE BETA: {files !== null && files.length === 0 && <Link className="button secondary" to="/files">Add a file</Link>} */}
         </section>
 
         <section className="ov-card" aria-labelledby="ov-notes">
@@ -222,7 +222,7 @@ export default function HomePage() {
           <h2 id="ov-go">Go to</h2>
           <ul className="ov-links">
             <li><Link to="/assignments"><strong>Materials</strong><span>Readings your instructors assigned</span></Link></li>
-            <li><Link to="/files"><strong>My files</strong><span>Your own documents, kept on this device</span></Link></li>
+            <li><Link to="/files"><strong>My files</strong><span>After the beta</span></Link></li>
             <li><Link to="/analytics"><strong>Learner analytics</strong><span>What you answered well and what to review</span></Link></li>
             <li><Link to="/settings"><strong>Settings</strong><span>Help cards, reading options and your data</span></Link></li>
           </ul>

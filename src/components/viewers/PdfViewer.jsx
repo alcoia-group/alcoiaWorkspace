@@ -126,7 +126,7 @@ function makeSignal() {
   };
 }
 
-function PdfPage({ pdf, number, scale, base, onNear, onGoto, describe }) {
+function PdfPage({ pdf, number, scale, base, onNear, onGoto, describe, slot }) {
   const [ref, near] = useVisible('900px 0px');
   const canvasRef = useRef(null);
   const textRef = useRef(null);
@@ -146,6 +146,7 @@ function PdfPage({ pdf, number, scale, base, onNear, onGoto, describe }) {
     return () => signal.cancel();
   }, [near, pdf, number, scale, describe]);
   return (
+    <>
     <article
       ref={ref}
       className="pdf-page"
@@ -164,6 +165,8 @@ function PdfPage({ pdf, number, scale, base, onNear, onGoto, describe }) {
         />
       )}
     </article>
+    {slot}
+    </>
   );
 }
 
@@ -197,7 +200,7 @@ function PdfThumb({ pdf, number, base, current, onSelect }) {
   );
 }
 
-export default function PdfViewer({ content, title, asset, onDownload, marks, resume }) {
+export default function PdfViewer({ content, title, asset, onDownload, marks, resume, slots }) {
   const place = useResume(resume);
   const [pdf, setPdf] = useState(null);
   const [error, setError] = useState(false);
@@ -325,7 +328,7 @@ export default function PdfViewer({ content, title, asset, onDownload, marks, re
           ))}
         </nav>
         <div className="viewer-stage pdf-stage" ref={stageRef}>
-          {pages.map((n) => <PdfPage key={n} pdf={pdf} number={n} scale={scale} base={base} onGoto={followLink} describe={describe} />)}
+          {pages.map((n) => <PdfPage key={n} pdf={pdf} number={n} scale={scale} base={base} onGoto={followLink} describe={describe} slot={slots?.page?.[n]} />)}
         </div>
       </div>
     </div>

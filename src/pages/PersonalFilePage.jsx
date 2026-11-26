@@ -80,7 +80,7 @@ function ServerFilePage({ id }) {
       {state.status === 'ready' && (
         <>
           <h1 className="page-title">{doc.name}</h1>
-          <p className="alert">This file cannot be shown here (for example a scanned PDF with no text). You can download the original.</p>
+          <p className="alert">This file cannot be shown here (for example a scanned PDF with no selectable text). Run OCR on it first, then add it again. You can download the original.</p>
           <button type="button" className="secondary" onClick={() => downloadPersonalFile({ id, name: doc.name, format: doc.format }, session.sessionToken)}>Download</button>
         </>
       )}

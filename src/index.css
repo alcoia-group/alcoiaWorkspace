@@ -833,3 +833,10 @@ html.is-fullscreen[data-bars='hidden'] .pdf-viewer .slides-rail { top: 0; max-he
 .slide-notes { font-size: 14px; border: 1px solid var(--field-border, #c7cdd1); border-radius: 8px; padding: 6px 12px; background: #fff; }
 .slide-notes summary { cursor: pointer; font-size: 13px; color: var(--ink-faint, #6b7280); }
 .slide-notes-text { white-space: pre-wrap; line-height: 1.5; padding: 6px 0 4px; }
+
+/* Questions found in the document: offered inline under their heading, never a banner. */
+.found-questions { margin: 12px 0; font-family: var(--font-sans, inherit); font-size: 0.95rem; }
+.found-offer { padding: 8px 12px; border: 1px solid var(--card-border, #d9d6cf); border-radius: 8px; background: var(--paper-raised, #fff); color: var(--ink, #333); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.found-questions.card { padding: 12px 16px; border: 1px solid var(--card-border, #d9d6cf); border-radius: 8px; background: var(--paper-raised, #fff); color: var(--ink, #333); }
+.found-questions .choice { display: block; margin: 6px 0; }
+.found-questions textarea { width: 100%; }

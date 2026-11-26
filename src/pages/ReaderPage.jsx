@@ -10,6 +10,8 @@ import BeforeYouRead from '../components/BeforeYouRead.jsx';
 import Annotator from '../components/Annotator.jsx';
 import Detection from '../detection/Detection.jsx';
 import ExplainBack from '../components/ExplainBack.jsx';
+import FoundQuestions from '../components/FoundQuestions.jsx';
+import { fetchDocQuestions, placeGroups } from '../lib/docQuestions.js';
 import Connections from '../components/Connections.jsx';
 import { fetchSectionMarks, saveSectionMarks } from '../lib/sectionMarks.js';
 import { wordLayout } from '../lib/proveSkip.js';
@@ -103,6 +105,27 @@ export default function ReaderPage() {
   }, [account, assignmentId, total]);
   const resume = useMemo(() => (total > 0 ? { initial: startIndex, onPosition } : undefined), [total, startIndex, onPosition]);
 
+  // The reading's own questions are offered where they are in the document (a slot the viewer renders), not as a banner.
+  const [foundGroups, setFoundGroups] = useState([]);
+  // QUESTIONS FOUND IN THE DOCUMENT CLOSED FOR NOW (owner decision, 26 November 2026): built and kept, switched off.
+  // VITE_FOUND_QUESTIONS=on at build time (and FEATURE_DOCUMENT_QUESTIONS=on on the server) brings it back.
+  const docReady = import.meta.env.VITE_FOUND_QUESTIONS === 'on' && state.status === 'ready' && Boolean(state.doc?.content);
+  useEffect(() => {
+    if (!docReady) return undefined;
+    let cancelled = false;
+    fetchDocQuestions(assignmentId, session?.sessionToken).then((g) => { if (!cancelled) setFoundGroups(g); });
+    return () => { cancelled = true; };
+  }, [docReady, assignmentId, session?.sessionToken]);
+  const slots = useMemo(() => {
+    if (!docReady || foundGroups.length === 0) return undefined;
+    const placed = placeGroups(state.doc.content, foundGroups);
+    const node = (g) => <FoundQuestions key={g.questions[0].id} assignmentId={assignmentId} group={g} />;
+    return {
+      block: Object.fromEntries(Object.entries(placed.block).map(([k, g]) => [k, node(g)])),
+      page: Object.fromEntries(Object.entries(placed.page).map(([k, g]) => [k, node(g)])),
+    };
+  }, [docReady, foundGroups, state.doc, assignmentId]);
+
   useEffect(() => {
     if (state.status === 'expired') signOut();
   }, [state.status, signOut]);
@@ -154,6 +177,7 @@ export default function ReaderPage() {
             onDownload={() => handleDownload(doc.documentId)}
             marks={markState ? { ...markState, toggle: toggleMark } : null}
             resume={resume}
+            slots={slots}
           />
         </Suspense>
         </Annotator>
@@ -182,7 +206,7 @@ export default function ReaderPage() {
         <>
           <h1 className="page-title">{assignment.className}</h1>
           <p className="muted">Due {formatDue(assignment.closesAt)}</p>
-          <p className="alert">This file cannot be shown here. You can download the original.</p>
+          <p className="alert">This file cannot be shown here. If it is a scan with no selectable text, ask your instructor for a text version. You can download the original.</p>
           {assignment.documents.length === 0 && <p>No document has been attached yet.</p>}
           {assignment.documents.map((d) => (
             <div className="file-row" key={d.documentId}>
