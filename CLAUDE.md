@@ -47,3 +47,6 @@ Update, same day: adding your own PDF with no selectable text is refused (`no_se
 
 ## 26 November 2026 (own files closed for the beta)
 "My files" shows a "not available during the beta" notice and the Add a file button is commented out (`OWN FILES CLOSED FOR THE BETA`); `VITE_OWN_FILES=on` at build time brings it back (the server also needs `FEATURE_OWN_FILES=on`). Build and 40 tests pass; not checked in a browser.
+
+## 26 November 2026 (questions found in the document)
+`components/FoundQuestions.jsx` (assigned readings only) asks the server for the reading's own questions (`GET /api/assignments/:id/document/questions`) and, when there are any, shows a banner above the document and a one-at-a-time card carousel (choices as radio buttons, otherwise a text box), with the answers listed at the end. Answers stay on the page: nothing graded, nothing sent (no answer key exists yet). First slice: it is offered at the top, not when the reader reaches the questions. Build and 40 tests pass; not checked in a browser.

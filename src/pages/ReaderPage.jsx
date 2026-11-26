@@ -10,6 +10,7 @@ import BeforeYouRead from '../components/BeforeYouRead.jsx';
 import Annotator from '../components/Annotator.jsx';
 import Detection from '../detection/Detection.jsx';
 import ExplainBack from '../components/ExplainBack.jsx';
+import FoundQuestions from '../components/FoundQuestions.jsx';
 import Connections from '../components/Connections.jsx';
 import { fetchSectionMarks, saveSectionMarks } from '../lib/sectionMarks.js';
 import { wordLayout } from '../lib/proveSkip.js';
@@ -144,6 +145,7 @@ export default function ReaderPage() {
         </div>
         <KeptAndReviews sessionToken={session.sessionToken} assignmentId={assignmentId} />
         <BeforeYouRead assignmentId={assignmentId} content={doc.content} sessionToken={session.sessionToken} />
+        <FoundQuestions assignmentId={assignmentId} sessionToken={session.sessionToken} />
         <Annotator docKey={`a:${assignmentId}`} title={assignment.name || assignment.className}>
         <Suspense fallback={<p className="muted pad">Loading.</p>}>
           <Viewer
