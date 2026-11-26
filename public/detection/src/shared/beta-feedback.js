@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/beta-feedback.js, commit 8a54c20b330f) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/beta-feedback.js, commit 382bcedbef22) by scripts/sync-detection.mjs. Do not edit here. */
 /* BETA-FEEDBACK: this whole file goes when the beta ends (alcoiaServer docs/beta-feedback-plan.md, "Removing it").
  *
  * The beta questions asked once at the end of a reading: "How often did Alcoia interrupt you on this page?" (sent with

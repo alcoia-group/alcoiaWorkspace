@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 8a54c20b330f) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 382bcedbef22) by scripts/sync-detection.mjs. Do not edit here. */
 /* host.js — the orchestrator's host, extracted from content.js (item 30a)
  *
  * orchestrator.js depends on a `host` object with callbacks
@@ -2178,7 +2178,7 @@ export async function createHost(deps) {
   }
   function probeCovered() { probe.words = 0; probe.read = []; probe.nextAt = Math.round(PROBE_EVERY_WORDS * (probeProfile()?.cooldownFactor ?? 1)); }
 
-  /* "Before you read on": once the reader has read every
+  /* "Before you read on" (LearnHarness's predict-then-teach, kept to the reading): once the reader has read every
    * paragraph a later claim rests on, and before they reach it, one short question asks what they expect. Nothing to
    * answer, nothing graded, nothing sent: the reading itself is the feedback. Spends the same interruption budget as
    * every content-triggered card (evaluateContentTrigger), never over an open question card, never while snoozed. */
