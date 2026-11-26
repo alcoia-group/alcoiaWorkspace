@@ -44,3 +44,6 @@ Detection re-synced: the second explanation or repair card on a paragraph asks f
 ## 26 November 2026
 The own-file message for a PDF with no selectable text now says to run OCR first and add it again. Copy only.
 Update, same day: adding your own PDF with no selectable text is refused (`no_selectable_text`, nothing kept on the device) with the run-OCR message. An already stored scan in an assigned reading shows "ask your instructor for a text version". 40 unit tests pass (`node --test tests/*.test.mjs`; the workspace has no npm test script).
+
+## 26 November 2026 (own files closed for the beta)
+"My files" shows a "not available during the beta" notice and the Add a file button is commented out (`OWN FILES CLOSED FOR THE BETA`); `VITE_OWN_FILES=on` at build time brings it back (the server also needs `FEATURE_OWN_FILES=on`). Build and 40 tests pass; not checked in a browser.
