@@ -40,3 +40,6 @@ A reading's own due checks ("Ready to check again") now also appear above the do
 
 ## 25 November 2026 (plainer cards)
 Detection re-synced: the second explanation or repair card on a paragraph asks for plainer wording, the third for the smallest steps (see the extension's CLAUDE.md). Build passes; not checked in a browser.
+
+## 26 November 2026
+The own-file message for a PDF with no selectable text now says to run OCR first and add it again. Copy only.
