@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/quiz-offer.js, commit 8a54c20b330f) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/quiz-offer.js, commit 382bcedbef22) by scripts/sync-detection.mjs. Do not edit here. */
 /* quiz-offer.js — end-of-reading trigger for the *unprompted* quiz offer
  *
  * Separate from coverage-gate.js on purpose: coverage-gate.js's evaluate()

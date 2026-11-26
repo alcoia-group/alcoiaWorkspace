@@ -7,7 +7,7 @@ import ReportingNotice from '../components/ReportingNotice.jsx';
 // Where a student lands from an LMS launch when they have no extension to
 // answer it. The launch page on the marketing site puts what it received in
 // the URL fragment (never sent to a server or logged):
-//   #p=<base64url JSON { ackCode, reportingMode }>  the student still has to
+//   #p=<base64url JSON { ackCode, reportingMode, completionVisible }>  the student still has to
 //       agree to the reporting-mode notice, shown here before the button exists
 //   #s=<session token>                              nothing left to agree to;
 //       sign in with it and show the student's assignments
@@ -32,7 +32,7 @@ function parseFragment() {
     const data = JSON.parse(decodeURIComponent(escape(atob(b64))));
     if (typeof data.ackCode === 'string' && data.ackCode
       && (data.reportingMode === 'anonymous' || data.reportingMode === 'identified')) {
-      return { kind: 'disclosure', ackCode: data.ackCode, reportingMode: data.reportingMode };
+      return { kind: 'disclosure', ackCode: data.ackCode, reportingMode: data.reportingMode, completionVisible: data.completionVisible === true };
     }
   } catch { /* fall through */ }
   return { kind: 'none' };
@@ -63,7 +63,9 @@ export default function LtiJoinPage() {
     setBusy(true);
     setError('');
     try {
-      const body = await apiPost('/api/lti/disclosure/ack', { acknowledged: true, ackCode: launch.ackCode });
+      const body = await apiPost('/api/lti/disclosure/ack', launch.completionVisible
+        ? { acknowledged: true, ackCode: launch.ackCode, acknowledgedCompletion: true }
+        : { acknowledged: true, ackCode: launch.ackCode });
       // Straight into the assignment when the launch named one (the redirect
       // carries a one-use code that signs the student in); otherwise use the
       // session just created and show the list.
@@ -85,7 +87,7 @@ export default function LtiJoinPage() {
       <h1 className="page-title">Join your class</h1>
       {launch.kind === 'disclosure' ? (
         <>
-          <ReportingNotice reportingMode={launch.reportingMode} />
+          <ReportingNotice reportingMode={launch.reportingMode} completionVisible={launch.completionVisible} />
           <button type="button" onClick={agree} disabled={busy}>{busy ? 'Joining' : 'Join this class'}</button>
           {error && <p className="alert alert-error">{error}</p>}
         </>

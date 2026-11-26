@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/invites.js, commit 8a54c20b330f) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/invites.js, commit 382bcedbef22) by scripts/sync-detection.mjs. Do not edit here. */
 /* invites.js — accepting a class invite, and releasing a held seat (item S6)
  *
  * Same shape as install-token.js/session.js/entitlements.js/billing.js:
@@ -105,7 +105,7 @@ export function createInvitesManager(opts = {}) {
       if (!data || (data.reportingMode !== 'anonymous' && data.reportingMode !== 'identified')) {
         return { ok: false, error: 'malformed_response' };
       }
-      return { ok: true, className: typeof data.className === 'string' ? data.className : '', reportingMode: data.reportingMode };
+      return { ok: true, className: typeof data.className === 'string' ? data.className : '', reportingMode: data.reportingMode, completionVisible: data.completionVisible === true };
     } catch (e) {
       return { ok: false, error: 'network_error' };
     }
@@ -117,7 +117,7 @@ export function createInvitesManager(opts = {}) {
    * invite_full, seat_capacity_exceeded, invalid_request), or a
    * client-side one (no_session, no_token, malformed_response,
    * network_error). Never parsed from prose. */
-  async function acceptInvite(rawLinkOrCode) {
+  async function acceptInvite(rawLinkOrCode, opts2 = {}) {
     const token = extractToken(rawLinkOrCode);
     if (!token) return { ok: false, error: 'no_token' };
 
@@ -133,7 +133,10 @@ export function createInvitesManager(opts = {}) {
         headers: authHeaders(session.token),
         // The join screen shows the reporting notice before this is ever called
         // (join-class.js), so the server may count the seat as taken up.
-        body: JSON.stringify({ token, acknowledged: true }),
+        // Sent only when the class lets the instructor see completion and the
+        // join screen showed that notice (join-class.js); the server refuses a
+        // join to such a class without it.
+        body: JSON.stringify(opts2.acknowledgedCompletion ? { token, acknowledged: true, acknowledgedCompletion: true } : { token, acknowledged: true }),
       });
       const data = await resp.json().catch(() => null);
       if (!resp.ok) {
@@ -186,7 +189,7 @@ export function createInvitesManager(opts = {}) {
    * signature already guarantees — there is no "acknowledge=false" caller
    * anywhere, matching the server's own requirement that this be explicit,
    * never inferred. */
-  async function acknowledgeLtiDisclosure(ackCode) {
+  async function acknowledgeLtiDisclosure(ackCode, opts2 = {}) {
     const code = String(ackCode || '').trim();
     if (!code) return { ok: false, error: 'no_ack_code' };
     if (!ltiAckUrl || !fetchImpl) return { ok: false, error: 'no_ack_url' };
@@ -195,7 +198,7 @@ export function createInvitesManager(opts = {}) {
       const resp = await fetchImpl(ltiAckUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ acknowledged: true, ackCode: code }),
+        body: JSON.stringify(opts2.acknowledgedCompletion ? { acknowledged: true, ackCode: code, acknowledgedCompletion: true } : { acknowledged: true, ackCode: code }),
       });
       const data = await resp.json().catch(() => null);
       if (!resp.ok) {

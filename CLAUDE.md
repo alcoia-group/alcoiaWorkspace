@@ -55,3 +55,6 @@ Update, same day: switched off for now. Nothing is fetched or shown unless `VITE
 
 ## 26 November 2026 (completion notice)
 The invite page shows an extra notice when the class lets the instructor see completion (`ReportingNotice` `completionVisible`, from the invite preview) and joins with `acknowledgedCompletion: true`; the server refuses a join without it. Build and 43 tests pass; not checked in a browser.
+
+## 26 November 2026 (completion notice on LMS joins)
+`/lti/join` shows the completion notice and sends `acknowledgedCompletion` when the launch fragment carries `completionVisible` (set by the marketing launch page). Detection copy re-synced (join screen in the extension). Build and 43 tests pass; not checked in a browser.

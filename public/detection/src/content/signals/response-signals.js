@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/signals/response-signals.js, commit 8a54c20b330f) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/signals/response-signals.js, commit 382bcedbef22) by scripts/sync-detection.mjs. Do not edit here. */
 /* response-signals.js — what the reader actually answered
  *
  * Top of the signal hierarchy, and the only ground truth in the system.
@@ -247,7 +247,7 @@ export function createResponseSignals(opts = {}) {
     return record;
   }
 
-  /* "I don't know": the reader says they do not hold it. A gap, never a wrong answer and
+  /* "I don't know" (LearnHarness's dontKnow): the reader says they do not hold it. A gap, never a wrong answer and
    * never a refusal: correct stays null, it carries no confidence, and it is reported as an answered question so the
    * next decision explains first instead of asking again. */
   function dontKnow(interventionId) {
