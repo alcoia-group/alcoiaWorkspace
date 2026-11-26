@@ -11,6 +11,7 @@ import Annotator from '../components/Annotator.jsx';
 import Detection from '../detection/Detection.jsx';
 import ExplainBack from '../components/ExplainBack.jsx';
 import FoundQuestions from '../components/FoundQuestions.jsx';
+import { fetchDocQuestions, placeGroups } from '../lib/docQuestions.js';
 import Connections from '../components/Connections.jsx';
 import { fetchSectionMarks, saveSectionMarks } from '../lib/sectionMarks.js';
 import { wordLayout } from '../lib/proveSkip.js';
@@ -104,6 +105,25 @@ export default function ReaderPage() {
   }, [account, assignmentId, total]);
   const resume = useMemo(() => (total > 0 ? { initial: startIndex, onPosition } : undefined), [total, startIndex, onPosition]);
 
+  // The reading's own questions are offered where they are in the document (a slot the viewer renders), not as a banner.
+  const [foundGroups, setFoundGroups] = useState([]);
+  const docReady = state.status === 'ready' && Boolean(state.doc?.content);
+  useEffect(() => {
+    if (!docReady) return undefined;
+    let cancelled = false;
+    fetchDocQuestions(assignmentId, session?.sessionToken).then((g) => { if (!cancelled) setFoundGroups(g); });
+    return () => { cancelled = true; };
+  }, [docReady, assignmentId, session?.sessionToken]);
+  const slots = useMemo(() => {
+    if (!docReady || foundGroups.length === 0) return undefined;
+    const placed = placeGroups(state.doc.content, foundGroups);
+    const node = (g) => <FoundQuestions key={g.questions[0].id} assignmentId={assignmentId} group={g} />;
+    return {
+      block: Object.fromEntries(Object.entries(placed.block).map(([k, g]) => [k, node(g)])),
+      page: Object.fromEntries(Object.entries(placed.page).map(([k, g]) => [k, node(g)])),
+    };
+  }, [docReady, foundGroups, state.doc, assignmentId]);
+
   useEffect(() => {
     if (state.status === 'expired') signOut();
   }, [state.status, signOut]);
@@ -145,7 +165,6 @@ export default function ReaderPage() {
         </div>
         <KeptAndReviews sessionToken={session.sessionToken} assignmentId={assignmentId} />
         <BeforeYouRead assignmentId={assignmentId} content={doc.content} sessionToken={session.sessionToken} />
-        <FoundQuestions assignmentId={assignmentId} sessionToken={session.sessionToken} />
         <Annotator docKey={`a:${assignmentId}`} title={assignment.name || assignment.className}>
         <Suspense fallback={<p className="muted pad">Loading.</p>}>
           <Viewer
@@ -156,6 +175,7 @@ export default function ReaderPage() {
             onDownload={() => handleDownload(doc.documentId)}
             marks={markState ? { ...markState, toggle: toggleMark } : null}
             resume={resume}
+            slots={slots}
           />
         </Suspense>
         </Annotator>
