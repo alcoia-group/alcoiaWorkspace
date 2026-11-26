@@ -1,7 +1,7 @@
 // The reporting-mode notice is the promise made to the student, and it cannot
 // be changed after they join. It is shown, in full, before there is any way to
 // join (the join button is rendered inside this component's ready state only).
-export default function ReportingNotice({ className = 'this class', reportingMode }) {
+export default function ReportingNotice({ className = 'this class', reportingMode, completionVisible = false }) {
   return (
     <div className="notice" role="region" aria-label="What your instructor can see">
       <h2>What your instructor can see</h2>
@@ -27,6 +27,14 @@ export default function ReportingNotice({ className = 'this class', reportingMod
             Your instructor cannot see or receive a reading receipt from you in this class.
           </p>
         </>
+      )}
+      {completionVisible && (
+        <p>
+          <strong>Your instructor also sees whether you finished each reading, with your email address.</strong>{' '}
+          They see how far through you were recorded as reading (finished, started or not started), not your
+          answers, scores or what you found hard. This was chosen when the class was created and cannot be
+          changed after you join. If you would rather not be seen this way, do not join this class.
+        </p>
       )}
     </div>
   );

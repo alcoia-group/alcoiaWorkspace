@@ -82,7 +82,7 @@ export default function InvitePage() {
       {state.status === 'ready' && (
         <>
           <p>You have been invited to <strong>{state.info.className}</strong>.</p>
-          <ReportingNotice className={state.info.className} reportingMode={state.info.reportingMode} />
+          <ReportingNotice className={state.info.className} reportingMode={state.info.reportingMode} completionVisible={state.info.completionVisible === true} />
           {state.info.domain && (
             <p className="muted">This invite is for people with an <strong>@{state.info.domain}</strong> email address.</p>
           )}
