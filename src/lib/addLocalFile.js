@@ -51,7 +51,10 @@ export async function addFileToDevice({ file, account, sessionToken, onProgress 
     } catch {
       throw coded('unreadable_file');
     }
-    status = content.hasText ? 'accepted' : 'unsupported';
+    // A PDF with no selectable text (a scan) is not kept: nothing here reads scans, so it would only use room on the
+    // device. The person is told to run OCR first and add it again.
+    if (!content.hasText) throw coded('no_selectable_text');
+    status = 'accepted';
   } else {
     try {
       const body = await apiUploadWithProgress(`/api/personal-documents/convert?format=${format}`, file, { sessionToken, onProgress });
@@ -86,6 +89,7 @@ export function addErrorMessage(code) {
     file_too_large: 'This file is larger than 100 MB, which is the most that can be added.',
     device_storage_full: 'There is not enough room left in this browser to keep the file. Delete a file you no longer need and try again.',
     capability_required: 'Adding your own files is included with the Reader and Student plans.',
+    no_selectable_text: 'This PDF has no selectable text, so it looks like a scan. Run OCR on it first (for example in Adobe Acrobat, or with your scanner\'s "searchable PDF" option), then add it again.',
     unreadable_file: 'This file could not be read. It may be damaged or password protected.',
     invalid_file_content: 'This does not look like a valid file of that type.',
     rate_limited: 'You have added a lot of files in the last hour. Try again later.',

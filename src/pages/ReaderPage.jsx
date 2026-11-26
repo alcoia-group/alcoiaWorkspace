@@ -182,7 +182,7 @@ export default function ReaderPage() {
         <>
           <h1 className="page-title">{assignment.className}</h1>
           <p className="muted">Due {formatDue(assignment.closesAt)}</p>
-          <p className="alert">This file cannot be shown here. You can download the original.</p>
+          <p className="alert">This file cannot be shown here. If it is a scan with no selectable text, ask your instructor for a text version. You can download the original.</p>
           {assignment.documents.length === 0 && <p>No document has been attached yet.</p>}
           {assignment.documents.map((d) => (
             <div className="file-row" key={d.documentId}>
