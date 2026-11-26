@@ -8,6 +8,9 @@ export function previewInvite(token) {
 // Joining. `acknowledged: true` says the student was shown the reporting
 // notice first (including, for a class that shows completion, the completion notice), which this page guarantees (the button only exists after the
 // notice is on screen).
-export function acceptInvite(token, sessionToken) {
-  return apiPost('/api/invites/accept', { token, acknowledged: true, acknowledgedCompletion: true }, { sessionToken });
+// `displayName` is the optional name the student typed for an instructor who sees completion.
+export function acceptInvite(token, sessionToken, displayName = '') {
+  const body = { token, acknowledged: true, acknowledgedCompletion: true };
+  if (displayName.trim()) body.displayName = displayName.trim();
+  return apiPost('/api/invites/accept', body, { sessionToken });
 }
