@@ -30,7 +30,7 @@ export default function ReportingNotice({ className = 'this class', reportingMod
       )}
       {completionVisible && (
         <p>
-          <strong>Your instructor also sees whether you finished each reading, with your email address.</strong>{' '}
+          <strong>Your instructor also sees whether you finished each reading, with your email address and the name you give.</strong>{' '}
           They see how far through you were recorded as reading (finished, started or not started), not your
           answers, scores or what you found hard. This was chosen when the class was created and cannot be
           changed after you join. If you would rather not be seen this way, do not join this class.

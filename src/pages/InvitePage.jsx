@@ -31,6 +31,7 @@ export default function InvitePage() {
   const navigate = useNavigate();
   const [state, setState] = useState(token ? { status: 'loading' } : { status: 'error', message: PREVIEW_ERRORS.invalid_request });
   const [joining, setJoining] = useState(false);
+  const [displayName, setDisplayName] = useState('');
   const [joinError, setJoinError] = useState('');
 
   useEffect(() => {
@@ -56,7 +57,7 @@ export default function InvitePage() {
     setJoining(true);
     setJoinError('');
     try {
-      await acceptInvite(token, session.sessionToken);
+      await acceptInvite(token, session.sessionToken, displayName);
       setState((prev) => ({ ...prev, status: 'joined' }));
     } catch (err) {
       const code = err instanceof ApiError ? err.code : null;
@@ -85,6 +86,13 @@ export default function InvitePage() {
           <ReportingNotice className={state.info.className} reportingMode={state.info.reportingMode} completionVisible={state.info.completionVisible === true} />
           {state.info.domain && (
             <p className="muted">This invite is for people with an <strong>@{state.info.domain}</strong> email address.</p>
+          )}
+          {state.info.completionVisible === true && (
+            <label className="field">
+              Your name (optional)
+              <input type="text" maxLength={80} autoComplete="name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+              <span className="muted">Your instructor will see this next to your email address. Leave it empty to be shown by email only.</span>
+            </label>
           )}
           {session ? (
             <button type="button" onClick={handleJoin} disabled={joining}>
