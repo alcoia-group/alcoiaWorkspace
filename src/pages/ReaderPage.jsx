@@ -107,7 +107,9 @@ export default function ReaderPage() {
 
   // The reading's own questions are offered where they are in the document (a slot the viewer renders), not as a banner.
   const [foundGroups, setFoundGroups] = useState([]);
-  const docReady = state.status === 'ready' && Boolean(state.doc?.content);
+  // QUESTIONS FOUND IN THE DOCUMENT CLOSED FOR NOW (owner decision, 26 November 2026): built and kept, switched off.
+  // VITE_FOUND_QUESTIONS=on at build time (and FEATURE_DOCUMENT_QUESTIONS=on on the server) brings it back.
+  const docReady = import.meta.env.VITE_FOUND_QUESTIONS === 'on' && state.status === 'ready' && Boolean(state.doc?.content);
   useEffect(() => {
     if (!docReady) return undefined;
     let cancelled = false;
