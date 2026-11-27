@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/config.js, commit 382bcedbef22) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/config.js, commit 77334e71bb0c) by scripts/sync-detection.mjs. Do not edit here. */
 /* config.js — the one place the backend origin is defined.
  *
  * Loaded as a plain classic script (not an ES module) into all three

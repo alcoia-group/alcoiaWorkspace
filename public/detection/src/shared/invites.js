@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/invites.js, commit 382bcedbef22) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/invites.js, commit 77334e71bb0c) by scripts/sync-detection.mjs. Do not edit here. */
 /* invites.js — accepting a class invite, and releasing a held seat (item S6)
  *
  * Same shape as install-token.js/session.js/entitlements.js/billing.js:
@@ -136,7 +136,9 @@ export function createInvitesManager(opts = {}) {
         // Sent only when the class lets the instructor see completion and the
         // join screen showed that notice (join-class.js); the server refuses a
         // join to such a class without it.
-        body: JSON.stringify(opts2.acknowledgedCompletion ? { token, acknowledged: true, acknowledgedCompletion: true } : { token, acknowledged: true }),
+        body: JSON.stringify(opts2.acknowledgedCompletion
+          ? { token, acknowledged: true, acknowledgedCompletion: true, ...(String(opts2.displayName || '').trim() ? { displayName: String(opts2.displayName).trim() } : {}) }
+          : { token, acknowledged: true }),
       });
       const data = await resp.json().catch(() => null);
       if (!resp.ok) {

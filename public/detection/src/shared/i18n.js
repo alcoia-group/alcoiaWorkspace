@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/i18n.js, commit 382bcedbef22) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/i18n.js, commit 77334e71bb0c) by scripts/sync-detection.mjs. Do not edit here. */
 /* i18n.js — the words on alcoia's own cards, in the language of the page.
  *
  * Generated questions and explanations already come back in the language of the

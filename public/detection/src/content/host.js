@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 382bcedbef22) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 77334e71bb0c) by scripts/sync-detection.mjs. Do not edit here. */
 /* host.js — the orchestrator's host, extracted from content.js (item 30a)
  *
  * orchestrator.js depends on a `host` object with callbacks
@@ -1169,6 +1169,18 @@ export async function createHost(deps) {
     // already gives every other signal, not a new "sticky override"
     // mechanism layered on top of it.
     try { orchestratorRef?.pumpSignals({ type: 'self_report', subtype }); } catch (e) {}
+  }
+
+  // Self-report made from a text selection (the workspace's selection toolbar): the same three answers as the card, but the
+  // reader pointed at the exact words, so the paragraph is known instead of guessed from the pointer or the reading line.
+  // Moves the active paragraph there first, then reports; returns false when no tracked paragraph holds the selection.
+  function reportSelfStateAt(node, subtype) {
+    const valid = [SELF_REPORT.OVERLOAD, SELF_REPORT.CONFUSION, SELF_REPORT.DISENGAGED];
+    if (!valid.includes(subtype)) return false;
+    let found = false;
+    try { found = orchestratorRef?.activateParagraphOf?.(node) === true; } catch (e) { found = false; }
+    reportSelfState(subtype);
+    return found;
   }
 
   const SELF_REPORT_FINGERPRINT = 'sra-self-report';
@@ -2537,6 +2549,7 @@ export async function createHost(deps) {
     // reportSelfState() is exposed separately in case a caller ever needs
     // to submit one without the standalone card (none does today).
     showSelfReportCard,
+    reportSelfStateAt,
     setShowSelfReportButton,
     reportSelfState,
     // startSnooze/SNOOZE_OPTIONS used to also be exposed here for the

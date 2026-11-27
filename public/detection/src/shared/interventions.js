@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/interventions.js, commit 382bcedbef22) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/interventions.js, commit 77334e71bb0c) by scripts/sync-detection.mjs. Do not edit here. */
 /* interventions.js — recording that a specific intervention was presented
  * (intelligence-architecture audit, step 5)
  *

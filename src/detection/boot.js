@@ -15,6 +15,7 @@ const DETECTION_BASE = '/detection';
 let active = null; // one detector per page
 
 import { documentBlocks } from './documentBlocks.js';
+import { registerSelfReportAt, setSelfReportEnabled } from './selfReportBridge.js';
 
 const loadModule = (p) => import(/* @vite-ignore */ `${DETECTION_BASE}/${p}`);
 
@@ -175,6 +176,7 @@ export async function startDetection({ assignmentId = null, observers = null, lo
     if (changes.sra_autohide) settingsNow.autohideEnabled = !!changes.sra_autohide.newValue;
     if (changes.sra_autohide_timeout) settingsNow.autohideTimeoutSec = Number(changes.sra_autohide_timeout.newValue) || 12;
     if (changes.sra_enabled) settingsNow.assistantEnabled = changes.sra_enabled.newValue !== false;
+    if (changes.sra_enabled || changes.sra_show_interventions) syncSelfReportEnabled?.();
     if (changes.sra_show_self_report) hostApi.setShowSelfReportButton(changes.sra_show_self_report.newValue !== false);
     if (changes.sra_dark_mode) uiModule.applyDarkMode(!!changes.sra_dark_mode.newValue);
   };
@@ -189,6 +191,12 @@ export async function startDetection({ assignmentId = null, observers = null, lo
   ui.installResizeWatcher?.();
   orchestrator.installListeners(signal);
   orchestrator.primeParagraph();
+
+  // The selection toolbar's "I'm stuck here" buttons: the same self-report as the bottom-right card, with the paragraph known.
+  const syncSelfReportEnabled = () => setSelfReportEnabled(settingsNow.assistantEnabled && settingsNow.showInterventions);
+  syncSelfReportEnabled();
+  onStop(registerSelfReportAt((node, subtype) => hostApi.reportSelfStateAt?.(node, subtype) === true));
+  onStop(() => setSelfReportEnabled(true));
 
   const kinematicsModule = assignmentId ? await loadModule('src/shared/kinematics.js') : null;
   const onUnload = () => {

@@ -492,6 +492,7 @@ table.list th, table.list td { text-align: left; padding: 8px 12px; border-botto
 .annotator-panel .note-item { flex-direction: column; }
 .note-text { width: 100%; box-sizing: border-box; font: inherit; }
 .pop-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.help-caption { font-size: 0.8rem; margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--field-border, #ddd); }
 .stroke-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 .stroke-layer[data-active='pen'] { pointer-events: auto; cursor: crosshair; touch-action: none; }
 .stroke-layer[data-active='eraser'] { pointer-events: none; }

@@ -7,6 +7,7 @@ import {
 } from '../lib/annotations.js';
 import ColorMenu, { Swatches } from './ColorMenu.jsx';
 import { useEditingTools } from '../lib/useEditingTools.js';
+import { SELF_REPORT_CHOICES, selfReportAt, selfReportAvailable, subscribeSelfReportAvailable } from '../detection/selfReportBridge.js';
 
 // Reading tools around any viewer: highlighters, underlines, strike-through, notes, a pen and an
 // eraser. Marks stay on this device. Text marks are drawn with the browser's CSS Custom Highlight
@@ -186,6 +187,15 @@ export default function Annotator({ docKey, title, children }) {
     if (v) { setTool('select'); setPopover(null); }
   };
   const panel = editable && panelChoice;
+  const selectionNode = useRef(null);
+  const [helpAvailable, setHelpAvailable] = useState(selfReportAvailable());
+  const [helpSent, setHelpSent] = useState(false);
+  useEffect(() => subscribeSelfReportAvailable(setHelpAvailable), []);
+  const askHelp = (subtype) => {
+    const sent = selfReportAt(selectionNode.current, subtype);
+    setHelpSent(sent ? 'sent' : 'none');
+    window.setTimeout(() => { setHelpSent(false); setPopover(null); }, 1100);
+  };
   const [popover, setPopover] = useState(null); // { x, y, kind: 'new' | 'edit', pieces?, id? }
   const [saveFailed, setSaveFailed] = useState(false);
   const [focusNote, setFocusNote] = useState(null);
@@ -258,7 +268,7 @@ export default function Annotator({ docKey, title, children }) {
       const a = anchorFromSelection(range, el);
       if (a) out.push({ scope: id, ...a });
     }
-    return out.length ? { pieces: out, rect: range.getBoundingClientRect() } : null;
+    return out.length ? { pieces: out, rect: range.getBoundingClientRect(), node: range.startContainer } : null;
   };
 
   const onSelectionEnd = (e) => {
@@ -273,6 +283,7 @@ export default function Annotator({ docKey, title, children }) {
       }
       if (tool !== 'select') return;
       pending.current = got.pieces;
+      selectionNode.current = got.node;
       setPopover({ kind: 'new', x: Math.min(got.rect.left + got.rect.width / 2, window.innerWidth - 150), y: got.rect.bottom + 8 });
     }, 0);
   };
@@ -543,7 +554,7 @@ export default function Annotator({ docKey, title, children }) {
       )}
 
       {editable && popover?.kind === 'new' && (
-        <div className="annotator-pop annotator-ui" style={{ left: popover.x, top: popover.y }} role="menu">
+        <div className="annotator-pop annotator-ui" style={{ left: Math.max(8, Math.min(popover.x, window.innerWidth - 308)), top: popover.y, width: 'min(300px, calc(100vw - 16px))' }} role="menu">
           <div className="pop-row">
             <Swatches value="" onPick={(c) => applyNew('hl', c, false)} recent={recentColors} label={(n) => `Highlight ${n}`} />
           </div>
@@ -553,6 +564,18 @@ export default function Annotator({ docKey, title, children }) {
             <button type="button" className="secondary" onClick={() => applyNew('st', color, false)}>Strike</button>
             <button type="button" className="secondary" onClick={() => applyNew('hl', color, true)}>Note</button>
           </div>
+          {helpAvailable && (
+            <>
+            <div className="help-caption muted">Need help with this passage?</div>
+            <div className="pop-row help-row" role="group" aria-label="Ask for help on this passage">
+              {helpSent ? (
+                <span className="muted" role="status">{helpSent === 'sent' ? 'Thanks. Help is on its way for this passage.' : 'Could not find that passage.'}</span>
+              ) : SELF_REPORT_CHOICES.map((c) => (
+                <button key={c.subtype} type="button" className="secondary" title={c.full} aria-label={c.full} onClick={() => askHelp(c.subtype)}>{c.label}</button>
+              ))}
+            </div>
+            </>
+          )}
         </div>
       )}
 
