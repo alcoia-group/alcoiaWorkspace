@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/intervention-policy.js, commit 40a341d247fe) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/intervention-policy.js, commit 9ac330788cbc) by scripts/sync-detection.mjs. Do not edit here. */
 /* intervention-policy.js — decides whether a reading state earns an interruption
  *
  * The engine says what it observed. This says whether to act on it. Splitting
@@ -656,7 +656,9 @@ export function createInterventionPolicy(config = {}) {
       // dismissal/failure counters, never calls record(), never mints an
       // interventionId) — it is simply not promoted this time, and remains
       // exactly as re-evaluable on the next signal as it always was.
-      if (ctx.questionCardVisible) {
+      // A reader who asked for help on purpose (the self-report, or words they selected) is never held back by an open
+      // question card: dropping an explicit request while the page says help is on its way is worse than two cards.
+      if (ctx.questionCardVisible && !selfReported) {
         return deny('a question card is already visible — holding off on a redundant interruption');
       }
 

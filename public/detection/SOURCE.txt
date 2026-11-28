@@ -1,2 +1,2 @@
-alcoia extension src, commit 40a341d247fe
+alcoia extension src, commit 9ac330788cbc
 111 files, copied by scripts/sync-detection.mjs
