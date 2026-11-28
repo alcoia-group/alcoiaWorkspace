@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/shared/decision-log.js, commit 1e2b19a270b0) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/shared/decision-log.js, commit 40a341d247fe) by scripts/sync-detection.mjs. Do not edit here. */
 /* decision-log.js — a short, local-only record of WHY the extension did or did not interrupt
  *
  * Same promises as diag-log.js: on the device only, capped, never transmitted, cleared in one click from the

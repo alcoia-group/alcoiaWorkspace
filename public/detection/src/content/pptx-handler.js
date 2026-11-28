@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/pptx-handler.js, commit 1e2b19a270b0) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/pptx-handler.js, commit 40a341d247fe) by scripts/sync-detection.mjs. Do not edit here. */
 /*
   PPTX Handler (ES module)
   - Attempts to parse a .pptx file when URL indicates one or when a link/iframe exists
