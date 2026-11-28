@@ -1,3 +1,6 @@
+<p align="center">
+  <img src="alcoia/assets/alcoia-wordmark-cream.png" width="440" alt="alcoia">
+</p>
 # alcoia workspace 
  
 [![Better Stack Badge](https://incidents.betterstack.com/status-badges/v1/monitor/33lf3.svg)](https://incidents.betterstack.com/?utm_source=status_badge)
