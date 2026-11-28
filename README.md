@@ -5,6 +5,7 @@
 <h1 align="center">Alcoia Workspace</h1>
 
  
+[![CI](https://github.com/alcoia-group/alcoiaworkspace/actions/workflows/ci.yml/badge.svg)](https://github.com/alcoia-group/alcoiaworkspace/actions/workflows/ci.yml)
 [![Better Stack Badge](https://incidents.betterstack.com/status-badges/v1/monitor/33lf3.svg)](https://incidents.betterstack.com/?utm_source=status_badge)
 
 The web app where students, and later any general user, open readings. It shows instructor-assigned readings and the user's own files (PDF, Word and PowerPoint) as real web pages, and offers practice and learning summaries for people on a paid plan. 
