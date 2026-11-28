@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 9ac330788cbc) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/host.js, commit 5763360e8b8f) by scripts/sync-detection.mjs. Do not edit here. */
 /* host.js — the orchestrator's host, extracted from content.js (item 30a)
  *
  * orchestrator.js depends on a `host` object with callbacks
@@ -1043,8 +1043,7 @@ export async function createHost(deps) {
 
   async function fetchQuestions(text, opts = {}) {
     if (!text || text.trim().length < 120) return [];
-    // bankOnly (the carousel): a stored, instructor-reviewed question or nothing. No model call, so no AI budget spent.
-    if (!opts.bankOnly && !checkAiCallBudget('questions', opts.kind || 'recall')) return [];
+    if (!checkAiCallBudget('questions', opts.kind || 'recall')) return [];
     const body = {
       text: text.slice(0, 3500),
       language: (document.documentElement.lang || '').slice(0, 5),
@@ -1057,10 +1056,8 @@ export async function createHost(deps) {
     // of levels sees exactly the request shape it always has.
     if (opts.level && supportedQuestionLevels().includes(opts.level)) body.level = opts.level;
     if (assignmentId) body.assignment_id = assignmentId; // class cache, see fetchSummary
-    if (opts.bankOnly) body.bank_only = true;
     const resp = await callBackend('apiPost', questionsUrl(), body);
     if (!resp.ok) {
-      if (opts.bankOnly) return []; // no stored question for this paragraph: not a failure, the carousel just skips it
       log(`Questions unavailable (${resp.status || resp.error || 'error'})`);
       if (resp.status !== 429) noteGenerationFailure('questions');
       return [];
@@ -1174,18 +1171,6 @@ export async function createHost(deps) {
     try { orchestratorRef?.pumpSignals({ type: 'self_report', subtype }); } catch (e) {}
   }
 
-  // Self-report made from a text selection (the workspace's selection toolbar): the same three answers as the card, but the
-  // reader pointed at the exact words, so the paragraph is known instead of guessed from the pointer or the reading line.
-  // Moves the active paragraph there first, then reports; returns false when no tracked paragraph holds the selection.
-  function reportSelfStateAt(node, subtype) {
-    const valid = [SELF_REPORT.OVERLOAD, SELF_REPORT.CONFUSION, SELF_REPORT.DISENGAGED];
-    if (!valid.includes(subtype)) return false;
-    let found = false;
-    try { found = orchestratorRef?.activateParagraphOf?.(node) === true; } catch (e) { found = false; }
-    reportSelfState(subtype);
-    return found;
-  }
-
   const SELF_REPORT_FINGERPRINT = 'sra-self-report';
   /* Affordances 1 (Alt+C, content.js) and 2 (the persistent trigger,
    * ui-controller.js) both open this same standalone card — it exists
@@ -1196,24 +1181,9 @@ export async function createHost(deps) {
    * option, rather than replacing it with this card — see handleAsk's own
    * comment for why replacing the primary intervention outright would be a
    * much bigger behavioural change than this item's own scope. */
-  // Words the reader has selected right now (not inside our own cards): where they ARE stuck, so the report is about that
-  // paragraph and not about a guess from the pointer or the reading line. Taken when the card opens, because a click on the
-  // card may clear the selection.
-  function selectedTextNode() {
-    try {
-      const sel = window.getSelection?.();
-      if (!sel || sel.isCollapsed || sel.rangeCount === 0 || String(sel).trim().length < 3) return null;
-      const node = sel.getRangeAt(0).startContainer;
-      const el = node?.nodeType === 1 ? node : node?.parentElement;
-      if (el?.closest?.('.sra-popup') || el?.closest?.('[data-alcoia-ui]')) return null;
-      return node;
-    } catch (e) { return null; }
-  }
-
   function showSelfReportCard() {
     const root = reservePopup(SELF_REPORT_FINGERPRINT);
     if (!root) return false;
-    const selectedNode = selectedTextNode();
     const lang = uiLang();
     if (isRtl(lang)) root.setAttribute('dir', 'rtl');
 
@@ -1223,7 +1193,6 @@ export async function createHost(deps) {
       </div>
       <div class="sra-popup-body">
         <div class="sra-state-badge sra-self-report-badge">${esc(t('sr.title', lang))}</div>
-        ${selectedNode ? `<div class="sra-q-context">${esc(t('sr.aboutSelection', lang))}</div>` : ''}
         <div class="sra-self-report-options">
           <button type="button" class="sra-btn sra-btn-secondary" data-self-report="${SELF_REPORT.OVERLOAD}">${esc(t('sr.overload', lang))}</button>
           <button type="button" class="sra-btn sra-btn-secondary" data-self-report="${SELF_REPORT.CONFUSION}">${esc(t('sr.confusion', lang))}</button>
@@ -1234,8 +1203,7 @@ export async function createHost(deps) {
     root.querySelector('.sra-close-btn').onclick = () => closePopup(root, SELF_REPORT_FINGERPRINT);
     for (const btn of root.querySelectorAll('[data-self-report]')) {
       btn.onclick = () => {
-        // With words selected the report is about their paragraph; if no tracked paragraph holds them, it falls back to the guess.
-        if (!(selectedNode && reportSelfStateAt(selectedNode, btn.dataset.selfReport))) reportSelfState(btn.dataset.selfReport);
+        reportSelfState(btn.dataset.selfReport);
         for (const b of root.querySelectorAll('[data-self-report]')) b.disabled = true;
         btn.textContent = t('sr.thanks', lang);
         // Bug found verifying this in real Chromium (tests/browser/smoke.mjs):
@@ -1386,7 +1354,6 @@ export async function createHost(deps) {
     onAnswered: (record) => {
       let answeredCard = null;
       try { answeredCard = noteCardAnswered(record); } catch (e) {}
-      try { if (record?.type !== 'dismissed') carouselAnswered?.(record); } catch (e) {}
       // A transfer check answered: it settles the explanation's inferred feedback below, so it must not ALSO count as the
       // ordinary "next answered question" for that style (that would count the same answer twice).
       const transferPending = record?.interventionId ? pendingTransfer.get(record.interventionId) : null;
@@ -1780,6 +1747,13 @@ export async function createHost(deps) {
     } catch (e) { return false; }
   }
 
+  // A reader who asked for help (a self-report) must never be left with nothing when generation fails; an automatic
+  // card that cannot be made stays silent, as before.
+  function helpUnavailable(decision) {
+    if (decision?.selfReported !== true) return;
+    try { ui.showStatusToast(t('help.unavailable', uiLang())); } catch (e) {}
+  }
+
   async function handleAsk(decision, state, target, paragraphIndex) {
     const el = target || (currentParagraph?.type === 'dom' ? currentParagraph.data : null);
     const text = el ? (el.innerText || el.textContent || '').trim() : (state.signal?.text || '');
@@ -1810,7 +1784,7 @@ export async function createHost(deps) {
 
       const startedAt = Date.now();
       const questions = await withDeadline(fetchQuestions(text, opts), []);
-      if (!questions.length) return false;
+      if (!questions.length) { helpUnavailable(decision); return false; }
       if (generationIsStale(el, startedAt)) return false;
 
       let anchorRect = null;
@@ -1926,7 +1900,7 @@ export async function createHost(deps) {
       const ideaOpts = mode === 'relate' ? {} : est?.prerequisiteIdea ? { prerequisite: est.prerequisiteIdea } : est?.heldIdea ? { held: est.heldIdea } : {};
       const startedAt = Date.now();
       const generated = await withDeadline(fetchSummary(text, mode, '', { paragraphKey: identity.paragraphKey, style, focus: focusSentence, ...(plainness ? { plainness } : {}), ...ideaOpts }), null);
-      if (!generated) return false;
+      if (!generated) { helpUnavailable(decision); return false; }
       if (generationIsStale(el, startedAt)) return false;
 
       let anchorRect = null;
@@ -2233,76 +2207,6 @@ export async function createHost(deps) {
     if (shown) orchestratorRef.interventionPolicy.record(decision);
   }
 
-  /* Smooth-reading carousel (docs/TODO-NOW.md). Instead of one question about one random paragraph, a reader who has read
-   * smoothly gets a short run of stored questions, one per paragraph, each answered in the same card with the stored
-   * explanation shown straight away. Up to PROBE_CAROUSEL_CAP (3, provisional) questions, taken from the paragraphs read since
-   * the last card of any kind (probe.read is reset by every card), never one the learner already knows (estimate says
-   * abstain), never one already asked. No confidence step, no model call. One policy decision pays for the whole run; the
-   * next card waits while anything else is on screen or the reader is struggling, and a reader who closes a card early ends
-   * the run (one dismissal for the back-off, none for the rest). Each answer sends its own outcome (type 'probe').
-   * Returns true when a carousel was started (it then owns the rest), false when no stored question exists. */
-  const PROBE_CAROUSEL_CAP = 3;
-  async function runProbeCarousel(choices, first, decision) {
-    if (!assignmentId) return false;
-    const order = [first, ...choices.filter((c) => c !== first)];
-    const queue = [];
-    for (const c of order) {
-      if (queue.length >= PROBE_CAROUSEL_CAP) break;
-      const qs = await fetchQuestions(c.text, { bankOnly: true });
-      if (qs.length) queue.push({ ...c, question: pickVariant(qs) });
-    }
-    if (!queue.length) return false;
-    if (probeBlocked()) return true; // a normal card appeared while fetching; it has priority, the check is dropped
-    let index = 0;
-    let missed = 0;
-    let stopped = false;
-    const finishRun = () => {
-      probe.busy = false;
-      carouselAnswered = null;
-      if (missed > 0 && !stopped) {
-        try { questionCard.showExplanation('explain', t(missed === 1 ? 'carousel.lookAgainOne' : 'carousel.lookAgainMany', uiLang(), { n: missed }), { paragraphKey: 'carousel-end' }); } catch (e) { /* never blocks */ }
-      }
-    };
-    const showAt = async (i) => {
-      const item = queue[i];
-      const identity = item.identity;
-      const interventionId = i === 0 ? decision.interventionId : interventionIdModule.generateInterventionId();
-      // Between cards: wait while another card is open or the reader is struggling, drifting or away; give up after a while.
-      for (let waited = 0; i > 0 && probeBlocked(); waited += 500) {
-        if (waited >= 20000 || stopped) { stopped = true; finishRun(); return; }
-        await new Promise((r) => setTimeout(r, 500));
-      }
-      const idx = Number.isInteger(item.paragraphIndex) ? item.paragraphIndex : null;
-      const shown = questionCard.show(item.question, {
-        evidence: decision.evidence,
-        paragraphKey: identity.paragraphKey,
-        knowledgeUnitId: identity.knowledgeUnitId,
-        paragraphIndex: idx,
-        interventionId,
-        passage: item.text,
-        why: whyFor('probe'),
-        contextLine: contextLineFor(item.text),
-        carousel: {
-          index: i,
-          total: queue.length,
-          onNext: () => { if (i + 1 < queue.length) showAt(i + 1).catch(() => { stopped = true; finishRun(); }); else finishRun(); },
-          onStop: () => { stopped = true; finishRun(); },
-        },
-      });
-      if (!shown) { stopped = true; finishRun(); return; }
-      if (i === 0) orchestratorRef.interventionPolicy.record(decision);
-      probe.asked += 1;
-      probe.askedKeys.add(item.key);
-      reportIntervention(interventionId, identity.knowledgeUnitId, idx, 'probe', item.text, 'retrieve');
-    };
-    // Count a wrong answer toward the closing line: the card's answer record says whether it was right.
-    carouselAnswered = (record) => { if (record && record.correct === false) missed += 1; };
-    probe.busy = true;
-    try { await showAt(0); } catch (e) { stopped = true; finishRun(); }
-    return true;
-  }
-  let carouselAnswered = null;
-
   async function checkProbe(text, paragraphIndex) {
     if (!assignmentId || !getSession || !text) return;
     const key = text.slice(0, 80).trim();
@@ -2349,9 +2253,6 @@ export async function createHost(deps) {
     if (!automaticInterventionGuard.tryAcquire()) return;
     probe.busy = true;
     try {
-      // The smooth-reading carousel: one stored question per paragraph read smoothly since the last card, up to a few.
-      // Needs stored questions; a paragraph with none is skipped, and with none at all the single check below runs as before.
-      if (await runProbeCarousel(choices, chosen, decision)) return;
       let questions = await fetchQuestions(text, { kind: probe.asked % 2 === 1 ? 'cloze' : 'recall' });
       if (!questions.length && probe.asked % 2 === 1) questions = await fetchQuestions(text, { kind: 'recall' });
       if (!questions.length) return;
@@ -2643,7 +2544,6 @@ export async function createHost(deps) {
     // reportSelfState() is exposed separately in case a caller ever needs
     // to submit one without the standalone card (none does today).
     showSelfReportCard,
-    reportSelfStateAt,
     setShowSelfReportButton,
     reportSelfState,
     // startSnooze/SNOOZE_OPTIONS used to also be exposed here for the

@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/shadow-host.js, commit 9ac330788cbc) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/shadow-host.js, commit 5763360e8b8f) by scripts/sync-detection.mjs. Do not edit here. */
 /* shadow-host.js — Shadow DOM isolation for every element alcoia injects
  * into the host page.
  *

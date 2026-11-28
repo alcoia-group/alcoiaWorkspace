@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/coverage-gate.js, commit 9ac330788cbc) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/coverage-gate.js, commit 5763360e8b8f) by scripts/sync-detection.mjs. Do not edit here. */
 /* coverage-gate.js — the one function that decides "read enough to test"
  *
  * The quiz is offered at the end of reading and is triggerable from the
@@ -69,16 +69,11 @@ export function createCoverageGate(opts = {}) {
   const now = opts.now || (() => Date.now());
   const thresholds = { ...DEFAULT_THRESHOLDS, ...(opts.thresholds || {}) };
 
-  // A storage that cannot be read or written (a missing or partial stand-in, a closing page) means no stored coverage, never an error.
   function storageGet(keys) {
-    return new Promise((resolve) => {
-      try { if (typeof storage?.get !== 'function') { resolve({}); return; } storage.get(keys, (v) => resolve(v || {})); } catch { resolve({}); }
-    });
+    return new Promise((resolve) => storage.get(keys, resolve));
   }
   function storageSet(obj) {
-    return new Promise((resolve) => {
-      try { if (typeof storage?.set !== 'function') { resolve(); return; } storage.set(obj, () => resolve()); } catch { resolve(); }
-    });
+    return new Promise((resolve) => storage.set(obj, () => resolve()));
   }
 
   async function allDocs() {
