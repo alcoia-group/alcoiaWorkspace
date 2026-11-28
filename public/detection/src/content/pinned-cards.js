@@ -1,4 +1,4 @@
-/* Vendored from the alcoia browser extension (alcoia/src/content/pinned-cards.js, commit 77334e71bb0c) by scripts/sync-detection.mjs. Do not edit here. */
+/* Vendored from the alcoia browser extension (alcoia/src/content/pinned-cards.js, commit 33383fbbf134) by scripts/sync-detection.mjs. Do not edit here. */
 // Pinned cards, remembered on this device so they come back at the next read of the same document, the way a document
 // comes back to the page you were on. Nothing here leaves the device: it is chrome.storage.local (in the workspace, the
 // same call backed by the browser's own storage), keyed by the page, never sent anywhere.
