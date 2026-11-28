@@ -14,11 +14,9 @@ async function request(path, { method = 'GET', body, sessionToken } = {}) {
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const init = { method, headers };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  const res = await fetch(`${API_BASE_URL}${path}`, init);
   const responseBody = await res.json().catch(() => null);
   if (!res.ok) {
     throw new ApiError(res.status, responseBody?.error, responseBody);
